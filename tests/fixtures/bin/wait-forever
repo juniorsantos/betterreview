@@ -1,0 +1,5 @@
+#!/bin/sh
+printf '%s\n' ready
+while :; do
+  sleep 1
+done
