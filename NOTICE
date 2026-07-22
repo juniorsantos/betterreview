@@ -1,0 +1,12 @@
+BetterReview
+
+BetterReview is an independent terminal code-review project.
+
+The project was conceived after evaluating Octo.nvim and preserves the original
+MIT license notice in LICENSE.
+
+Octo.nvim copyright (c) 2021 Alvaro Muñoz and contributors.
+Octo.nvim was distributed under the MIT License.
+
+New BetterReview work is copyright (c) 2026 BetterReview contributors and is
+distributed under the same MIT License.
