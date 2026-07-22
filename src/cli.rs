@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[value(rename_all = "lower")]
 pub enum ProviderArg {
     GitHub,
     GitLab,
@@ -42,7 +43,9 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    Resume { session_id: Option<String> },
+    Resume {
+        session_id: Option<String>,
+    },
     Sessions,
     Doctor {
         #[arg(long, value_enum)]

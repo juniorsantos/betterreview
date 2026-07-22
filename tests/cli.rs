@@ -27,8 +27,17 @@ fn parses_url_target_and_provider_override() {
 #[test]
 fn parses_resume_and_doctor() {
     let resume = Cli::try_parse_from(["betterreview", "resume", "github-example-7"]).unwrap();
-    assert_eq!(resume.launch_request(), LaunchRequest::Resume(Some("github-example-7".into())));
+    assert_eq!(
+        resume.launch_request(),
+        LaunchRequest::Resume(Some("github-example-7".into()))
+    );
 
     let doctor = Cli::try_parse_from(["betterreview", "doctor", "--provider", "github"]).unwrap();
-    assert_eq!(doctor.launch_request(), LaunchRequest::Doctor { provider: Some(ProviderArg::GitHub), host: None });
+    assert_eq!(
+        doctor.launch_request(),
+        LaunchRequest::Doctor {
+            provider: Some(ProviderArg::GitHub),
+            host: None
+        }
+    );
 }
