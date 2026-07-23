@@ -1,0 +1,7 @@
+diff --git a/src/long.rs b/src/long.rs
+index 1111111..2222222 100644
+--- a/src/long.rs
++++ b/src/long.rs
+@@ -1 +1 @@
+-short
++this is a deliberately long replacement line that must not be wrapped or split by delta at forty columns
