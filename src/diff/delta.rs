@@ -98,7 +98,7 @@ impl DiffRenderer for DeltaRenderer {
         if output.status != 0 {
             return Err(DeltaError::Failed {
                 status: output.status,
-                stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+                stderr: redact_stderr(&output.stderr),
             });
         }
 
@@ -168,4 +168,28 @@ fn map_command_error(error: CommandError, timeout: Duration) -> DeltaError {
             stderr: error.to_string(),
         },
     }
+}
+
+fn redact_stderr(stderr: &[u8]) -> String {
+    let text = String::from_utf8_lossy(stderr);
+    let had_trailing_newline = text.ends_with('\n');
+    let mut redacted = text
+        .lines()
+        .map(|line| {
+            let lower = line.to_ascii_lowercase();
+            if ["token", "authorization", "private-token", "oauth"]
+                .iter()
+                .any(|pattern| lower.contains(pattern))
+            {
+                "[REDACTED]".to_owned()
+            } else {
+                line.to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    if had_trailing_newline {
+        redacted.push('\n');
+    }
+    redacted
 }

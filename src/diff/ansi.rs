@@ -16,6 +16,12 @@ pub fn sanitize_ansi(input: &[u8]) -> Result<Vec<u8>, DeltaError> {
                 output.push(b'\r');
                 index += 1;
             }
+            0xc2 if input
+                .get(index + 1)
+                .is_some_and(|byte| (0x80..=0x9f).contains(byte)) =>
+            {
+                index += 2;
+            }
             byte if byte < 0x20 || byte == 0x7f => index += 1,
             byte => {
                 output.push(byte);

@@ -1,0 +1,34 @@
+use betterreview::diff::{DeltaError, sanitize_ansi};
+
+#[test]
+fn strips_clipboard_cursor_and_erase_sequences_but_keeps_sgr() {
+    let sanitized =
+        sanitize_ansi(b"safe\x1b]52;c;ZXhmaWx0cmF0ZQ==\x07\x1b[2J\x1b[31mred\x1b[0m").unwrap();
+    assert!(!sanitized.windows(3).any(|bytes| bytes == b"]52"));
+    assert!(!sanitized.windows(3).any(|bytes| bytes == b"[2J"));
+    assert!(sanitized.windows(4).any(|bytes| bytes == b"[31m"));
+    let text = String::from_utf8_lossy(&sanitized);
+    assert!(text.contains("safe"));
+    assert!(text.contains("red"));
+}
+
+#[test]
+fn strips_hyperlinks_and_device_control_strings() {
+    let input = b"a\x1b]8;;https://example.test\x1b\\link\x1b]8;;\x1b\\b\x1bPsecret\x1b\\c\x1b_hidden\x1b\\d\x1b^private\x1b\\e";
+    let sanitized = sanitize_ansi(input).unwrap();
+    assert_eq!(sanitized, b"alinkbcde");
+}
+
+#[test]
+fn strips_utf8_encoded_c1_controls() {
+    let sanitized = sanitize_ansi("safe\u{009b}31mtext".as_bytes()).unwrap();
+    assert_eq!(sanitized, b"safe31mtext");
+}
+
+#[test]
+fn rejects_invalid_utf8() {
+    assert!(matches!(
+        sanitize_ansi(b"valid\xffinvalid"),
+        Err(DeltaError::InvalidUtf8)
+    ));
+}
