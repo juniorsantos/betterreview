@@ -46,6 +46,7 @@ pub enum AppAction {
     ConfirmQuit(QuitChoice),
     ToggleHelp,
     ToggleFilesPanel,
+    ToggleFold,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

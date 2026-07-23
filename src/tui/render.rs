@@ -67,13 +67,17 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     );
 
     if state.help_visible {
-        let text = "j/k move      ]f/[f file     ]u/[u unreviewed\n\
-                    Tab/h/l focus  v selection    m reviewed\n\
-                    c comment      s suggest      t threads\n\
-                    e expand files Enter save     Alt+Enter newline\n\
-                    R submit       r refresh      q quit";
-        let width = 51.min(area.width);
-        let height = 7.min(area.height);
+        let text = "Navigation          Files                Review\n\
+                    j/k       move      e    expand panel   v      selection\n\
+                    Tab/h/l   focus     z    fold folder    c      comment\n\
+                    ]f / [f   file      m    reviewed       s      suggestion\n\
+                    ]u / [u   unreviewed                    t      threads\n\
+                    \n\
+                    Editor: Enter save   Alt+Enter newline   Esc close\n\
+                    R submit review      r refresh           q quit";
+        // Comfortable, but never the full screen.
+        let width = 66.min(area.width * 4 / 5);
+        let height = 12.min(area.height * 4 / 5);
         let overlay = ratatui::layout::Rect {
             x: area.x + area.width.saturating_sub(width) / 2,
             y: area.y + area.height.saturating_sub(height) / 2,

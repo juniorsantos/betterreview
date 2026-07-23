@@ -43,6 +43,7 @@ pub struct AppState {
     pub quit_selected: usize,
     pub help_visible: bool,
     pub files_expanded: bool,
+    pub collapsed_dirs: BTreeSet<String>,
 }
 
 impl AppState {
@@ -76,6 +77,7 @@ impl AppState {
             quit_selected: 0,
             help_visible: false,
             files_expanded: false,
+            collapsed_dirs: BTreeSet::new(),
         }
     }
 }

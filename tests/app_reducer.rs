@@ -323,3 +323,100 @@ fn quit_flow_can_cancel_or_discard_the_editor() {
     assert!(state.quit_requested);
     assert!(state.session.editor.is_none());
 }
+
+fn added_row(path: &str, line: u32) -> betterreview::diff::DiffRow {
+    use betterreview::domain::{DiffPosition, DiffSide};
+    betterreview::diff::DiffRow {
+        raw: "+new".into(),
+        kind: betterreview::diff::DiffRowKind::Added,
+        old_line: None,
+        new_line: Some(line),
+        left: None,
+        right: Some(DiffPosition {
+            path: RepoPath(path.into()),
+            side: DiffSide::Right,
+            line,
+            hunk: 0,
+        }),
+    }
+}
+
+#[test]
+fn stale_editor_is_replaced_when_opening_a_new_comment() {
+    use betterreview::domain::{DiffPosition, DiffSelection, DiffSide};
+    use betterreview::state::EditorSnapshot;
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let position = DiffPosition {
+        path: RepoPath("src/file_0.rs".into()),
+        side: DiffSide::Right,
+        line: 1,
+        hunk: 0,
+    };
+    state.session.editor = Some(EditorSnapshot {
+        lines: vec!["texto antigo".into()],
+        cursor_row: 0,
+        grapheme_col: 0,
+        original_head: CommitOid("old-head".into()),
+        path: RepoPath("src/file_0.rs".into()),
+        selection: DiffSelection {
+            start: position.clone(),
+            end: position,
+        },
+        stale: true,
+    });
+    state.parsed_diff = Some(ParsedFileDiff {
+        path: RepoPath("src/file_0.rs".into()),
+        head: CommitOid("new-head".into()),
+        rows: vec![added_row("src/file_0.rs", 1)],
+        hunks: Vec::new(),
+    });
+    state.session.cursor_row = 0;
+
+    update(&mut state, AppEvent::Action(AppAction::OpenComment));
+
+    let editor = state.session.editor.as_ref().expect("fresh editor");
+    assert!(!editor.stale, "stale editor must be replaced, not reopened");
+    assert_eq!(editor.lines, vec![String::new()]);
+    assert!(state.editor_open);
+}
+
+fn app_with_two_directories() -> AppState {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let paths = ["a/one.rs", "a/two.rs", "b/three.rs", "b/four.rs"];
+    for (file, path) in state.provider.files.iter_mut().zip(paths) {
+        file.path = RepoPath(path.into());
+    }
+    let progress = state
+        .session
+        .files
+        .values()
+        .cloned()
+        .zip(paths)
+        .map(|(mut progress, path)| {
+            progress.identity.path = RepoPath(path.into());
+            (RepoPath(path.into()), progress)
+        })
+        .collect();
+    state.session.files = progress;
+    state.session.active_file = Some(RepoPath("a/one.rs".into()));
+    state.active_file_index = 0;
+    state
+}
+
+#[test]
+fn folding_the_active_directory_makes_navigation_skip_its_files() {
+    let mut state = app_with_two_directories();
+
+    update(&mut state, AppEvent::Action(AppAction::ToggleFold));
+
+    assert!(state.collapsed_dirs.contains("a"));
+    update(&mut state, AppEvent::Action(AppAction::NextFile));
+    assert_eq!(
+        state.provider.files[state.active_file_index].path.0,
+        "b/three.rs"
+    );
+
+    update(&mut state, AppEvent::Action(AppAction::ToggleFold));
+    assert!(state.collapsed_dirs.contains("b"));
+    assert_eq!(state.collapsed_dirs.len(), 2);
+}

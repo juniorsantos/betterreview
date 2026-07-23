@@ -14,7 +14,7 @@ use crate::{
 };
 
 enum Row<'a> {
-    Directory(&'a str),
+    Directory { dir: &'a str, folded: bool },
     File { index: usize, file: &'a ChangedFile },
 }
 
@@ -25,14 +25,17 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let mut active_row = 0;
     for (index, file) in state.provider.files.iter().enumerate() {
         let (dir, _) = split_path(&file.path.0);
+        let folded = state.collapsed_dirs.contains(dir);
         if !dir.is_empty() && current_dir != Some(dir) {
-            rows.push(Row::Directory(dir));
+            rows.push(Row::Directory { dir, folded });
             current_dir = Some(dir);
         }
         if index == state.active_file_index {
-            active_row = rows.len();
+            active_row = rows.len().saturating_sub(if folded { 1 } else { 0 });
         }
-        rows.push(Row::File { index, file });
+        if !folded {
+            rows.push(Row::File { index, file });
+        }
     }
 
     let visible = area.height.saturating_sub(2) as usize;
@@ -42,10 +45,15 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         .skip(start)
         .take(visible)
         .map(|row| match row {
-            Row::Directory(dir) => ListItem::new(Line::styled(
-                format!("{dir}/"),
-                Style::default().fg(theme::ACCENT),
-            )),
+            Row::Directory { dir, folded } => {
+                let (reviewed, total) = directory_progress(state, dir);
+                let text = if *folded {
+                    format!("\u{25b8} {dir}/ ({reviewed}/{total})")
+                } else {
+                    format!("{dir}/")
+                };
+                ListItem::new(Line::styled(text, Style::default().fg(theme::ACCENT)))
+            }
             Row::File { index, file } => file_item(state, *index, file, inner_width),
         })
         .collect::<Vec<_>>();
@@ -58,7 +66,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     frame.render_widget(
         List::new(items).block(
             Block::default()
-                .title(" Files — e expand ")
+                .title(" Files — e expand / z fold ")
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(border)),
         ),
@@ -155,6 +163,25 @@ fn file_item<'a>(
         Style::default()
     };
     ListItem::new(Line::from(spans)).style(style)
+}
+
+fn directory_progress(state: &AppState, dir: &str) -> (usize, usize) {
+    let mut reviewed = 0;
+    let mut total = 0;
+    for file in &state.provider.files {
+        if split_path(&file.path.0).0 == dir {
+            total += 1;
+            if state
+                .session
+                .files
+                .get(&file.path)
+                .is_some_and(|progress| progress.reviewed)
+            {
+                reviewed += 1;
+            }
+        }
+    }
+    (reviewed, total)
 }
 
 fn split_path(path: &str) -> (&str, &str) {

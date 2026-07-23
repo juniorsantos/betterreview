@@ -123,6 +123,18 @@ fn files_panel_shows_addition_and_deletion_counts() {
 }
 
 #[test]
+fn folded_directories_hide_their_files_and_show_progress() {
+    let mut state = app();
+    state.collapsed_dirs.insert("src/app".into());
+    let screen = screen(&state);
+
+    assert!(screen.contains("▸ src/app/ (0/2)"));
+    assert!(!screen.contains("one.rs"));
+    assert!(!screen.contains("two.rs"));
+    assert!(screen.contains("D guide.md"));
+}
+
+#[test]
 fn e_toggles_the_expanded_files_panel() {
     let mut app = app();
     let mut keymap = KeyMap::default();

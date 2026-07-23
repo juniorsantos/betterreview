@@ -3,7 +3,7 @@ source: tests/tui_navigation.rs
 expression: "screen(&app(), 80, 24)"
 ---
  GitHub owner/repo #42 — Add terminal review — by developer
-┌ Files — e expand ──────────┐┌ Diff ──────────────────────────────────────────┐
+┌ Files — e expand / z fold ─┐┌ Diff ──────────────────────────────────────────┐
 │src/                        ││    8 -old                                      │
 │✓M app.rs              +1 -1││    8 +new                                      │
 │~A new.rs                 +1││                                                │

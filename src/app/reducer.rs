@@ -191,7 +191,28 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             state.files_expanded = !state.files_expanded;
             Vec::new()
         }
+        AppAction::ToggleFold => {
+            if let Some(file) = state.provider.files.get(state.active_file_index) {
+                let dir = directory_of(&file.path.0).to_owned();
+                if !state.collapsed_dirs.remove(&dir) {
+                    state.collapsed_dirs.insert(dir);
+                }
+            }
+            Vec::new()
+        }
     }
+}
+
+pub fn directory_of(path: &str) -> &str {
+    path.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("")
+}
+
+fn is_folded(state: &AppState, index: usize) -> bool {
+    state
+        .provider
+        .files
+        .get(index)
+        .is_some_and(|file| state.collapsed_dirs.contains(directory_of(&file.path.0)))
 }
 
 fn navigate_by(state: &mut AppState, delta: i32) -> Vec<EffectEnvelope> {
@@ -199,7 +220,19 @@ fn navigate_by(state: &mut AppState, delta: i32) -> Vec<EffectEnvelope> {
     if count == 0 {
         return Vec::new();
     }
-    let index = move_index(state.active_file_index, delta, count);
+    // Step over files hidden inside collapsed directories.
+    let step = delta.signum();
+    let mut index = state.active_file_index;
+    loop {
+        let next = move_index(index, step, count);
+        if next == index {
+            return Vec::new();
+        }
+        index = next;
+        if !is_folded(state, index) {
+            break;
+        }
+    }
     if index == state.active_file_index {
         return Vec::new();
     }
@@ -393,12 +426,19 @@ fn set_error(state: &mut AppState, result: Result<(), String>) {
 
 fn open_editor(state: &mut AppState, suggestion: bool) {
     if let Some(editor) = &state.session.editor {
-        state.editor_open = true;
-        state.editor_suggestion = suggestion;
-        if editor.stale {
-            state.notices.push("stale editor opened read-only".into());
+        if !editor.stale {
+            state.editor_open = true;
+            state.editor_suggestion = suggestion;
+            return;
         }
-        return;
+        // A stale editor can never be submitted; replace it instead of
+        // trapping every new comment in the read-only popup.
+        state.session.editor = None;
+        state.editor_open = false;
+        state.dirty = true;
+        state
+            .notices
+            .push("discarded stale draft from a previous session".into());
     }
     let Some(diff) = state.parsed_diff.as_ref() else {
         state.error_banner = Some("diff is still loading".into());

@@ -3,7 +3,7 @@ source: tests/tui_submit_modal.rs
 expression: "screen(&app_with_drafts(3), 80, 24)"
 ---
  GitHub owner/repo #42 — Review terminal — by dev                               
-┌ Files — e expand ──────────┐┌ Diff ──────────────────────────────────────────┐
+┌ Files — e expand / z fold ─┐┌ Diff ──────────────────────────────────────────┐
 │src/                        ││Loading diff...                                 │
 │ M app.rs              +1 -1││                                                │
 │                            ││                                                │

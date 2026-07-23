@@ -22,7 +22,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         height,
     };
     let title = if editor.stale {
-        " Stale editor — read only "
+        " Stale draft (head changed) — c new comment / Esc close "
     } else {
         " Comment editor — Enter save / Alt+Enter newline / Esc close "
     };
