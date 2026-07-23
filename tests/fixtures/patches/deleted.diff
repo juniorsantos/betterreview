@@ -1,0 +1,7 @@
+diff --git a/src/old.rs b/src/old.rs
+deleted file mode 100644
+--- a/src/old.rs
++++ /dev/null
+@@ -1,2 +0,0 @@
+-first
+-second

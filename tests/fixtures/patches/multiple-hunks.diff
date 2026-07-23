@@ -1,0 +1,12 @@
+diff --git a/src/lib.rs b/src/lib.rs
+index 1111111..2222222 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -1,2 +1,2 @@
+ first
+-old second
++new second
+@@ -10,2 +10,3 @@
+ tenth
++inserted
+ eleventh
