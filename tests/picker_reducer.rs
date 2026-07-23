@@ -129,6 +129,31 @@ fn enter_without_cache_waits_for_the_inflight_load() {
 }
 
 #[test]
+fn moving_the_highlight_cancels_a_pending_enter() {
+    let mut state = PickerState::new(vec![item(1, true), item(2, false)]);
+
+    let commands = update(&mut state, PickerEvent::Key(key_event(KeyCode::Enter)));
+    assert_eq!(commands, vec![PickerCommand::StartPrefetch(1)]);
+    assert_eq!(state.waiting, Some(1));
+
+    update(&mut state, PickerEvent::Key(key_event(KeyCode::Char('j'))));
+    assert_eq!(state.highlight, 1);
+    assert_eq!(state.waiting, None);
+
+    let commands = update(
+        &mut state,
+        PickerEvent::Loaded {
+            number: 1,
+            result: Ok(provider_snapshot(1)),
+        },
+    );
+
+    assert!(commands.is_empty());
+    assert!(state.chosen.is_none());
+    assert_eq!(state.cache.get(&1), Some(&provider_snapshot(1)));
+}
+
+#[test]
 fn load_error_surfaces_only_when_entering_the_item() {
     let mut state = PickerState::new(vec![item(1, true)]);
 

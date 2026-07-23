@@ -71,6 +71,25 @@ fn renders_items_with_pin_and_metadata() {
 }
 
 #[test]
+fn renders_the_pin_marker_for_the_current_branch_item() {
+    let picker = state(
+        vec![
+            item(42, "jsjunior", "feature/login", false, true),
+            item(43, "dev", "other", false, false),
+        ],
+        0,
+    );
+
+    let screen = screen(&picker);
+    let pinned_row = screen
+        .lines()
+        .find(|line| line.contains("#42"))
+        .expect("pinned row rendered");
+
+    assert!(pinned_row.contains('●'));
+}
+
+#[test]
 fn highlight_covers_the_full_line() {
     let picker = state(vec![item(1, "dev", "main", false, false)], 0);
 

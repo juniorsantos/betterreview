@@ -122,15 +122,28 @@ fn key_update(state: &mut PickerState, key: KeyEvent) -> Vec<PickerCommand> {
         }
         KeyCode::Char('r') => vec![PickerCommand::ReloadList],
         KeyCode::Char('j') | KeyCode::Down => {
-            state.highlight = (state.highlight + 1).min(state.items.len().saturating_sub(1));
+            let target = (state.highlight + 1).min(state.items.len().saturating_sub(1));
+            move_highlight(state, target);
             Vec::new()
         }
         KeyCode::Char('k') | KeyCode::Up => {
-            state.highlight = state.highlight.saturating_sub(1);
+            let target = state.highlight.saturating_sub(1);
+            move_highlight(state, target);
             Vec::new()
         }
         KeyCode::Enter => enter_update(state),
         _ => Vec::new(),
+    }
+}
+
+/// Moves the highlight to `target`, cancelling any pending `Enter` so a
+/// prefetch that finishes later for the previously highlighted item does not
+/// auto-open it out from under the user.
+fn move_highlight(state: &mut PickerState, target: usize) {
+    if target != state.highlight {
+        state.highlight = target;
+        state.waiting = None;
+        state.error_banner = None;
     }
 }
 
