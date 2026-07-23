@@ -81,6 +81,8 @@ pub struct ViewedFile {
 pub struct ReviewThread {
     pub id: String,
     pub path: String,
+    #[serde(rename = "diffSide")]
+    pub diff_side: String,
     #[serde(rename = "isResolved")]
     pub is_resolved: bool,
     #[serde(rename = "isOutdated")]
@@ -97,8 +99,6 @@ pub struct ReviewComment {
     pub line: Option<u32>,
     #[serde(rename = "originalLine")]
     pub original_line: Option<u32>,
-    #[serde(rename = "diffSide")]
-    pub diff_side: Option<String>,
     #[serde(rename = "viewerDidAuthor", default)]
     pub viewer_did_author: bool,
     #[serde(rename = "pullRequestReview")]

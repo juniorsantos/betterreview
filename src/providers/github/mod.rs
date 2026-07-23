@@ -471,9 +471,10 @@ fn map_threads(wire_threads: Vec<WireThread>) -> (Vec<ReviewThread>, Vec<DraftCo
     let mut drafts = Vec::new();
     for thread in wire_threads {
         let path = RepoPath(thread.path.clone());
+        let diff_side = thread.diff_side.clone();
         let mut comments = Vec::new();
         for comment in thread.comments.nodes {
-            let position = comment_position(&path, &comment);
+            let position = comment_position(&path, &diff_side, &comment);
             let pending = comment
                 .pull_request_review
                 .as_ref()
@@ -512,8 +513,12 @@ fn map_threads(wire_threads: Vec<WireThread>) -> (Vec<ReviewThread>, Vec<DraftCo
     (threads, drafts)
 }
 
-fn comment_position(path: &RepoPath, comment: &wire::ReviewComment) -> Option<DiffPosition> {
-    let side = match comment.diff_side.as_deref()? {
+fn comment_position(
+    path: &RepoPath,
+    diff_side: &str,
+    comment: &wire::ReviewComment,
+) -> Option<DiffPosition> {
+    let side = match diff_side {
         "LEFT" => DiffSide::Left,
         "RIGHT" => DiffSide::Right,
         _ => return None,

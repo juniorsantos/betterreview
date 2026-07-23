@@ -20,6 +20,7 @@
             {
               "id": "thread-1",
               "path": "src/one.rs",
+              "diffSide": "RIGHT",
               "isResolved": false,
               "isOutdated": false,
               "comments": {
@@ -30,7 +31,6 @@
                     "author": { "login": "bob" },
                     "line": 2,
                     "originalLine": null,
-                    "diffSide": "RIGHT",
                     "viewerDidAuthor": false,
                     "pullRequestReview": { "state": "COMMENTED" }
                   },
@@ -40,7 +40,6 @@
                     "author": { "login": "viewer" },
                     "line": 3,
                     "originalLine": null,
-                    "diffSide": "RIGHT",
                     "viewerDidAuthor": true,
                     "pullRequestReview": { "state": "PENDING" }
                   }

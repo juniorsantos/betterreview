@@ -100,6 +100,10 @@ async fn loads_paginated_github_snapshot_with_structured_commands() {
     let first: Value = serde_json::from_slice(graphql_calls[0].stdin.as_ref().unwrap()).unwrap();
     let second: Value = serde_json::from_slice(graphql_calls[1].stdin.as_ref().unwrap()).unwrap();
     assert!(first.get("query").is_some() && first.get("variables").is_some());
+    assert_eq!(
+        first["query"].as_str().unwrap().matches("diffSide").count(),
+        1
+    );
     assert_eq!(first["variables"]["cursor"], Value::Null);
     assert_eq!(second["variables"]["cursor"], "cursor-1");
 }

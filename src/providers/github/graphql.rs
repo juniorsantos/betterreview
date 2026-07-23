@@ -7,10 +7,10 @@ query ReviewSnapshot($owner: String!, $name: String!, $number: Int!, $cursor: St
       files(first: 100) { nodes { path viewerViewedState } }
       reviewThreads(first: 100, after: $cursor) {
         nodes {
-          id path isResolved isOutdated
+          id path isResolved isOutdated diffSide
           comments(first: 100) {
             nodes {
-              id body line originalLine diffSide viewerDidAuthor
+              id body line originalLine viewerDidAuthor
               author { login }
               pullRequestReview { state }
             }
