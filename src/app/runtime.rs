@@ -1,0 +1,139 @@
+use std::sync::Arc;
+
+use tokio::sync::Mutex;
+
+use crate::{
+    diff::{DiffRenderer, parse_file_patch},
+    domain::ChangeRequestKey,
+    providers::ReviewProvider,
+    state::SessionHandle,
+};
+
+use super::{AppEffect, EffectEnvelope, EffectOutcome, EffectResult, RenderedFile};
+
+pub struct Runtime {
+    key: ChangeRequestKey,
+    provider: Arc<dyn ReviewProvider>,
+    renderer: Arc<dyn DiffRenderer>,
+    session: Option<Arc<Mutex<SessionHandle>>>,
+}
+
+impl Runtime {
+    pub fn new(
+        key: ChangeRequestKey,
+        provider: Arc<dyn ReviewProvider>,
+        renderer: Arc<dyn DiffRenderer>,
+        session: Option<SessionHandle>,
+    ) -> Self {
+        Self {
+            key,
+            provider,
+            renderer,
+            session: session.map(|handle| Arc::new(Mutex::new(handle))),
+        }
+    }
+
+    pub async fn execute(&self, envelope: EffectEnvelope) -> EffectResult {
+        let outcome = match envelope.effect {
+            AppEffect::RenderActiveFile { file, width } => {
+                let result = async {
+                    let parsed = parse_file_patch(
+                        &file,
+                        envelope.generation.as_ref().ok_or("render has no head")?,
+                    )
+                    .map_err(|error| error.to_string())?;
+                    let patch = match &file.patch {
+                        crate::domain::PatchAvailability::Available(patch) => patch.as_bytes(),
+                        _ => return Err("patch is unavailable".into()),
+                    };
+                    let rendered = self
+                        .renderer
+                        .render(patch, &parsed, width)
+                        .await
+                        .map_err(|error| error.to_string())?;
+                    Ok(RenderedFile { parsed, rendered })
+                }
+                .await;
+                EffectOutcome::Rendered(result)
+            }
+            AppEffect::SaveSession { snapshot } => {
+                let result = match &self.session {
+                    Some(handle) => handle
+                        .lock()
+                        .await
+                        .save(&snapshot)
+                        .map_err(|error| error.to_string()),
+                    None => Err("session is read-only".into()),
+                };
+                EffectOutcome::Saved(result)
+            }
+            AppEffect::CreateDraft { input } => {
+                let result = match envelope.generation.as_ref() {
+                    Some(head) => self
+                        .provider
+                        .create_draft(&self.key, head, input)
+                        .await
+                        .map_err(|error| error.to_string()),
+                    None => Err("draft operation has no head generation".into()),
+                };
+                EffectOutcome::DraftCreated(result)
+            }
+            AppEffect::UpdateDraft { id, body } => EffectOutcome::DraftUpdated(
+                self.provider
+                    .update_draft(&self.key, &id, body)
+                    .await
+                    .map_err(|error| error.to_string()),
+            ),
+            AppEffect::DeleteDraft { id } => EffectOutcome::Completed(
+                self.provider
+                    .delete_draft(&self.key, &id)
+                    .await
+                    .map_err(|error| error.to_string()),
+            ),
+            AppEffect::Reply { thread, body } => EffectOutcome::ThreadUpdated(
+                self.provider
+                    .reply(&self.key, &thread, body)
+                    .await
+                    .map_err(|error| error.to_string()),
+            ),
+            AppEffect::ResolveThread { thread, resolved } => EffectOutcome::Completed(
+                self.provider
+                    .resolve_thread(&self.key, &thread, resolved)
+                    .await
+                    .map_err(|error| error.to_string()),
+            ),
+            AppEffect::SetFileReviewed { path, reviewed } => EffectOutcome::FileReviewed {
+                path: path.clone(),
+                reviewed,
+                result: self
+                    .provider
+                    .set_file_reviewed(&self.key, &path, reviewed)
+                    .await
+                    .map_err(|error| error.to_string()),
+            },
+            AppEffect::RefreshSnapshot => EffectOutcome::SnapshotRefreshed(Box::new(
+                self.provider
+                    .load(&self.key)
+                    .await
+                    .map_err(|error| error.to_string()),
+            )),
+            AppEffect::SubmitReview { request } => EffectOutcome::ReviewSubmitted(
+                self.provider
+                    .submit_review(&self.key, request)
+                    .await
+                    .map_err(|error| error.to_string()),
+            ),
+            AppEffect::DiscardReview => EffectOutcome::Completed(
+                self.provider
+                    .discard_review(&self.key)
+                    .await
+                    .map_err(|error| error.to_string()),
+            ),
+        };
+        EffectResult {
+            id: envelope.id,
+            generation: envelope.generation,
+            outcome,
+        }
+    }
+}
