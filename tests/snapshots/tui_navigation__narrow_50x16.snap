@@ -1,0 +1,20 @@
+---
+source: tests/tui_navigation.rs
+expression: "screen(&app(), 50, 16)"
+---
+ GitHub owner/repo #42 — Add terminal review — by
+┌ Diff ──────────────────────────────────────────┐
+│   8      -old                                  │
+│        8 +new                                  │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+└────────────────────────────────────────────────┘
+ 1/2 reviewed  •  0 drafts  •  0 operations
+ Tab focus  j/k move  ]f/[f file  ]u/[u unreviewed

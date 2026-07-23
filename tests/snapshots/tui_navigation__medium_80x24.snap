@@ -1,0 +1,28 @@
+---
+source: tests/tui_navigation.rs
+expression: "screen(&app(), 80, 24)"
+---
+ GitHub owner/repo #42 — Add terminal review — by developer
+┌ Files ─────────────────────┐┌ Diff ──────────────────────────────────────────┐
+│[x] M src/app.rs            ││   8      -old                                  │
+│[~] A src/new.rs  reviewed s││        8 +new                                  │
+│                            ││                                                │
+│                            ││                                                │
+│                            ││                                                │
+│                            ││                                                │
+│                            ││                                                │
+│                            ││                                                │
+│                            ││                                                │
+│                            ││                                                │
+│                            ││                                                │
+│                            ││                                                │
+│                            ││                                                │
+│                            ││                                                │
+│                            ││                                                │
+│                            ││                                                │
+│                            ││                                                │
+│                            ││                                                │
+│                            ││                                                │
+└────────────────────────────┘└────────────────────────────────────────────────┘
+ 1/2 reviewed  •  0 drafts  •  0 operations
+ Tab focus  j/k move  ]f/[f file  ]u/[u unreviewed  m reviewed  R submit  ? help
