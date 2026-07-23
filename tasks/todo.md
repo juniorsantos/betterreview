@@ -51,7 +51,15 @@ Causas raiz encontradas:
 - [x] Perf rodada 2: doctor em paralelo com o load; GitHub threads/files/diff em paralelo;
       per_page=100 nos dois providers. Startup ~2s → ~0,8-1,2s (dominado por 2 RTTs).
 
-## Etapas seguintes (aprovadas, specs pendentes)
-- Etapa 2: seletor de PR/MR ao abrir no repo (branch atual destacada + lista, prefetch do
-  destacado com debounce ~300ms). Brainstorm concluído; escrever spec + plano.
-- Etapa 3: reforma visual/UX da TUI (tema, layout, statusline com feedback, ajuda).
+## Etapa 2 — Seletor de PR/MR (entregue 2026-07-23)
+
+- Implementada via subagentes (7 tasks, cada uma com TDD + revisão independente aprovada):
+  `list_open` GitHub/GitLab (1 chamada cada), máquina de estados pura do picker,
+  render temático, loop async de prefetch com abort, integração no entrypoint
+  (doctor ∥ listagem; Enter reusa snapshot prefetchado; URL explícita/resume intocados).
+- 155 testes passando, clippy limpo. Aguardando teste manual do usuário.
+- Minors anotados no ledger (.superpowers/sdd/progress.md) para a revisão final da branch.
+
+## Etapas seguintes
+- Pacote comentários (tasks #9/#10/#11): ver inline no diff estilo GitHub, editar, excluir.
+- Etapa 3: refinamentos restantes de UX (statusline com feedback, polimento).
