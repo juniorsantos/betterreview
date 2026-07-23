@@ -1,9 +1,11 @@
+use std::collections::BTreeSet;
+
 use betterreview::{
     domain::{
         ChangeRequestKey, ChangeRequestSummary, CommitOid, ProviderCapabilities, ProviderKind,
         ProviderSnapshot,
     },
-    tui::picker::{PickerCommand, PickerEvent, PickerItem, PickerState, update},
+    tui::picker::{PickerCommand, PickerEvent, PickerItem, PickerState, mark_items, update},
 };
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -177,4 +179,46 @@ fn q_quits_and_r_reloads() {
         PickerEvent::Key(key_event(KeyCode::Char('r'))),
     );
     assert_eq!(commands, vec![PickerCommand::ReloadList]);
+}
+
+#[test]
+fn mark_items_flags_current_branch_and_session() {
+    let list = vec![
+        summary(1, "feature"),
+        summary(2, "main"),
+        summary(3, "feature"),
+    ];
+    let mut sessions = BTreeSet::new();
+    sessions.insert(2);
+
+    let items = mark_items(list, Some("feature"), &sessions);
+
+    assert_eq!(items.len(), 3);
+    assert!(items[0].current_branch);
+    assert!(!items[0].has_session);
+    assert!(!items[1].current_branch);
+    assert!(items[1].has_session);
+    assert!(items[2].current_branch);
+    assert!(!items[2].has_session);
+}
+
+#[test]
+fn mark_items_marks_nothing_when_branch_is_none() {
+    let list = vec![summary(1, "feature")];
+    let sessions = BTreeSet::new();
+
+    let items = mark_items(list, None, &sessions);
+
+    assert!(!items[0].current_branch);
+    assert!(!items[0].has_session);
+}
+
+#[test]
+fn list_failed_sets_the_error_banner() {
+    let mut state = PickerState::new(vec![item(1, true)]);
+
+    let commands = update(&mut state, PickerEvent::ListFailed("network down".into()));
+
+    assert!(commands.is_empty());
+    assert_eq!(state.error_banner, Some("network down".to_string()));
 }

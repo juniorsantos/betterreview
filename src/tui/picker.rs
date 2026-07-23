@@ -1,6 +1,11 @@
-use std::collections::BTreeMap;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+    time::Duration,
+};
 
-use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
+use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use futures_util::StreamExt;
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
@@ -9,10 +14,14 @@ use ratatui::{
     widgets::{Block, Paragraph},
 };
 use time::OffsetDateTime;
+use tokio::sync::mpsc;
 
-use crate::domain::{ChangeRequestSummary, ProviderSnapshot};
+use crate::{
+    domain::{ChangeRequestKey, ChangeRequestSummary, ProviderKind, ProviderSnapshot},
+    providers::ReviewProvider,
+};
 
-use super::theme;
+use super::{TuiError, theme};
 
 /// One row of the review picker list.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -49,6 +58,7 @@ pub enum PickerEvent {
     ListReloaded {
         items: Vec<PickerItem>,
     },
+    ListFailed(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,6 +102,10 @@ pub fn update(state: &mut PickerState, event: PickerEvent) -> Vec<PickerCommand>
         PickerEvent::Loaded { number, result } => loaded_update(state, number, result),
         PickerEvent::ListReloaded { items } => {
             reload_update(state, items);
+            Vec::new()
+        }
+        PickerEvent::ListFailed(message) => {
+            state.error_banner = Some(message);
             Vec::new()
         }
     }
@@ -186,6 +200,28 @@ fn reload_update(state: &mut PickerState, mut items: Vec<PickerItem>) {
     pin_current_branch(&mut items);
     state.items = items;
     state.highlight = state.highlight.min(state.items.len().saturating_sub(1));
+}
+
+/// Maps freshly-listed change request summaries into `PickerItem`s, marking
+/// which one matches the current branch and which ones already have a
+/// terminal session. Pinning the current-branch item is handled separately
+/// by `pin_current_branch`.
+pub fn mark_items(
+    list: Vec<ChangeRequestSummary>,
+    branch: Option<&str>,
+    sessions: &BTreeSet<u64>,
+) -> Vec<PickerItem> {
+    list.into_iter()
+        .map(|summary| {
+            let current_branch = branch == Some(summary.source_branch.as_str());
+            let has_session = sessions.contains(&summary.number);
+            PickerItem {
+                summary,
+                has_session,
+                current_branch,
+            }
+        })
+        .collect()
 }
 
 /// Renders the review picker screen: header, item list, prefetch status and
@@ -361,4 +397,141 @@ pub fn age(now: OffsetDateTime, updated: OffsetDateTime) -> String {
     } else {
         format!("{}d", seconds / 86_400)
     }
+}
+
+/// Result of running the review picker screen to completion.
+// The `Open` variant is intentionally not boxed: this is the public shape
+// mandated by the picker spec and consumed by later tasks as-is.
+#[allow(clippy::large_enum_variant)]
+pub enum PickerOutcome {
+    Quit,
+    Open {
+        number: u64,
+        snapshot: Option<ProviderSnapshot>,
+    },
+}
+
+/// Everything the picker's async loop needs beyond the pure `PickerState`:
+/// the provider to prefetch and re-list change requests from, and the
+/// context used to mark freshly-listed items.
+pub struct PickerSource {
+    pub provider: Arc<dyn ReviewProvider>,
+    pub kind: ProviderKind,
+    pub host: String,
+    pub repository: String,
+    pub branch: Option<String>,
+    pub sessions: BTreeSet<u64>,
+}
+
+fn key_for(source: &PickerSource, number: u64) -> ChangeRequestKey {
+    ChangeRequestKey {
+        provider: source.kind,
+        host: source.host.clone(),
+        repository: source.repository.clone(),
+        number,
+    }
+}
+
+/// Drives the review picker screen: renders `state`, prefetches the
+/// highlighted change request on a background task, reloads the open list
+/// on request, and returns once the user quits or chooses one to open.
+pub async fn run(
+    terminal: &mut ratatui::DefaultTerminal,
+    mut state: PickerState,
+    source: PickerSource,
+) -> Result<PickerOutcome, TuiError> {
+    let mut events = EventStream::new();
+    let mut tick = tokio::time::interval(Duration::from_millis(300));
+    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+    let (event_tx, mut event_rx) = mpsc::unbounded_channel::<PickerEvent>();
+    let mut prefetch: Option<(u64, tokio::task::JoinHandle<()>)> = None;
+
+    loop {
+        terminal
+            .draw(|frame| render(frame, &state))
+            .map_err(TuiError::Draw)?;
+
+        let event = tokio::select! {
+            _ = tick.tick() => Some(PickerEvent::Tick),
+            event = event_rx.recv() => event,
+            terminal_event = events.next() => match terminal_event {
+                Some(Ok(Event::Key(key))) if is_interrupt(key) => return Ok(PickerOutcome::Quit),
+                Some(Ok(Event::Key(key))) => Some(PickerEvent::Key(key)),
+                Some(Ok(_)) => None,
+                Some(Err(error)) => return Err(TuiError::Event(error)),
+                None => return Ok(PickerOutcome::Quit),
+            },
+        };
+        let Some(event) = event else {
+            continue;
+        };
+
+        for command in update(&mut state, event) {
+            dispatch_command(command, &source, &event_tx, &mut prefetch);
+        }
+
+        if state.quit {
+            return Ok(PickerOutcome::Quit);
+        }
+        if let Some((number, snapshot)) = state.chosen.take() {
+            return Ok(PickerOutcome::Open { number, snapshot });
+        }
+    }
+}
+
+/// Spawns the background task behind a `PickerCommand`, sending its result
+/// back over `event_tx`. Prefetch tasks for a change request that is
+/// already loading (or already loaded) are left alone; any other in-flight
+/// prefetch is aborted first.
+fn dispatch_command(
+    command: PickerCommand,
+    source: &PickerSource,
+    event_tx: &mpsc::UnboundedSender<PickerEvent>,
+    prefetch: &mut Option<(u64, tokio::task::JoinHandle<()>)>,
+) {
+    match command {
+        PickerCommand::StartPrefetch(number) => {
+            if let Some((current, handle)) = prefetch.as_ref()
+                && *current == number
+                && !handle.is_finished()
+            {
+                return;
+            }
+            if let Some((_, handle)) = prefetch.take() {
+                handle.abort();
+            }
+            let provider = source.provider.clone();
+            let key = key_for(source, number);
+            let event_tx = event_tx.clone();
+            let handle = tokio::spawn(async move {
+                let result = provider.load(&key).await;
+                let _ = event_tx.send(PickerEvent::Loaded {
+                    number,
+                    result: result.map_err(|error| error.to_string()),
+                });
+            });
+            *prefetch = Some((number, handle));
+        }
+        PickerCommand::ReloadList => {
+            let provider = source.provider.clone();
+            let host = source.host.clone();
+            let repository = source.repository.clone();
+            let branch = source.branch.clone();
+            let sessions = source.sessions.clone();
+            let event_tx = event_tx.clone();
+            tokio::spawn(async move {
+                let event = match provider.list_open(&host, &repository).await {
+                    Ok(list) => PickerEvent::ListReloaded {
+                        items: mark_items(list, branch.as_deref(), &sessions),
+                    },
+                    Err(error) => PickerEvent::ListFailed(error.to_string()),
+                };
+                let _ = event_tx.send(event);
+            });
+        }
+    }
+}
+
+fn is_interrupt(key: KeyEvent) -> bool {
+    key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL)
 }
