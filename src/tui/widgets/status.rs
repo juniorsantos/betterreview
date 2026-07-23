@@ -1,4 +1,4 @@
-use ratatui::{Frame, layout::Rect, style::Color, text::Line, widgets::Paragraph};
+use ratatui::{Frame, layout::Rect, text::Line, widgets::Paragraph};
 
 use crate::app::AppState;
 
@@ -18,9 +18,9 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         )
     });
     let style = if state.error_banner.is_some() {
-        ratatui::style::Style::default().fg(Color::Red)
+        ratatui::style::Style::default().fg(crate::tui::theme::DANGER)
     } else {
-        ratatui::style::Style::default().fg(Color::DarkGray)
+        ratatui::style::Style::default().fg(crate::tui::theme::MUTED)
     };
     frame.render_widget(Paragraph::new(Line::raw(message)).style(style), area);
 }

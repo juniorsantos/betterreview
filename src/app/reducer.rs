@@ -167,6 +167,7 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
         )],
         AppAction::Quit => {
             state.quit_dialog = true;
+            state.quit_selected = 0;
             Vec::new()
         }
         AppAction::ConfirmQuit(choice) => {
@@ -184,6 +185,10 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
         }
         AppAction::ToggleHelp => {
             state.help_visible = !state.help_visible;
+            Vec::new()
+        }
+        AppAction::ToggleFilesPanel => {
+            state.files_expanded = !state.files_expanded;
             Vec::new()
         }
     }

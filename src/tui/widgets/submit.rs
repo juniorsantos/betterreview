@@ -1,7 +1,7 @@
 use ratatui::{
     Frame,
     layout::Rect,
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph, Wrap},
 };
@@ -43,7 +43,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         Line::raw(modal.summary.clone()),
         Line::raw(""),
         Line::from(outcomes),
-        Line::styled(reason, Style::default().fg(Color::Yellow)),
+        Line::styled(reason, Style::default().fg(crate::tui::theme::WARNING)),
         Line::raw(""),
         Line::raw(action_label(modal.outcome)),
         Line::raw("Tab field  ↑/↓ outcome"),
@@ -65,8 +65,8 @@ fn outcome(label: &'static str, selected: bool) -> Span<'static> {
         Span::styled(
             format!("[{label}]"),
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::Cyan)
+                .fg(crate::tui::theme::BG)
+                .bg(crate::tui::theme::ACCENT)
                 .add_modifier(Modifier::BOLD),
         )
     } else {

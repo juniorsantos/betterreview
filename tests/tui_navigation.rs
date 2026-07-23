@@ -182,9 +182,10 @@ fn renders_wide_file_panel_canonical_diff_and_shortcuts() {
 
     assert!(screen.contains("GitHub owner/repo #42"));
     assert!(screen.contains("Add terminal review"));
-    assert!(screen.contains("[x] M src/app.rs"));
-    assert!(screen.contains("[~] A src/new.rs"));
-    assert!(screen.contains("8      -old"));
+    assert!(screen.contains("src/"));
+    assert!(screen.contains("✓M app.rs"));
+    assert!(screen.contains("~A new.rs"));
+    assert!(screen.contains("    8 -old"));
     assert!(screen.contains("    8 +new"));
     assert!(screen.contains("]f/[f file"));
     assert!(screen.contains("h/l focus"));
@@ -200,8 +201,8 @@ fn narrow_layout_prioritizes_diff_and_can_overlay_files() {
 
     state.focus = AppFocus::Files;
     let files = screen(&state, 50, 16);
-    assert!(files.contains("src/app.rs"));
-    assert!(files.contains("src/new.rs"));
+    assert!(files.contains("app.rs"));
+    assert!(files.contains("new.rs"));
 }
 
 #[test]
@@ -212,8 +213,8 @@ fn file_panel_scrolls_to_keep_the_active_file_visible() {
 
     let rendered = screen(&state, 80, 12);
 
-    assert!(rendered.contains("src/file_15.rs"));
-    assert!(!rendered.contains("src/file_0.rs"));
+    assert!(rendered.contains("file_15.rs"));
+    assert!(!rendered.contains("file_0.rs "));
 }
 
 #[test]

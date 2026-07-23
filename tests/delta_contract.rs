@@ -51,6 +51,11 @@ async fn invokes_delta_with_structure_preserving_arguments() {
             "--color-only",
             "--detect-dark-light=never",
             "--max-line-length=0",
+            "--true-color=always",
+            "--plus-style=syntax #0e2919",
+            "--minus-style=syntax #2f1a1d",
+            "--plus-emph-style=syntax #1a4c2a",
+            "--minus-emph-style=syntax #58212a",
         ]
         .into_iter()
         .map(OsString::from)

@@ -40,7 +40,9 @@ pub struct AppState {
     pub dirty: bool,
     pub quit_requested: bool,
     pub quit_dialog: bool,
+    pub quit_selected: usize,
     pub help_visible: bool,
+    pub files_expanded: bool,
 }
 
 impl AppState {
@@ -71,7 +73,9 @@ impl AppState {
             dirty: false,
             quit_requested: false,
             quit_dialog: false,
+            quit_selected: 0,
             help_visible: false,
+            files_expanded: false,
         }
     }
 }

@@ -1,15 +1,23 @@
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
+    style::Style,
     widgets::{Block, Borders, Clear, Paragraph},
 };
 
 use crate::app::{AppFocus, AppState};
 
-use super::widgets::{diff, editor, files, quit, status, submit, threads};
+use super::{
+    theme,
+    widgets::{diff, editor, files, quit, status, submit, threads},
+};
 
 pub fn render(frame: &mut Frame, state: &AppState) {
     let area = frame.area();
+    frame.render_widget(
+        Block::default().style(Style::default().bg(theme::BG).fg(theme::FG)),
+        area,
+    );
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -33,9 +41,10 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     );
 
     if area.width >= 80 {
+        let files_width = if state.files_expanded { 50 } else { 30 };
         let columns = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([Constraint::Length(30), Constraint::Min(1)])
+            .constraints([Constraint::Length(files_width), Constraint::Min(1)])
             .split(rows[1]);
         files::render(frame, columns[0], state);
         diff::render(frame, columns[1], state);
@@ -50,18 +59,37 @@ pub fn render(frame: &mut Frame, state: &AppState) {
 
     status::render(frame, rows[2], state);
     frame.render_widget(
-        Paragraph::new(" Tab/h/l focus  j/k move  ]f/[f file  ]u/[u unreviewed  m reviewed  R submit  ? help  q quit"),
+        Paragraph::new(
+            " Tab/h/l focus  j/k move  ]f/[f file  m reviewed  e expand  R submit  ? help  q quit",
+        )
+        .style(Style::default().fg(theme::MUTED)),
         rows[3],
     );
 
     if state.help_visible {
-        let overlay = inset(area, 5, 3);
+        let text = "j/k move      ]f/[f file     ]u/[u unreviewed\n\
+                    Tab/h/l focus  v selection    m reviewed\n\
+                    c comment      s suggest      t threads\n\
+                    e expand files Enter save     Alt+Enter newline\n\
+                    R submit       r refresh      q quit";
+        let width = 51.min(area.width);
+        let height = 7.min(area.height);
+        let overlay = ratatui::layout::Rect {
+            x: area.x + area.width.saturating_sub(width) / 2,
+            y: area.y + area.height.saturating_sub(height) / 2,
+            width,
+            height,
+        };
         frame.render_widget(Clear, overlay);
         frame.render_widget(
-            Paragraph::new(
-                "Navigation\n\nTab / Shift-Tab  focus\nh / l            previous / next focus\nj / k            move in focused panel\n]f / [f          file\n]u / [u          unreviewed\nm                reviewed\nv                selection\nc / s            comment / suggest\nt                threads\nR                submit\nr                refresh\nq                quit",
-            )
-            .block(Block::default().title(" Help ").borders(Borders::ALL)),
+            Paragraph::new(text)
+                .style(Style::default().bg(theme::BG).fg(theme::FG))
+                .block(
+                    Block::default()
+                        .title(" Help — Esc close ")
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(theme::ACCENT)),
+                ),
             overlay,
         );
     }
@@ -69,7 +97,7 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     editor::render(frame, area, state);
     submit::render(frame, area, state);
     if state.quit_dialog {
-        quit::render(frame, area);
+        quit::render(frame, area, state);
     }
 }
 

@@ -188,6 +188,117 @@ fn enter_submits_the_review_from_the_modal() {
 }
 
 #[test]
+fn quit_dialog_navigates_with_jk_and_confirms_with_enter() {
+    let mut app = base_app();
+    app.quit_dialog = true;
+    let mut keymap = KeyMap::default();
+
+    // Highlight starts on "Keep session"; j moves to "Discard editor".
+    let moved = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('j'), KeyModifiers::NONE),
+    );
+    assert!(moved.is_none());
+    assert_eq!(app.quit_selected, 1);
+
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Enter, KeyModifiers::NONE),
+    );
+    assert!(matches!(
+        event,
+        Some(AppEvent::Action(AppAction::ConfirmQuit(
+            betterreview::app::QuitChoice::DiscardEditor
+        )))
+    ));
+}
+
+#[test]
+fn quit_dialog_enter_defaults_to_keep_session() {
+    let mut app = base_app();
+    app.quit_dialog = true;
+    let mut keymap = KeyMap::default();
+
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Enter, KeyModifiers::NONE),
+    );
+
+    assert!(matches!(
+        event,
+        Some(AppEvent::Action(AppAction::ConfirmQuit(
+            betterreview::app::QuitChoice::KeepSession
+        )))
+    ));
+}
+
+#[test]
+fn quit_dialog_esc_cancels() {
+    let mut app = base_app();
+    app.quit_dialog = true;
+    let mut keymap = KeyMap::default();
+
+    let event = handle_key(&mut app, &mut keymap, key(KeyCode::Esc, KeyModifiers::NONE));
+
+    assert!(matches!(
+        event,
+        Some(AppEvent::Action(AppAction::ConfirmQuit(
+            betterreview::app::QuitChoice::Cancel
+        )))
+    ));
+}
+
+#[test]
+fn esc_closes_the_help_overlay() {
+    let mut app = base_app();
+    app.help_visible = true;
+    let mut keymap = KeyMap::default();
+
+    let event = handle_key(&mut app, &mut keymap, key(KeyCode::Esc, KeyModifiers::NONE));
+
+    assert!(matches!(
+        event,
+        Some(AppEvent::Action(AppAction::ToggleHelp))
+    ));
+}
+
+#[test]
+fn q_closes_the_help_overlay_without_quitting() {
+    let mut app = base_app();
+    app.help_visible = true;
+    let mut keymap = KeyMap::default();
+
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('q'), KeyModifiers::NONE),
+    );
+
+    assert!(matches!(
+        event,
+        Some(AppEvent::Action(AppAction::ToggleHelp))
+    ));
+}
+
+#[test]
+fn other_keys_do_not_leak_through_the_help_overlay() {
+    let mut app = base_app();
+    app.help_visible = true;
+    let mut keymap = KeyMap::default();
+
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('j'), KeyModifiers::NONE),
+    );
+
+    assert!(event.is_none());
+}
+
+#[test]
 fn ctrl_s_remains_an_alias_to_submit_the_review() {
     let mut app = app_with_modal();
     let mut keymap = KeyMap::default();

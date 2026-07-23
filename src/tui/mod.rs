@@ -2,6 +2,7 @@ mod editor_state;
 mod keymap;
 mod render;
 mod terminal;
+pub mod theme;
 mod viewport;
 mod widgets;
 

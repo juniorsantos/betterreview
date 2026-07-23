@@ -17,4 +17,4 @@ expression: "screen(&app_with_drafts(2), 50, 16)"
 ││Enter submit  Esc cancel                      ││
 └│                                              │┘
  └──────────────────────────────────────────────┘ 
- Tab/h/l focus  j/k move  ]f/[f file  ]u/[u unrevi
+ Tab/h/l focus  j/k move  ]f/[f file  m reviewed

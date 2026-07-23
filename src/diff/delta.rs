@@ -79,10 +79,21 @@ impl DiffRenderer for DeltaRenderer {
             .run(CommandSpec {
                 program: PathBuf::from("delta"),
                 args: [
-                    "--paging=never",
-                    "--color-only",
-                    "--detect-dark-light=never",
-                    "--max-line-length=0",
+                    "--paging=never".to_owned(),
+                    "--color-only".to_owned(),
+                    "--detect-dark-light=never".to_owned(),
+                    "--max-line-length=0".to_owned(),
+                    "--true-color=always".to_owned(),
+                    format!("--plus-style=syntax {}", crate::tui::theme::DELTA_PLUS_BG),
+                    format!("--minus-style=syntax {}", crate::tui::theme::DELTA_MINUS_BG),
+                    format!(
+                        "--plus-emph-style=syntax {}",
+                        crate::tui::theme::DELTA_PLUS_EMPH_BG
+                    ),
+                    format!(
+                        "--minus-emph-style=syntax {}",
+                        crate::tui::theme::DELTA_MINUS_EMPH_BG
+                    ),
                 ]
                 .into_iter()
                 .map(OsString::from)

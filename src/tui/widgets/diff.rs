@@ -1,7 +1,7 @@
 use ratatui::{
     Frame,
     layout::Rect,
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
 };
@@ -9,53 +9,66 @@ use ratatui::{
 use crate::{
     app::{AppFocus, AppState},
     domain::PatchAvailability,
-    tui::viewport,
+    tui::{theme, viewport},
 };
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
+    let inner_width = area.width.saturating_sub(2) as usize;
     let lines = match &state.rendered_diff {
         Some(diff) => diff
             .rows
             .iter()
             .enumerate()
             .map(|(index, row)| {
-                let old = row
-                    .binding
-                    .left
-                    .as_ref()
-                    .map(|position| position.line.to_string())
-                    .unwrap_or_default();
-                let new = row
+                // One gutter column: the line number on the side the row
+                // exists on (new side wins when both are present).
+                let number = row
                     .binding
                     .right
                     .as_ref()
+                    .or(row.binding.left.as_ref())
                     .map(|position| position.line.to_string())
                     .unwrap_or_default();
-                let mut spans = vec![Span::raw(format!("{old:>4} {new:>4} "))];
+                let mut spans = vec![Span::styled(
+                    format!("{number:>5} "),
+                    Style::default().fg(theme::MUTED),
+                )];
                 spans.extend(row.text.spans.clone());
                 let selected = state.selection_anchor.is_some_and(|anchor| {
                     let start = anchor.min(state.session.cursor_row);
                     let end = anchor.max(state.session.cursor_row);
                     (start..=end).contains(&index)
                 });
+                let mut line = Line::from(spans);
                 let style = if index == state.session.cursor_row {
-                    Style::default()
-                        .bg(Color::DarkGray)
-                        .add_modifier(Modifier::BOLD)
+                    Some(
+                        Style::default()
+                            .bg(theme::CURSOR_LINE)
+                            .add_modifier(Modifier::BOLD),
+                    )
                 } else if selected {
-                    Style::default().bg(Color::Blue)
+                    Some(Style::default().bg(theme::SELECTION))
                 } else {
-                    Style::default()
+                    None
                 };
-                Line::from(spans).style(style)
+                if let Some(style) = style {
+                    // Pad so the background reaches the panel's right edge.
+                    let text_width = line.width();
+                    if text_width < inner_width {
+                        line.spans
+                            .push(Span::raw(" ".repeat(inner_width - text_width)));
+                    }
+                    line = line.style(style);
+                }
+                line
             })
             .collect(),
         None => vec![Line::raw(unavailable_reason(state))],
     };
     let border = if state.focus == AppFocus::Diff {
-        Color::Cyan
+        theme::ACCENT
     } else {
-        Color::DarkGray
+        theme::BORDER
     };
     let visible = area.height.saturating_sub(2) as usize;
     let start = viewport::start(state.session.cursor_row, lines.len(), visible);

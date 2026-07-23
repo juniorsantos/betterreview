@@ -47,6 +47,7 @@ pub fn key_to_action(event: KeyEvent) -> Option<AppAction> {
         (KeyCode::Char('c'), KeyModifiers::NONE) => Some(AppAction::OpenComment),
         (KeyCode::Char('s'), KeyModifiers::NONE) => Some(AppAction::OpenSuggestion),
         (KeyCode::Char('t'), KeyModifiers::NONE) => Some(AppAction::OpenThreads),
+        (KeyCode::Char('e'), KeyModifiers::NONE) => Some(AppAction::ToggleFilesPanel),
         (KeyCode::Char('R'), _) => Some(AppAction::OpenSubmit),
         (KeyCode::Char('r'), KeyModifiers::NONE) => Some(AppAction::Refresh),
         (KeyCode::Char('q'), KeyModifiers::NONE) => Some(AppAction::Quit),

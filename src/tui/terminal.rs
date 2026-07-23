@@ -72,13 +72,32 @@ pub async fn run(
 }
 
 pub fn handle_key(app: &mut AppState, keymap: &mut KeyMap, key: KeyEvent) -> Option<AppEvent> {
+    if app.help_visible {
+        return match key.code {
+            KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') | KeyCode::Char('?') => {
+                action(AppAction::ToggleHelp)
+            }
+            _ => None,
+        };
+    }
     if app.quit_dialog {
+        const CHOICES: [QuitChoice; 3] = [
+            QuitChoice::KeepSession,
+            QuitChoice::DiscardEditor,
+            QuitChoice::Cancel,
+        ];
         return match key.code {
             KeyCode::Esc => action(AppAction::ConfirmQuit(QuitChoice::Cancel)),
             KeyCode::Char('d') => action(AppAction::ConfirmQuit(QuitChoice::DiscardEditor)),
-            KeyCode::Enter | KeyCode::Char('k') => {
-                action(AppAction::ConfirmQuit(QuitChoice::KeepSession))
+            KeyCode::Down | KeyCode::Char('j') => {
+                app.quit_selected = (app.quit_selected + 1) % CHOICES.len();
+                None
             }
+            KeyCode::Up | KeyCode::Char('k') => {
+                app.quit_selected = (app.quit_selected + CHOICES.len() - 1) % CHOICES.len();
+                None
+            }
+            KeyCode::Enter => action(AppAction::ConfirmQuit(CHOICES[app.quit_selected])),
             _ => None,
         };
     }
