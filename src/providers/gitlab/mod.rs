@@ -1,4 +1,5 @@
 mod client;
+mod mutations;
 mod position;
 mod wire;
 
@@ -340,58 +341,47 @@ where
 
     async fn create_draft(
         &self,
-        _key: &ChangeRequestKey,
-        _expected_head: &CommitOid,
-        _input: NewDraftComment,
+        key: &ChangeRequestKey,
+        expected_head: &CommitOid,
+        input: NewDraftComment,
     ) -> Result<DraftComment, ProviderError> {
-        Err(unsupported(
-            "create draft",
-            "GitLab writes are not connected yet",
-        ))
+        self.create_draft_note(key, expected_head, input).await
     }
 
     async fn update_draft(
         &self,
-        _key: &ChangeRequestKey,
-        _id: &DraftId,
-        _body: DraftBody,
+        key: &ChangeRequestKey,
+        id: &DraftId,
+        body: DraftBody,
     ) -> Result<DraftComment, ProviderError> {
-        Err(unsupported(
-            "update draft",
-            "GitLab writes are not connected yet",
-        ))
+        self.update_draft_note(key, id, body).await
     }
 
     async fn delete_draft(
         &self,
-        _key: &ChangeRequestKey,
-        _id: &DraftId,
+        key: &ChangeRequestKey,
+        id: &DraftId,
     ) -> Result<(), ProviderError> {
-        Err(unsupported(
-            "delete draft",
-            "GitLab writes are not connected yet",
-        ))
+        self.delete_draft_note(key, id).await
     }
 
     async fn reply(
         &self,
-        _key: &ChangeRequestKey,
-        _thread: &ThreadId,
-        _body: DraftBody,
+        key: &ChangeRequestKey,
+        thread: &ThreadId,
+        body: DraftBody,
     ) -> Result<ReviewThread, ProviderError> {
-        Err(unsupported("reply", "GitLab writes are not connected yet"))
+        self.reply_to_discussion(key, thread, body).await
     }
 
     async fn resolve_thread(
         &self,
-        _key: &ChangeRequestKey,
-        _thread: &ThreadId,
-        _resolved: bool,
+        key: &ChangeRequestKey,
+        thread: &ThreadId,
+        resolved: bool,
     ) -> Result<(), ProviderError> {
-        Err(unsupported(
-            "resolve thread",
-            "GitLab writes are not connected yet",
-        ))
+        self.change_discussion_resolution(key, thread, resolved)
+            .await
     }
 
     async fn set_file_reviewed(
@@ -408,20 +398,14 @@ where
 
     async fn submit_review(
         &self,
-        _key: &ChangeRequestKey,
-        _request: SubmitRequest,
+        key: &ChangeRequestKey,
+        request: SubmitRequest,
     ) -> Result<SubmitResult, ProviderError> {
-        Err(unsupported(
-            "submit review",
-            "GitLab writes are not connected yet",
-        ))
+        self.submit_gitlab_review(key, request).await
     }
 
-    async fn discard_review(&self, _key: &ChangeRequestKey) -> Result<(), ProviderError> {
-        Err(unsupported(
-            "discard review",
-            "GitLab writes are not connected yet",
-        ))
+    async fn discard_review(&self, key: &ChangeRequestKey) -> Result<(), ProviderError> {
+        self.discard_draft_notes(key).await
     }
 }
 
