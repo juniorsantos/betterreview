@@ -1,0 +1,12 @@
+[
+  {
+    "id": 11,
+    "note": "pending draft",
+    "position": {
+      "old_path": "src/one.rs",
+      "new_path": "src/one.rs",
+      "old_line": null,
+      "new_line": 2
+    }
+  }
+]

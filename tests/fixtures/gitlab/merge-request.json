@@ -1,0 +1,11 @@
+{
+  "iid": 42,
+  "title": "Improve GitLab review flow",
+  "web_url": "https://git.acme.test/group/api/-/merge_requests/42",
+  "author": { "username": "alice" },
+  "diff_refs": {
+    "base_sha": "base-sha",
+    "start_sha": "start-sha",
+    "head_sha": "head-sha"
+  }
+}
