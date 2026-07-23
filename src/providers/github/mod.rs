@@ -1,5 +1,6 @@
 mod client;
 mod graphql;
+mod mutations;
 mod wire;
 
 use async_trait::async_trait;
@@ -335,88 +336,67 @@ where
 
     async fn create_draft(
         &self,
-        _key: &ChangeRequestKey,
-        _expected_head: &CommitOid,
-        _input: NewDraftComment,
+        key: &ChangeRequestKey,
+        expected_head: &CommitOid,
+        input: NewDraftComment,
     ) -> Result<DraftComment, ProviderError> {
-        Err(unsupported(
-            "create draft",
-            "GitHub writes are not connected yet",
-        ))
+        self.create_draft_comment(key, expected_head, input).await
     }
 
     async fn update_draft(
         &self,
-        _key: &ChangeRequestKey,
-        _id: &DraftId,
-        _body: DraftBody,
+        key: &ChangeRequestKey,
+        id: &DraftId,
+        body: DraftBody,
     ) -> Result<DraftComment, ProviderError> {
-        Err(unsupported(
-            "update draft",
-            "GitHub writes are not connected yet",
-        ))
+        self.update_draft_comment(key, id, body).await
     }
 
     async fn delete_draft(
         &self,
-        _key: &ChangeRequestKey,
-        _id: &DraftId,
+        key: &ChangeRequestKey,
+        id: &DraftId,
     ) -> Result<(), ProviderError> {
-        Err(unsupported(
-            "delete draft",
-            "GitHub writes are not connected yet",
-        ))
+        self.delete_draft_comment(key, id).await
     }
 
     async fn reply(
         &self,
-        _key: &ChangeRequestKey,
-        _thread: &ThreadId,
-        _body: DraftBody,
+        key: &ChangeRequestKey,
+        thread: &ThreadId,
+        body: DraftBody,
     ) -> Result<ReviewThread, ProviderError> {
-        Err(unsupported("reply", "GitHub writes are not connected yet"))
+        self.reply_to_thread(key, thread, body).await
     }
 
     async fn resolve_thread(
         &self,
-        _key: &ChangeRequestKey,
-        _thread: &ThreadId,
-        _resolved: bool,
+        key: &ChangeRequestKey,
+        thread: &ThreadId,
+        resolved: bool,
     ) -> Result<(), ProviderError> {
-        Err(unsupported(
-            "resolve thread",
-            "GitHub writes are not connected yet",
-        ))
+        self.change_thread_resolution(key, thread, resolved).await
     }
 
     async fn set_file_reviewed(
         &self,
-        _key: &ChangeRequestKey,
-        _path: &RepoPath,
-        _reviewed: bool,
+        key: &ChangeRequestKey,
+        path: &RepoPath,
+        reviewed: bool,
     ) -> Result<(), ProviderError> {
-        Err(unsupported(
-            "set file reviewed",
-            "GitHub writes are not connected yet",
-        ))
+        self.change_file_reviewed(key, path, reviewed).await
     }
 
     async fn submit_review(
         &self,
-        _key: &ChangeRequestKey,
-        _request: SubmitRequest,
+        key: &ChangeRequestKey,
+        request: SubmitRequest,
     ) -> Result<SubmitResult, ProviderError> {
-        Err(unsupported(
-            "submit review",
-            "GitHub writes are not connected yet",
-        ))
+        self.submit_pending_review(key, request).await
     }
 
-    async fn discard_review(&self, _key: &ChangeRequestKey) -> Result<(), ProviderError> {
-        Err(unsupported(
-            "discard review",
-            "GitHub writes are not connected yet",
-        ))
+    async fn discard_review(&self, key: &ChangeRequestKey) -> Result<(), ProviderError> {
+        self.discard_pending_review(key).await
     }
 }
 
