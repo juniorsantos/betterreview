@@ -9,7 +9,7 @@ pub struct KeyMap {
 
 impl KeyMap {
     pub fn feed(&mut self, event: KeyEvent) -> Option<AppAction> {
-        if event.kind != KeyEventKind::Press {
+        if event.kind == KeyEventKind::Release {
             return None;
         }
         if let Some(prefix) = self.prefix.take() {
@@ -32,12 +32,14 @@ impl KeyMap {
 }
 
 pub fn key_to_action(event: KeyEvent) -> Option<AppAction> {
-    if event.kind != KeyEventKind::Press {
+    if event.kind == KeyEventKind::Release {
         return None;
     }
-    match (event.code, event.modifiers) {
+    let action = match (event.code, event.modifiers) {
         (KeyCode::Tab, KeyModifiers::NONE) => Some(AppAction::FocusNext),
         (KeyCode::BackTab, _) => Some(AppAction::FocusPrevious),
+        (KeyCode::Char('h') | KeyCode::Left, KeyModifiers::NONE) => Some(AppAction::FocusPrevious),
+        (KeyCode::Char('l') | KeyCode::Right, KeyModifiers::NONE) => Some(AppAction::FocusNext),
         (KeyCode::Char('j') | KeyCode::Down, KeyModifiers::NONE) => Some(AppAction::MoveCursor(1)),
         (KeyCode::Char('k') | KeyCode::Up, KeyModifiers::NONE) => Some(AppAction::MoveCursor(-1)),
         (KeyCode::Char('m'), KeyModifiers::NONE) => Some(AppAction::ToggleReviewed),
@@ -50,5 +52,15 @@ pub fn key_to_action(event: KeyEvent) -> Option<AppAction> {
         (KeyCode::Char('q'), KeyModifiers::NONE) => Some(AppAction::Quit),
         (KeyCode::Char('?'), _) => Some(AppAction::ToggleHelp),
         _ => None,
+    };
+    if event.kind == KeyEventKind::Repeat
+        && !matches!(
+            action,
+            Some(AppAction::MoveCursor(_) | AppAction::FocusNext | AppAction::FocusPrevious)
+        )
+    {
+        None
+    } else {
+        action
     }
 }

@@ -157,6 +157,7 @@ fn renders_wide_file_panel_canonical_diff_and_shortcuts() {
     assert!(screen.contains("8      -old"));
     assert!(screen.contains("    8 +new"));
     assert!(screen.contains("]f/[f file"));
+    assert!(screen.contains("h/l focus"));
     assert!(screen.contains("R submit"));
 }
 
@@ -195,12 +196,36 @@ fn maps_navigation_keys_and_ignores_release_events() {
         Some(AppAction::MoveCursor(1))
     );
     assert_eq!(
+        key_to_action(KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE)),
+        Some(AppAction::FocusPrevious)
+    );
+    assert_eq!(
+        key_to_action(KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE)),
+        Some(AppAction::FocusNext)
+    );
+    assert_eq!(
+        key_to_action(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE)),
+        Some(AppAction::FocusPrevious)
+    );
+    assert_eq!(
+        key_to_action(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE)),
+        Some(AppAction::FocusNext)
+    );
+    assert_eq!(
         key_to_action(KeyEvent::new_with_kind(
             KeyCode::Char('m'),
             KeyModifiers::NONE,
             KeyEventKind::Release,
         )),
         None
+    );
+    assert_eq!(
+        key_to_action(KeyEvent::new_with_kind(
+            KeyCode::Down,
+            KeyModifiers::NONE,
+            KeyEventKind::Repeat,
+        )),
+        Some(AppAction::MoveCursor(1))
     );
 }
 

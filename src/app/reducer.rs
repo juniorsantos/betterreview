@@ -54,16 +54,20 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
         AppAction::PreviousFile => navigate_by(state, -1),
         AppAction::NextUnreviewed => navigate_unreviewed(state, 1),
         AppAction::PreviousUnreviewed => navigate_unreviewed(state, -1),
-        AppAction::MoveCursor(delta) => {
-            let row_count = state
-                .rendered_diff
-                .as_ref()
-                .map(|diff| diff.rows.len())
-                .unwrap_or(0);
-            state.session.cursor_row = move_index(state.session.cursor_row, delta, row_count);
-            state.dirty = true;
-            Vec::new()
-        }
+        AppAction::MoveCursor(delta) => match state.focus {
+            AppFocus::Files => navigate_by(state, delta.signum()),
+            AppFocus::Diff => {
+                let row_count = state
+                    .rendered_diff
+                    .as_ref()
+                    .map(|diff| diff.rows.len())
+                    .unwrap_or(0);
+                state.session.cursor_row = move_index(state.session.cursor_row, delta, row_count);
+                state.dirty = true;
+                Vec::new()
+            }
+            AppFocus::Threads => Vec::new(),
+        },
         AppAction::ToggleReviewed => toggle_reviewed(state),
         AppAction::ToggleSelection => {
             state.selection_anchor = match state.selection_anchor {

@@ -50,7 +50,7 @@ pub fn render(frame: &mut Frame, state: &AppState) {
 
     status::render(frame, rows[2], state);
     frame.render_widget(
-        Paragraph::new(" Tab focus  j/k move  ]f/[f file  ]u/[u unreviewed  m reviewed  R submit  ? help  q quit"),
+        Paragraph::new(" Tab/h/l focus  j/k move  ]f/[f file  ]u/[u unreviewed  m reviewed  R submit  ? help  q quit"),
         rows[3],
     );
 
@@ -59,7 +59,7 @@ pub fn render(frame: &mut Frame, state: &AppState) {
         frame.render_widget(Clear, overlay);
         frame.render_widget(
             Paragraph::new(
-                "Navigation\n\nTab / Shift-Tab  focus\nj / k            move\n]f / [f          file\n]u / [u          unreviewed\nm                reviewed\nv                selection\nc / s            comment / suggest\nt                threads\nR                submit\nr                refresh\nq                quit",
+                "Navigation\n\nTab / Shift-Tab  focus\nh / l            previous / next focus\nj / k            move in focused panel\n]f / [f          file\n]u / [u          unreviewed\nm                reviewed\nv                selection\nc / s            comment / suggest\nt                threads\nR                submit\nr                refresh\nq                quit",
             )
             .block(Block::default().title(" Help ").borders(Borders::ALL)),
             overlay,

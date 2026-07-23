@@ -140,6 +140,25 @@ fn previous_file_wraps_and_resets_diff_position() {
 }
 
 #[test]
+fn vertical_movement_changes_the_selected_file_when_files_have_focus() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    state.focus = betterreview::app::AppFocus::Files;
+
+    let effects = update(&mut state, AppEvent::Action(AppAction::MoveCursor(1)));
+
+    assert_eq!(state.active_file_index, 1);
+    assert_eq!(
+        state.session.active_file,
+        Some(RepoPath("src/file_1.rs".into()))
+    );
+    assert!(
+        effects
+            .iter()
+            .any(|effect| matches!(effect.effect, AppEffect::RenderActiveFile { .. }))
+    );
+}
+
+#[test]
 fn reviewed_toggle_updates_local_state_and_schedules_sync_and_save() {
     let mut state = app_with_reviewed_pattern([false; 4]);
 

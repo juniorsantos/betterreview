@@ -17,4 +17,4 @@ expression: "screen(&app(), 50, 16)"
 │                                                │
 └────────────────────────────────────────────────┘
  1/2 reviewed  •  0 drafts  •  0 operations
- Tab focus  j/k move  ]f/[f file  ]u/[u unreviewed
+ Tab/h/l focus  j/k move  ]f/[f file  ]u/[u unrevi
