@@ -13,10 +13,15 @@ use super::{
     GitHubProvider, parse_json,
 };
 
+// Pending reviews are only visible to their author, so the first PENDING
+// review is the viewer's own pending review.
 const REVIEW_CONTEXT_QUERY: &str = r#"
 query ReviewContext($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
-    pullRequest(number: $number) { id viewerPendingReview { id } }
+    pullRequest(number: $number) {
+      id
+      reviews(states: PENDING, first: 1) { nodes { id } }
+    }
   }
 }
 "#;
@@ -345,7 +350,7 @@ where
                 "load review context",
                 "pull request id",
             )?,
-            review_id: pull_request["viewerPendingReview"]["id"]
+            review_id: pull_request["reviews"]["nodes"][0]["id"]
                 .as_str()
                 .map(str::to_owned),
         })

@@ -79,6 +79,13 @@ async fn creates_multiline_draft_with_body_only_in_json_stdin() {
 
     assert_eq!(draft.id.0, "draft-new");
     let calls = runner.calls.lock().unwrap();
+    let context_query = graphql_body(&calls[1]);
+    let query = context_query["query"].as_str().unwrap();
+    assert!(
+        !query.contains("viewerPendingReview"),
+        "viewerPendingReview does not exist in the GitHub schema"
+    );
+    assert!(query.contains("states: PENDING"));
     let mutation = graphql_body(calls.last().unwrap());
     assert_eq!(mutation["variables"]["input"]["body"], body);
     assert_eq!(mutation["variables"]["input"]["startLine"], 7);
@@ -236,13 +243,15 @@ fn selection(side: DiffSide, start: u32, end: u32) -> DiffSelection {
     }
 }
 
+// Pending reviews are only visible to their author, so the first PENDING
+// review returned by the API is the viewer's own.
 fn review_context() -> Value {
     json!({
         "data": {
             "repository": {
                 "pullRequest": {
                     "id": "pr-id",
-                    "viewerPendingReview": { "id": "review-id" }
+                    "reviews": { "nodes": [ { "id": "review-id" } ] }
                 }
             }
         }
