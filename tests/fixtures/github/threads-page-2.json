@@ -1,0 +1,40 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "number": 42,
+        "title": "Improve review flow",
+        "url": "https://ghe.acme.test/acme/api/pull/42",
+        "author": { "login": "alice" },
+        "baseRefOid": "base-oid",
+        "headRefOid": "head-oid",
+        "files": { "nodes": [] },
+        "reviewThreads": {
+          "nodes": [
+            {
+              "id": "thread-2",
+              "path": "src/two.rs",
+              "isResolved": true,
+              "isOutdated": false,
+              "comments": {
+                "nodes": [
+                  {
+                    "id": "comment-2",
+                    "body": "another comment",
+                    "author": { "login": "carol" },
+                    "line": null,
+                    "originalLine": 7,
+                    "diffSide": "LEFT",
+                    "viewerDidAuthor": false,
+                    "pullRequestReview": { "state": "COMMENTED" }
+                  }
+                ]
+              }
+            }
+          ],
+          "pageInfo": { "hasNextPage": false, "endCursor": null }
+        }
+      }
+    }
+  }
+}

@@ -1,9 +1,11 @@
 mod error;
+mod github;
 mod registry;
 
 use async_trait::async_trait;
 
 pub use error::ProviderError;
+pub use github::GitHubProvider;
 pub use registry::ProviderRegistry;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

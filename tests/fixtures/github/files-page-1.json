@@ -1,0 +1,30 @@
+[
+  [
+    {
+      "filename": "src/one.rs",
+      "previous_filename": null,
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "patch": "available"
+    },
+    {
+      "filename": "src/two.rs",
+      "previous_filename": null,
+      "status": "added",
+      "additions": 2,
+      "deletions": 0,
+      "patch": "available"
+    }
+  ],
+  [
+    {
+      "filename": "src/old.rs",
+      "previous_filename": null,
+      "status": "removed",
+      "additions": 0,
+      "deletions": 1,
+      "patch": "available"
+    }
+  ]
+]
