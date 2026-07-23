@@ -239,6 +239,26 @@ async fn maps_malformed_ndjson_and_authentication() {
     ));
 }
 
+#[tokio::test]
+async fn lists_open_merge_requests_in_one_call() {
+    let runner = Arc::new(RoutingRunner::new(vec![(
+        "projects/group%2Fapi/merge_requests?state=opened&order_by=updated_at&sort=desc&per_page=50",
+        fixture("merge-requests-list.json"),
+    )]));
+    let provider = GitLabProvider::new(runner.clone());
+
+    let list = provider
+        .list_open("git.acme.test", "group/api")
+        .await
+        .unwrap();
+
+    assert_eq!(list.len(), 2);
+    assert_eq!(list[0].number, 12);
+    assert_eq!(list[0].source_branch, "feature/picker");
+    assert!(list[1].draft);
+    assert_eq!(runner.calls.lock().unwrap().len(), 1);
+}
+
 fn key() -> ChangeRequestKey {
     ChangeRequestKey {
         provider: ProviderKind::GitLab,

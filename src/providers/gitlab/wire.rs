@@ -90,3 +90,14 @@ pub struct VersionInfo {
 pub struct Blob {
     pub blob_id: String,
 }
+
+#[derive(Deserialize)]
+pub struct MergeRequestSummary {
+    pub iid: u64,
+    pub title: String,
+    pub draft: bool,
+    pub updated_at: String,
+    pub source_branch: String,
+    pub web_url: String,
+    pub author: Author,
+}

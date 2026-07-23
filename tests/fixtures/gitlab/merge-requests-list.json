@@ -1,0 +1,20 @@
+[
+  {
+    "iid": 12,
+    "title": "feat: picker",
+    "draft": false,
+    "updated_at": "2026-07-23T10:00:00.000Z",
+    "source_branch": "feature/picker",
+    "web_url": "https://git.acme.test/group/api/-/merge_requests/12",
+    "author": { "username": "jsjunior" }
+  },
+  {
+    "iid": 9,
+    "title": "Draft: wip",
+    "draft": true,
+    "updated_at": "2026-07-21T08:00:00.000Z",
+    "source_branch": "wip",
+    "web_url": "https://git.acme.test/group/api/-/merge_requests/9",
+    "author": { "username": "dev2" }
+  }
+]

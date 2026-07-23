@@ -28,7 +28,10 @@ use crate::{
 use self::{
     client::GlabClient,
     position::{position, selection},
-    wire::{Approvals, Blob, Diff, Discussion, DraftNote, MergeRequest, VersionInfo},
+    wire::{
+        Approvals, Blob, Diff, Discussion, DraftNote, MergeRequest, MergeRequestSummary,
+        VersionInfo,
+    },
 };
 use super::{DraftBody, NewDraftComment, ProviderError, ReviewProvider};
 
@@ -350,10 +353,41 @@ where
 
     async fn list_open(
         &self,
-        _host: &str,
-        _repository: &str,
+        host: &str,
+        repository: &str,
     ) -> Result<Vec<ChangeRequestSummary>, ProviderError> {
-        Err(unsupported("list open", "implemented in the next task"))
+        let project = encode(repository);
+        let endpoint = format!(
+            "projects/{project}/merge_requests?state=opened&order_by=updated_at&sort=desc&per_page=50"
+        );
+        let summaries: Vec<MergeRequestSummary> = parse_json(
+            &self
+                .read_api(
+                    host,
+                    api_args(host, [endpoint.as_str()]),
+                    "list open merge requests",
+                )
+                .await?,
+            "list open merge requests",
+        )?;
+        summaries
+            .into_iter()
+            .map(|summary| {
+                Ok(ChangeRequestSummary {
+                    number: summary.iid,
+                    title: summary.title,
+                    author: summary.author.username,
+                    source_branch: summary.source_branch,
+                    updated_at: time::OffsetDateTime::parse(
+                        &summary.updated_at,
+                        &time::format_description::well_known::Rfc3339,
+                    )
+                    .map_err(|error| malformed("list open merge requests", &error.to_string()))?,
+                    draft: summary.draft,
+                    web_url: summary.web_url,
+                })
+            })
+            .collect()
     }
 
     async fn load(&self, key: &ChangeRequestKey) -> Result<ProviderSnapshot, ProviderError> {
