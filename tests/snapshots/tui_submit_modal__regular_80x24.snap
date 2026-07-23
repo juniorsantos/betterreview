@@ -1,0 +1,28 @@
+---
+source: tests/tui_submit_modal.rs
+expression: "screen(&app_with_drafts(3), 80, 24)"
+---
+ GitHub owner/repo #42 — Review terminal — by dev                               
+┌ Files ─────────────────────┐┌ Diff ──────────────────────────────────────────┐
+│[ ] M src/app.rs            ││Loading diff...                                 │
+│                            ││                                                │
+│                            ││                                                │
+│    ┌ Submit review ─────────────────────────────────────────────────────┐    │
+│    │3 drafts will be published                                          │    │
+│    │                                                                    │    │
+│    │Summary                                                             │    │
+│    │Ready to merge                                                      │    │
+│    │                                                                    │    │
+│    │[COMMENT]  APPROVE  REQUEST_CHANGES                                 │    │
+│    │                                                                    │    │
+│    │                                                                    │    │
+│    │Comment review                                                      │    │
+│    │Tab field  ↑/↓ outcome                                              │    │
+│    │Ctrl-S submit  Esc cancel                                           │    │
+│    │                                                                    │    │
+│    └────────────────────────────────────────────────────────────────────┘    │
+│                            ││                                                │
+│                            ││                                                │
+└────────────────────────────┘└────────────────────────────────────────────────┘
+ 0/1 reviewed  •  3 drafts  •  0 operations                                     
+ Tab focus  j/k move  ]f/[f file  ]u/[u unreviewed  m reviewed  R submit  ? help

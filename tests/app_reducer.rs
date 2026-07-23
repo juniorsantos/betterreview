@@ -2,13 +2,13 @@ use std::collections::BTreeMap;
 
 use betterreview::{
     app::{
-        AppAction, AppEffect, AppEvent, AppState, EffectOutcome, EffectResult, RenderedFile,
-        SubmissionModal, update,
+        AppAction, AppEffect, AppEvent, AppState, EffectOutcome, EffectResult, QuitChoice,
+        RenderedFile, SubmissionModal, update,
     },
     diff::{ParsedFileDiff, RenderedDiff, RenderedRow, RowBinding},
     domain::{
         ChangeRequestKey, ChangedFile, CommitOid, FileStatus, PatchAvailability,
-        ProviderCapabilities, ProviderKind, ProviderSnapshot, RepoPath, ReviewOutcome,
+        ProviderCapabilities, ProviderKind, ProviderSnapshot, RepoPath, ReviewOutcome, SubmitMode,
     },
     state::{ContentIdentity, FileProgress, ReviewSync, SESSION_SCHEMA_VERSION, SessionSnapshot},
 };
@@ -242,4 +242,46 @@ fn tick_saves_only_when_state_is_dirty() {
     assert_eq!(effects.len(), 1);
     assert!(matches!(effects[0].effect, AppEffect::SaveSession { .. }));
     assert!(!state.dirty);
+}
+
+#[test]
+fn submit_persists_intent_before_scheduling_remote_write() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+
+    let effects = update(
+        &mut state,
+        AppEvent::Action(AppAction::SubmitReview {
+            summary: "ready".into(),
+            outcome: ReviewOutcome::Approve,
+        }),
+    );
+
+    let pending = state.session.pending_submit.as_ref().unwrap();
+    assert_eq!(pending.summary, "ready");
+    assert_eq!(pending.outcome, ReviewOutcome::Approve);
+    assert_eq!(pending.mode, SubmitMode::Full);
+    assert!(matches!(effects[0].effect, AppEffect::SaveSession { .. }));
+    assert!(matches!(effects[1].effect, AppEffect::SubmitReview { .. }));
+}
+
+#[test]
+fn quit_flow_can_cancel_or_discard_the_editor() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    update(&mut state, AppEvent::Action(AppAction::Quit));
+    assert!(state.quit_dialog);
+
+    update(
+        &mut state,
+        AppEvent::Action(AppAction::ConfirmQuit(QuitChoice::Cancel)),
+    );
+    assert!(!state.quit_dialog);
+    assert!(!state.quit_requested);
+
+    update(&mut state, AppEvent::Action(AppAction::Quit));
+    update(
+        &mut state,
+        AppEvent::Action(AppAction::ConfirmQuit(QuitChoice::DiscardEditor)),
+    );
+    assert!(state.quit_requested);
+    assert!(state.session.editor.is_none());
 }

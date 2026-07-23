@@ -37,6 +37,7 @@ pub struct AppState {
     pub terminal_width: u16,
     pub dirty: bool,
     pub quit_requested: bool,
+    pub quit_dialog: bool,
     pub help_visible: bool,
 }
 
@@ -64,6 +65,7 @@ impl AppState {
             terminal_width: 100,
             dirty: false,
             quit_requested: false,
+            quit_dialog: false,
             help_visible: false,
         }
     }

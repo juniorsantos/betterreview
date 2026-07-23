@@ -6,7 +6,7 @@ use ratatui::{
 
 use crate::app::{AppFocus, AppState};
 
-use super::widgets::{diff, files, status};
+use super::widgets::{diff, editor, files, quit, status, submit, threads};
 
 pub fn render(frame: &mut Frame, state: &AppState) {
     let area = frame.area();
@@ -64,6 +64,12 @@ pub fn render(frame: &mut Frame, state: &AppState) {
             .block(Block::default().title(" Help ").borders(Borders::ALL)),
             overlay,
         );
+    }
+    threads::render(frame, area, state);
+    editor::render(frame, area, state);
+    submit::render(frame, area, state);
+    if state.quit_dialog {
+        quit::render(frame, area);
     }
 }
 

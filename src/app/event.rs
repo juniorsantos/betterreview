@@ -6,7 +6,7 @@ pub enum AppEvent {
     EffectFinished(Box<super::EffectResult>),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AppAction {
     FocusNext,
     FocusPrevious,
@@ -21,7 +21,35 @@ pub enum AppAction {
     OpenSuggestion,
     OpenThreads,
     OpenSubmit,
+    CreateDraft(crate::providers::NewDraftComment),
+    UpdateDraft {
+        id: crate::domain::DraftId,
+        body: crate::providers::DraftBody,
+    },
+    DeleteDraft(crate::domain::DraftId),
+    Reply {
+        thread: crate::domain::ThreadId,
+        body: crate::providers::DraftBody,
+    },
+    ResolveThread {
+        thread: crate::domain::ThreadId,
+        resolved: bool,
+    },
+    SubmitReview {
+        summary: String,
+        outcome: crate::domain::ReviewOutcome,
+    },
+    DiscardReview,
+    CancelSubmit,
     Refresh,
     Quit,
+    ConfirmQuit(QuitChoice),
     ToggleHelp,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QuitChoice {
+    KeepSession,
+    DiscardEditor,
+    Cancel,
 }

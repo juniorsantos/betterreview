@@ -1,11 +1,11 @@
 use crate::{
-    domain::{ProviderKind, ReviewOutcome, Support},
-    state::ReviewSync,
+    domain::{ProviderKind, ReviewOutcome, SubmitMode, SubmitRequest, SubmitResult, Support},
+    state::{PendingSubmit, ReviewSync},
 };
 
 use super::{
     AppAction, AppEffect, AppEvent, AppFocus, AppState, EffectEnvelope, EffectOutcome,
-    EffectResult, SubmissionModal,
+    EffectResult, QuitChoice, SubmissionModal,
 };
 
 pub fn update(state: &mut AppState, event: AppEvent) -> Vec<EffectEnvelope> {
@@ -90,13 +90,88 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             });
             Vec::new()
         }
+        AppAction::CreateDraft(input) => vec![envelope(
+            state,
+            Some(state.provider.head.clone()),
+            AppEffect::CreateDraft { input },
+        )],
+        AppAction::UpdateDraft { id, body } => vec![envelope(
+            state,
+            Some(state.provider.head.clone()),
+            AppEffect::UpdateDraft { id, body },
+        )],
+        AppAction::DeleteDraft(id) => vec![envelope(
+            state,
+            Some(state.provider.head.clone()),
+            AppEffect::DeleteDraft { id },
+        )],
+        AppAction::Reply { thread, body } => vec![envelope(
+            state,
+            Some(state.provider.head.clone()),
+            AppEffect::Reply { thread, body },
+        )],
+        AppAction::ResolveThread { thread, resolved } => vec![envelope(
+            state,
+            Some(state.provider.head.clone()),
+            AppEffect::ResolveThread { thread, resolved },
+        )],
+        AppAction::SubmitReview { summary, outcome } => {
+            let request = SubmitRequest {
+                expected_head: state.provider.head.clone(),
+                summary: summary.clone(),
+                outcome,
+                mode: SubmitMode::Full,
+            };
+            state.session.pending_submit = Some(PendingSubmit {
+                summary,
+                outcome,
+                mode: SubmitMode::Full,
+            });
+            state.submission_modal = None;
+            vec![
+                envelope(
+                    state,
+                    None,
+                    AppEffect::SaveSession {
+                        snapshot: Box::new(state.session.clone()),
+                    },
+                ),
+                envelope(
+                    state,
+                    Some(state.provider.head.clone()),
+                    AppEffect::SubmitReview { request },
+                ),
+            ]
+        }
+        AppAction::DiscardReview => vec![envelope(
+            state,
+            Some(state.provider.head.clone()),
+            AppEffect::DiscardReview,
+        )],
+        AppAction::CancelSubmit => {
+            state.submission_modal = None;
+            Vec::new()
+        }
         AppAction::Refresh => vec![envelope(
             state,
             Some(state.provider.head.clone()),
             AppEffect::RefreshSnapshot,
         )],
         AppAction::Quit => {
-            state.quit_requested = true;
+            state.quit_dialog = true;
+            Vec::new()
+        }
+        AppAction::ConfirmQuit(choice) => {
+            match choice {
+                QuitChoice::KeepSession => state.quit_requested = true,
+                QuitChoice::DiscardEditor => {
+                    state.session.editor = None;
+                    state.dirty = true;
+                    state.quit_requested = true;
+                }
+                QuitChoice::Cancel => {}
+            }
+            state.quit_dialog = false;
             Vec::new()
         }
         AppAction::ToggleHelp => {
@@ -267,6 +342,7 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
             Ok(draft) => {
                 state.provider.drafts.retain(|item| item.id != draft.id);
                 state.provider.drafts.push(draft);
+                state.session.editor = None;
             }
             Err(message) => state.error_banner = Some(message),
         },
@@ -278,7 +354,14 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
             Err(message) => state.error_banner = Some(message),
         },
         EffectOutcome::ReviewSubmitted(result) => match result {
-            Ok(_) => state.session.pending_submit = None,
+            Ok(SubmitResult::Complete) => state.session.pending_submit = None,
+            Ok(SubmitResult::Partial { retry, reason, .. }) => {
+                if let Some(pending) = &mut state.session.pending_submit {
+                    pending.mode = retry;
+                }
+                state.error_banner = Some(reason);
+                state.dirty = true;
+            }
             Err(message) => state.error_banner = Some(message),
         },
     }
