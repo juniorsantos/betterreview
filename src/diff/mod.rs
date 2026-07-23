@@ -1,10 +1,12 @@
 mod parser;
+mod selection;
 
 use std::ops::Range;
 
 use crate::domain::DiffPosition;
 
 pub use parser::parse_file_patch;
+pub use selection::{DiffCursor, SelectionError, validate_selection};
 
 pub const MAX_PATCH_BYTES: usize = 64 * 1024 * 1024;
 
