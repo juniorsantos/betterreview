@@ -144,11 +144,10 @@ fn reconcile_remote(
 }
 
 fn identities_match(saved: &ContentIdentity, fresh: &ChangedFile) -> bool {
+    // Providers know the blob on one side only (head, or base for deletions);
+    // match on whatever evidence exists, never on its absence alone.
     saved.path == fresh.path
-        && saved.base_blob.is_some()
-        && saved.head_blob.is_some()
-        && fresh.base_blob.is_some()
-        && fresh.head_blob.is_some()
+        && (fresh.base_blob.is_some() || fresh.head_blob.is_some())
         && saved.base_blob == fresh.base_blob
         && saved.head_blob == fresh.head_blob
 }

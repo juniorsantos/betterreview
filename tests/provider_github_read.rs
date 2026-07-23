@@ -38,15 +38,7 @@ async fn loads_paginated_github_snapshot_with_structured_commands() {
     let page_2 = fixture("threads-page-2.json");
     let files = fixture("files-page-1.json");
     let diff = std::fs::read("tests/fixtures/github/pull.diff").unwrap();
-    let responses = vec![
-        ok(page_1),
-        ok(page_2),
-        ok(files),
-        ok(diff),
-        ok(blob("blob-head-1")),
-        ok(blob("blob-head-2")),
-        ok(blob("blob-base-3")),
-    ];
+    let responses = vec![ok(page_1), ok(page_2), ok(files), ok(diff)];
     let runner = Arc::new(RecordingRunner::new(responses));
     let provider = GitHubProvider::new(runner.clone());
     let key = github_key();
@@ -59,7 +51,10 @@ async fn loads_paginated_github_snapshot_with_structured_commands() {
     assert_eq!(snapshot.files.len(), 3);
     assert_eq!(snapshot.threads.len(), 2);
     assert_eq!(snapshot.drafts.len(), 1);
-    assert_eq!(snapshot.files[0].head_blob.as_deref(), Some("blob-head-1"));
+    assert_eq!(snapshot.files[0].head_blob.as_deref(), Some("sha-one-head"));
+    assert_eq!(snapshot.files[0].base_blob, None);
+    assert_eq!(snapshot.files[2].base_blob.as_deref(), Some("sha-old-base"));
+    assert_eq!(snapshot.files[2].head_blob, None);
     assert!(matches!(
         snapshot.files[0].patch,
         PatchAvailability::Available(_)
@@ -97,6 +92,11 @@ async fn loads_paginated_github_snapshot_with_structured_commands() {
         .iter()
         .filter(|spec| args(spec).get(1) == Some(&"graphql".to_owned()))
         .collect();
+    assert_eq!(
+        graphql_calls.len(),
+        2,
+        "per-file blob lookups must not happen"
+    );
     let first: Value = serde_json::from_slice(graphql_calls[0].stdin.as_ref().unwrap()).unwrap();
     let second: Value = serde_json::from_slice(graphql_calls[1].stdin.as_ref().unwrap()).unwrap();
     assert!(first.get("query").is_some() && first.get("variables").is_some());
@@ -140,13 +140,6 @@ fn github_key() -> ChangeRequestKey {
 
 fn fixture(name: &str) -> Vec<u8> {
     std::fs::read(format!("tests/fixtures/github/{name}")).unwrap()
-}
-
-fn blob(oid: &str) -> Vec<u8> {
-    serde_json::to_vec(&serde_json::json!({
-        "data": { "repository": { "object": { "oid": oid } } }
-    }))
-    .unwrap()
 }
 
 fn ok(stdout: Vec<u8>) -> CommandOutput {

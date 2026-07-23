@@ -5,45 +5,104 @@ use betterreview::{
     providers::{GitLabProvider, ProviderError, ReviewProvider},
 };
 use std::{
-    collections::VecDeque,
+    collections::BTreeMap,
+    io,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 
-struct RecordingRunner {
-    responses: Mutex<VecDeque<CommandOutput>>,
+/// Routes responses by the endpoint (last argument), so calls may arrive in
+/// any order or concurrently.
+struct RoutingRunner {
+    responses: BTreeMap<String, CommandOutput>,
     calls: Mutex<Vec<CommandSpec>>,
+    delay: Option<Duration>,
 }
 
-impl RecordingRunner {
-    fn new(responses: Vec<CommandOutput>) -> Self {
+impl RoutingRunner {
+    fn new(responses: Vec<(&str, CommandOutput)>) -> Self {
         Self {
-            responses: Mutex::new(responses.into()),
+            responses: responses
+                .into_iter()
+                .map(|(endpoint, output)| (endpoint.to_owned(), output))
+                .collect(),
             calls: Mutex::new(Vec::new()),
+            delay: None,
         }
+    }
+
+    fn with_delay(mut self, delay: Duration) -> Self {
+        self.delay = Some(delay);
+        self
     }
 }
 
 #[async_trait]
-impl CommandRunner for RecordingRunner {
+impl CommandRunner for RoutingRunner {
     async fn run(&self, spec: CommandSpec) -> Result<CommandOutput, CommandError> {
-        self.calls.lock().unwrap().push(spec);
-        Ok(self.responses.lock().unwrap().pop_front().unwrap())
+        if let Some(delay) = self.delay {
+            tokio::time::sleep(delay).await;
+        }
+        let endpoint = spec
+            .args
+            .last()
+            .map(|value| value.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        self.calls.lock().unwrap().push(spec.clone());
+        match self.responses.get(&endpoint) {
+            Some(output) => Ok(output.clone()),
+            None => Err(CommandError::Spawn {
+                program: spec.program,
+                source: io::Error::new(
+                    io::ErrorKind::NotFound,
+                    format!("no fixture for endpoint {endpoint}"),
+                ),
+            }),
+        }
     }
+}
+
+fn snapshot_responses() -> Vec<(&'static str, CommandOutput)> {
+    vec![
+        (
+            "projects/group%2Fapi/merge_requests/42",
+            fixture("merge-request.json"),
+        ),
+        (
+            "projects/group%2Fapi/merge_requests/42/diffs?unidiff=true",
+            fixture("diffs.ndjson"),
+        ),
+        (
+            "projects/group%2Fapi/merge_requests/42/draft_notes",
+            fixture("draft-notes.json"),
+        ),
+        (
+            "projects/group%2Fapi/merge_requests/42/discussions",
+            fixture("discussions.ndjson"),
+        ),
+        (
+            "projects/group%2Fapi/merge_requests/42/approvals",
+            fixture("approvals.json"),
+        ),
+        ("version", fixture("version.json")),
+        (
+            "projects/group%2Fapi/repository/files/src%2Fone.rs?ref=head-sha",
+            blob("blob-head-1"),
+        ),
+        (
+            "projects/group%2Fapi/repository/files/src%2Fnew.rs?ref=head-sha",
+            blob("blob-head-2"),
+        ),
+        (
+            "projects/group%2Fapi/repository/files/src%2Fdeleted.rs?ref=base-sha",
+            blob("blob-base-3"),
+        ),
+    ]
 }
 
 #[tokio::test]
 async fn loads_gitlab_snapshot_and_capabilities_with_encoded_namespace() {
-    let runner = Arc::new(RecordingRunner::new(vec![
-        fixture("merge-request.json"),
-        fixture("diffs.ndjson"),
-        fixture("draft-notes.json"),
-        fixture("discussions.ndjson"),
-        fixture("approvals.json"),
-        fixture("version.json"),
-        blob("blob-head-1"),
-        blob("blob-head-2"),
-        blob("blob-base-3"),
-    ]));
+    let runner = Arc::new(RoutingRunner::new(snapshot_responses()));
     let provider = GitLabProvider::new(runner.clone());
 
     let snapshot = provider.load(&key()).await.unwrap();
@@ -112,18 +171,32 @@ async fn loads_gitlab_snapshot_and_capabilities_with_encoded_namespace() {
 }
 
 #[tokio::test]
+async fn snapshot_calls_overlap_instead_of_running_sequentially() {
+    let delay = Duration::from_millis(50);
+    let runner = Arc::new(RoutingRunner::new(snapshot_responses()).with_delay(delay));
+    let provider = GitLabProvider::new(runner);
+
+    let started = std::time::Instant::now();
+    provider.load(&key()).await.unwrap();
+    let elapsed = started.elapsed();
+
+    // 9 sequential calls would take >= 450ms; concurrent metadata + blob
+    // batches should finish in roughly two delay windows.
+    assert!(
+        elapsed < Duration::from_millis(300),
+        "load took {elapsed:?}, calls are not overlapping"
+    );
+}
+
+#[tokio::test]
 async fn disables_request_changes_before_gitlab_17_3() {
-    let runner = Arc::new(RecordingRunner::new(vec![
-        fixture("merge-request.json"),
-        fixture("diffs.ndjson"),
-        fixture("draft-notes.json"),
-        fixture("discussions.ndjson"),
-        fixture("approvals.json"),
+    let mut responses = snapshot_responses();
+    responses.retain(|(endpoint, _)| *endpoint != "version");
+    responses.push((
+        "version",
         output(br#"{"version":"17.2.9","tier":"premium"}"#.to_vec()),
-        blob("blob-head-1"),
-        blob("blob-head-2"),
-        blob("blob-base-3"),
-    ]));
+    ));
+    let runner = Arc::new(RoutingRunner::new(responses));
     let provider = GitLabProvider::new(runner);
 
     let snapshot = provider.load(&key()).await.unwrap();
@@ -138,21 +211,27 @@ async fn disables_request_changes_before_gitlab_17_3() {
 
 #[tokio::test]
 async fn maps_malformed_ndjson_and_authentication() {
-    let malformed = Arc::new(RecordingRunner::new(vec![
-        fixture("merge-request.json"),
+    let mut responses = snapshot_responses();
+    responses.retain(|(endpoint, _)| !endpoint.ends_with("diffs?unidiff=true"));
+    responses.push((
+        "projects/group%2Fapi/merge_requests/42/diffs?unidiff=true",
         output(b"not-json\n".to_vec()),
-    ]));
+    ));
+    let malformed = Arc::new(RoutingRunner::new(responses));
     let provider = GitLabProvider::new(malformed);
     assert!(matches!(
         provider.load(&key()).await,
         Err(ProviderError::MalformedResponse { .. })
     ));
 
-    let auth = Arc::new(RecordingRunner::new(vec![CommandOutput {
-        status: 1,
-        stdout: Vec::new(),
-        stderr: b"authentication required; run glab auth login".to_vec(),
-    }]));
+    let auth = Arc::new(RoutingRunner::new(vec![(
+        "user",
+        CommandOutput {
+            status: 1,
+            stdout: Vec::new(),
+            stderr: b"authentication required; run glab auth login".to_vec(),
+        },
+    )]));
     let provider = GitLabProvider::new(auth);
     assert!(matches!(
         provider.probe("git.acme.test").await,

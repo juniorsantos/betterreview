@@ -23,14 +23,6 @@ query ReviewSnapshot($owner: String!, $name: String!, $number: Int!, $cursor: St
 }
 "#;
 
-pub const BLOB_QUERY: &str = r#"
-query ReviewBlob($owner: String!, $name: String!, $revisionPath: String!) {
-  repository(owner: $owner, name: $name) {
-    object(expression: $revisionPath) { ... on Blob { oid } }
-  }
-}
-"#;
-
 pub const DISCOVER_QUERY: &str = r#"
 query DiscoverReview($owner: String!, $name: String!, $head: String!) {
   repository(owner: $owner, name: $name) {

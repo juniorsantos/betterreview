@@ -22,10 +22,8 @@ use crate::{
 
 use self::{
     client::GhClient,
-    graphql::{BLOB_QUERY, DISCOVER_QUERY, SNAPSHOT_QUERY},
-    wire::{
-        BlobData, GraphQlEnvelope, PullRequest, RestFile, ReviewThread as WireThread, SnapshotData,
-    },
+    graphql::{DISCOVER_QUERY, SNAPSHOT_QUERY},
+    wire::{GraphQlEnvelope, PullRequest, RestFile, ReviewThread as WireThread, SnapshotData},
 };
 use super::{DraftBody, NewDraftComment, ProviderError, ReviewProvider};
 
@@ -173,30 +171,12 @@ where
                     }
                 });
             let path = RepoPath(rest.filename.clone());
+            // GitHub's files endpoint reports the blob sha at head, except for
+            // deleted files where it is the blob that was removed (the base).
             let (base_blob, head_blob) = if status == FileStatus::Deleted {
-                (
-                    self.load_blob(
-                        owner,
-                        name,
-                        &key.host,
-                        &metadata.base_ref_oid,
-                        &rest.filename,
-                    )
-                    .await?,
-                    None,
-                )
+                (rest.sha, None)
             } else {
-                (
-                    None,
-                    self.load_blob(
-                        owner,
-                        name,
-                        &key.host,
-                        &metadata.head_ref_oid,
-                        &rest.filename,
-                    )
-                    .await?,
-                )
+                (None, rest.sha)
             };
             files.push(ChangedFile {
                 path,
@@ -226,36 +206,6 @@ where
             drafts,
             capabilities: ProviderCapabilities::all_supported(),
         })
-    }
-
-    async fn load_blob(
-        &self,
-        owner: &str,
-        name: &str,
-        host: &str,
-        revision: &str,
-        path: &str,
-    ) -> Result<Option<String>, ProviderError> {
-        let bytes = self
-            .client
-            .graphql(
-                host,
-                BLOB_QUERY,
-                json!({
-                    "owner": owner,
-                    "name": name,
-                    "revisionPath": format!("{revision}:{path}"),
-                }),
-                "load file blob",
-            )
-            .await?;
-        let envelope: GraphQlEnvelope<BlobData> = parse_json(&bytes, "load file blob")?;
-        ensure_graphql(&envelope, "load file blob")?;
-        Ok(envelope
-            .data
-            .and_then(|data| data.repository)
-            .and_then(|repository| repository.object)
-            .map(|blob| blob.oid))
     }
 }
 

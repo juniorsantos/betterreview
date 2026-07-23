@@ -6,7 +6,8 @@
       "status": "modified",
       "additions": 1,
       "deletions": 1,
-      "patch": "available"
+      "patch": "available",
+      "sha": "sha-one-head"
     },
     {
       "filename": "src/two.rs",
@@ -14,7 +15,8 @@
       "status": "added",
       "additions": 2,
       "deletions": 0,
-      "patch": "available"
+      "patch": "available",
+      "sha": "sha-two-head"
     }
   ],
   [
@@ -24,7 +26,8 @@
       "status": "removed",
       "additions": 0,
       "deletions": 1,
-      "patch": "available"
+      "patch": "available",
+      "sha": "sha-old-base"
     }
   ]
 ]

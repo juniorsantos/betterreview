@@ -72,37 +72,44 @@ impl Doctor {
     }
 
     pub async fn check(&self, provider: Option<ProviderKind>, host: Option<&str>) -> DoctorReport {
-        let mut checks = vec![
-            self.check_version("git", &["--version"], Version::new(2, 39, 0))
-                .await,
-            self.check_version("delta", &["--version"], Version::new(0, 19, 0))
-                .await,
-        ];
-
-        match provider {
-            Some(ProviderKind::GitHub) => checks.push(
-                self.check_provider("gh", host.unwrap_or("github.com"), Version::new(2, 40, 0))
-                    .await,
-            ),
-            Some(ProviderKind::GitLab) => checks.push(
-                self.check_provider("glab", host.unwrap_or("gitlab.com"), Version::new(1, 50, 0))
-                    .await,
-            ),
-            None => {
-                checks.push(
-                    self.check_provider("gh", host.unwrap_or("github.com"), Version::new(2, 40, 0))
+        let github = matches!(provider, Some(ProviderKind::GitHub) | None);
+        let gitlab = matches!(provider, Some(ProviderKind::GitLab) | None);
+        let (git, delta, gh, glab) = tokio::join!(
+            self.check_version("git", &["--version"], Version::new(2, 39, 0)),
+            self.check_version("delta", &["--version"], Version::new(0, 19, 0)),
+            async {
+                if github {
+                    Some(
+                        self.check_provider(
+                            "gh",
+                            host.unwrap_or("github.com"),
+                            Version::new(2, 40, 0),
+                        )
                         .await,
-                );
-                checks.push(
-                    self.check_provider(
-                        "glab",
-                        host.unwrap_or("gitlab.com"),
-                        Version::new(1, 50, 0),
                     )
-                    .await,
-                );
-            }
-        }
+                } else {
+                    None
+                }
+            },
+            async {
+                if gitlab {
+                    Some(
+                        self.check_provider(
+                            "glab",
+                            host.unwrap_or("gitlab.com"),
+                            Version::new(1, 50, 0),
+                        )
+                        .await,
+                    )
+                } else {
+                    None
+                }
+            },
+        );
+        let checks = [Some(git), Some(delta), gh, glab]
+            .into_iter()
+            .flatten()
+            .collect();
 
         DoctorReport { checks }
     }
@@ -138,7 +145,12 @@ impl Doctor {
             return version_check;
         }
 
-        let help = match self.run(name, &["api", "--help"]).await {
+        let auth_args = ["auth", "status", "--hostname", host];
+        let (help, auth) = tokio::join!(
+            self.run(name, &["api", "--help"]),
+            self.run(name, &auth_args),
+        );
+        let help = match help {
             Ok(output) if output.status == 0 => output,
             _ => {
                 return DependencyCheck {
@@ -159,10 +171,7 @@ impl Doctor {
             };
         }
 
-        let authenticated = self
-            .run(name, &["auth", "status", "--hostname", host])
-            .await
-            .is_ok_and(|output| output.status == 0);
+        let authenticated = auth.is_ok_and(|output| output.status == 0);
         if !authenticated {
             return DependencyCheck {
                 name: name.to_owned(),

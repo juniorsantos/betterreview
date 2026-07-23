@@ -15,9 +15,15 @@ enum FakeResponse {
 #[derive(Default)]
 struct FakeRunner {
     responses: BTreeMap<String, FakeResponse>,
+    delay: Option<std::time::Duration>,
 }
 
 impl FakeRunner {
+    fn with_delay(mut self, delay: std::time::Duration) -> Self {
+        self.delay = Some(delay);
+        self
+    }
+
     fn with(mut self, program: &str, args: &[&str], status: i32, stdout: &str) -> Self {
         self.responses.insert(
             command_key(program, args),
@@ -40,6 +46,9 @@ impl FakeRunner {
 #[async_trait]
 impl CommandRunner for FakeRunner {
     async fn run(&self, spec: CommandSpec) -> Result<CommandOutput, CommandError> {
+        if let Some(delay) = self.delay {
+            tokio::time::sleep(delay).await;
+        }
         let args: Vec<_> = spec
             .args
             .iter()
@@ -166,6 +175,36 @@ async fn all_ready_checks_produce_ready_report() {
         .await;
 
     assert!(report.is_ready());
+}
+
+#[tokio::test]
+async fn checks_overlap_instead_of_running_sequentially() {
+    let delay = std::time::Duration::from_millis(50);
+    let runner = FakeRunner::default()
+        .with_delay(delay)
+        .with("git", &["--version"], 0, "git version 2.39.5\n")
+        .with("delta", &["--version"], 0, "delta 0.19.2\n")
+        .with("gh", &["--version"], 0, "gh version 2.96.0\n")
+        .with("gh", &["api", "--help"], 0, "--input file\n")
+        .with(
+            "gh",
+            &["auth", "status", "--hostname", "github.com"],
+            0,
+            "authenticated\n",
+        );
+    let doctor = Doctor::new(Arc::new(runner));
+
+    let started = std::time::Instant::now();
+    let report = doctor.check(Some(ProviderKind::GitHub), None).await;
+    let elapsed = started.elapsed();
+
+    assert!(report.is_ready());
+    // 5 sequential commands would take >= 250ms; overlapping checks should
+    // need roughly two delay windows (version gate + help/auth pair).
+    assert!(
+        elapsed < std::time::Duration::from_millis(200),
+        "doctor took {elapsed:?}, checks are not overlapping"
+    );
 }
 
 #[test]

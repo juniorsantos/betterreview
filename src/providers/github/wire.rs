@@ -118,19 +118,5 @@ pub struct RestFile {
     pub additions: u32,
     pub deletions: u32,
     pub patch: Option<String>,
-}
-
-#[derive(Deserialize)]
-pub struct BlobData {
-    pub repository: Option<BlobRepository>,
-}
-
-#[derive(Deserialize)]
-pub struct BlobRepository {
-    pub object: Option<Blob>,
-}
-
-#[derive(Deserialize)]
-pub struct Blob {
-    pub oid: String,
+    pub sha: Option<String>,
 }

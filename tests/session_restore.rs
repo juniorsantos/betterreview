@@ -212,6 +212,37 @@ fn changed_head_keeps_only_same_path_and_blob_reviewed() {
 }
 
 #[test]
+fn changed_head_matches_identity_when_only_one_blob_side_is_known() {
+    let mut saved = saved_session(ProviderKind::GitHub, "head-old");
+    saved.files = BTreeMap::from([
+        (
+            RepoPath("untouched.rs".into()),
+            progress("untouched.rs", None, Some("h1"), ReviewSync::Synced),
+        ),
+        (
+            RepoPath("rewritten.rs".into()),
+            progress("rewritten.rs", None, Some("h2"), ReviewSync::Synced),
+        ),
+    ]);
+    let fresh = provider_snapshot(
+        ProviderKind::GitHub,
+        "head-new",
+        vec![
+            changed_file("untouched.rs", None, Some("h1"), None),
+            changed_file("rewritten.rs", None, Some("h2-new"), None),
+        ],
+    );
+
+    let restored = SessionRestorer::restore(saved, &fresh);
+
+    assert!(restored.snapshot.files[&RepoPath("untouched.rs".into())].reviewed);
+    assert!(!restored.snapshot.files[&RepoPath("rewritten.rs".into())].reviewed);
+    assert!(!restored.notices.contains(&RestoreNotice::FileReset {
+        path: RepoPath("untouched.rs".into())
+    }));
+}
+
+#[test]
 fn github_remote_state_overrides_only_synced_progress() {
     let mut saved = saved_session(ProviderKind::GitHub, "head-a");
     saved
@@ -301,12 +332,12 @@ fn missing_blob_identity_resets_reviewed_progress() {
     let mut saved = saved_session(ProviderKind::GitLab, "head-old");
     saved.files = BTreeMap::from([(
         RepoPath("src/lib.rs".into()),
-        progress("src/lib.rs", None, Some("head-1"), ReviewSync::LocalOnly),
+        progress("src/lib.rs", None, None, ReviewSync::LocalOnly),
     )]);
     let fresh = provider_snapshot(
         ProviderKind::GitLab,
         "head-new",
-        vec![changed_file("src/lib.rs", None, Some("head-1"), None)],
+        vec![changed_file("src/lib.rs", None, None, None)],
     );
 
     let restored = SessionRestorer::restore(saved, &fresh);

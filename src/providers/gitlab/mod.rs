@@ -4,11 +4,15 @@ mod position;
 mod wire;
 
 use async_trait::async_trait;
+use futures_util::{StreamExt, TryStreamExt, stream};
 use semver::Version;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use std::{sync::Arc, time::Duration};
 use url::form_urlencoded::byte_serialize;
+
+/// How many repository blob lookups may run at once.
+const BLOB_CONCURRENCY: usize = 8;
 
 use crate::{
     context::DiscoveryInput,
@@ -69,15 +73,94 @@ where
     ) -> Result<ProviderSnapshot, ProviderError> {
         let project = encode(&key.repository);
         let root = format!("projects/{project}/merge_requests/{}", key.number);
-        let merge_request: MergeRequest = parse_json(
-            &self
-                .read_api(
-                    &key.host,
-                    api_args(&key.host, [root.as_str()]),
+        let diffs_endpoint = format!("{root}/diffs?unidiff=true");
+        let drafts_endpoint = format!("{root}/draft_notes");
+        let discussions_endpoint = format!("{root}/discussions");
+        let approvals_endpoint = format!("{root}/approvals");
+        let (merge_request, diffs, drafts, discussions, approvals, version) = tokio::try_join!(
+            async {
+                parse_json::<MergeRequest>(
+                    &self
+                        .read_api(
+                            &key.host,
+                            api_args(&key.host, [root.as_str()]),
+                            "load merge request",
+                        )
+                        .await?,
                     "load merge request",
                 )
-                .await?,
-            "load merge request",
+            },
+            async {
+                parse_ndjson::<Diff>(
+                    &self
+                        .read_api(
+                            &key.host,
+                            api_args(
+                                &key.host,
+                                ["--paginate", "--output", "ndjson", diffs_endpoint.as_str()],
+                            ),
+                            "load merge request diffs",
+                        )
+                        .await?,
+                    "load merge request diffs",
+                )
+            },
+            async {
+                parse_json::<Vec<DraftNote>>(
+                    &self
+                        .read_api(
+                            &key.host,
+                            api_args(&key.host, [drafts_endpoint.as_str()]),
+                            "load draft notes",
+                        )
+                        .await?,
+                    "load draft notes",
+                )
+            },
+            async {
+                parse_ndjson::<Discussion>(
+                    &self
+                        .read_api(
+                            &key.host,
+                            api_args(
+                                &key.host,
+                                [
+                                    "--paginate",
+                                    "--output",
+                                    "ndjson",
+                                    discussions_endpoint.as_str(),
+                                ],
+                            ),
+                            "load discussions",
+                        )
+                        .await?,
+                    "load discussions",
+                )
+            },
+            async {
+                parse_json::<Approvals>(
+                    &self
+                        .read_api(
+                            &key.host,
+                            api_args(&key.host, [approvals_endpoint.as_str()]),
+                            "load approvals",
+                        )
+                        .await?,
+                    "load approvals",
+                )
+            },
+            async {
+                parse_json::<VersionInfo>(
+                    &self
+                        .read_api(
+                            &key.host,
+                            api_args(&key.host, ["version"]),
+                            "load GitLab version",
+                        )
+                        .await?,
+                    "load GitLab version",
+                )
+            },
         )?;
         if merge_request.iid != key.number {
             return Err(malformed(
@@ -92,120 +175,14 @@ where
             ));
         }
 
-        let diffs_endpoint = format!("{root}/diffs?unidiff=true");
-        let diffs: Vec<Diff> = parse_ndjson(
-            &self
-                .read_api(
-                    &key.host,
-                    api_args(
-                        &key.host,
-                        ["--paginate", "--output", "ndjson", diffs_endpoint.as_str()],
-                    ),
-                    "load merge request diffs",
-                )
-                .await?,
-            "load merge request diffs",
-        )?;
-        let drafts: Vec<DraftNote> = parse_json(
-            &self
-                .read_api(
-                    &key.host,
-                    api_args(&key.host, [format!("{root}/draft_notes").as_str()]),
-                    "load draft notes",
-                )
-                .await?,
-            "load draft notes",
-        )?;
-        let discussions: Vec<Discussion> = parse_ndjson(
-            &self
-                .read_api(
-                    &key.host,
-                    api_args(
-                        &key.host,
-                        [
-                            "--paginate",
-                            "--output",
-                            "ndjson",
-                            format!("{root}/discussions").as_str(),
-                        ],
-                    ),
-                    "load discussions",
-                )
-                .await?,
-            "load discussions",
-        )?;
-        let approvals: Approvals = parse_json(
-            &self
-                .read_api(
-                    &key.host,
-                    api_args(&key.host, [format!("{root}/approvals").as_str()]),
-                    "load approvals",
-                )
-                .await?,
-            "load approvals",
-        )?;
-        let version: VersionInfo = parse_json(
-            &self
-                .read_api(
-                    &key.host,
-                    api_args(&key.host, ["version"]),
-                    "load GitLab version",
-                )
-                .await?,
-            "load GitLab version",
-        )?;
-
-        let mut files = Vec::with_capacity(diffs.len());
-        for diff in diffs {
-            let status = if diff.new_file {
-                FileStatus::Added
-            } else if diff.deleted_file {
-                FileStatus::Deleted
-            } else if diff.renamed_file {
-                FileStatus::Renamed
-            } else {
-                FileStatus::Modified
-            };
-            let patch = if diff.too_large {
-                PatchAvailability::TooLarge
-            } else if diff.collapsed {
-                PatchAvailability::Collapsed
-            } else {
-                match diff.diff {
-                    Some(patch) if patch.len() <= MAX_PATCH_BYTES => {
-                        PatchAvailability::Available(patch)
-                    }
-                    Some(_) => PatchAvailability::TooLarge,
-                    None => PatchAvailability::Truncated {
-                        reason: "GitLab omitted this file diff".into(),
-                    },
-                }
-            };
-            let blob_path = if status == FileStatus::Deleted {
-                &diff.old_path
-            } else {
-                &diff.new_path
-            };
-            let revision = if status == FileStatus::Deleted {
-                &merge_request.diff_refs.base_sha
-            } else {
-                &merge_request.diff_refs.head_sha
-            };
-            let blob = self
-                .load_blob(&key.host, &project, blob_path, revision)
-                .await?;
-            files.push(ChangedFile {
-                path: RepoPath(diff.new_path.clone()),
-                previous_path: diff.renamed_file.then_some(RepoPath(diff.old_path)),
-                status,
-                additions: 0,
-                deletions: 0,
-                patch,
-                base_blob: (status == FileStatus::Deleted).then_some(blob.clone()),
-                head_blob: (status != FileStatus::Deleted).then_some(blob),
-                remotely_reviewed: None,
-            });
-        }
+        let files: Vec<ChangedFile> = stream::iter(
+            diffs
+                .into_iter()
+                .map(|diff| self.changed_file(&key.host, &project, &merge_request, diff)),
+        )
+        .buffered(BLOB_CONCURRENCY)
+        .try_collect()
+        .await?;
 
         let draft_comments = drafts
             .into_iter()
@@ -230,6 +207,61 @@ where
             threads,
             drafts: draft_comments,
             capabilities,
+        })
+    }
+
+    async fn changed_file(
+        &self,
+        host: &str,
+        project: &str,
+        merge_request: &MergeRequest,
+        diff: Diff,
+    ) -> Result<ChangedFile, ProviderError> {
+        let status = if diff.new_file {
+            FileStatus::Added
+        } else if diff.deleted_file {
+            FileStatus::Deleted
+        } else if diff.renamed_file {
+            FileStatus::Renamed
+        } else {
+            FileStatus::Modified
+        };
+        let patch = if diff.too_large {
+            PatchAvailability::TooLarge
+        } else if diff.collapsed {
+            PatchAvailability::Collapsed
+        } else {
+            match diff.diff {
+                Some(patch) if patch.len() <= MAX_PATCH_BYTES => {
+                    PatchAvailability::Available(patch)
+                }
+                Some(_) => PatchAvailability::TooLarge,
+                None => PatchAvailability::Truncated {
+                    reason: "GitLab omitted this file diff".into(),
+                },
+            }
+        };
+        let blob_path = if status == FileStatus::Deleted {
+            &diff.old_path
+        } else {
+            &diff.new_path
+        };
+        let revision = if status == FileStatus::Deleted {
+            &merge_request.diff_refs.base_sha
+        } else {
+            &merge_request.diff_refs.head_sha
+        };
+        let blob = self.load_blob(host, project, blob_path, revision).await?;
+        Ok(ChangedFile {
+            path: RepoPath(diff.new_path.clone()),
+            previous_path: diff.renamed_file.then_some(RepoPath(diff.old_path)),
+            status,
+            additions: 0,
+            deletions: 0,
+            patch,
+            base_blob: (status == FileStatus::Deleted).then_some(blob.clone()),
+            head_blob: (status != FileStatus::Deleted).then_some(blob),
+            remotely_reviewed: None,
         })
     }
 
