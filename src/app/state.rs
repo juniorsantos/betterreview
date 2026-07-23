@@ -28,6 +28,8 @@ pub struct AppState {
     pub focus: AppFocus,
     pub active_file_index: usize,
     pub selection_anchor: Option<usize>,
+    pub editor_open: bool,
+    pub editor_suggestion: bool,
     pub thread_panel_open: bool,
     pub submission_modal: Option<SubmissionModal>,
     pub notices: Vec<String>,
@@ -43,6 +45,7 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(provider: ProviderSnapshot, session: SessionSnapshot) -> Self {
+        let editor_open = session.editor.is_some();
         let active_file_index = session
             .active_file
             .as_ref()
@@ -56,6 +59,8 @@ impl AppState {
             focus: AppFocus::Diff,
             active_file_index,
             selection_anchor: None,
+            editor_open,
+            editor_suggestion: false,
             thread_panel_open: false,
             submission_modal: None,
             notices: Vec::new(),

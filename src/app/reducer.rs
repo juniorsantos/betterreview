@@ -1,6 +1,8 @@
 use crate::{
+    diff::{DiffCursor, validate_selection},
+    domain::DiffSide,
     domain::{ProviderKind, ReviewOutcome, SubmitMode, SubmitRequest, SubmitResult, Support},
-    state::{PendingSubmit, ReviewSync},
+    state::{EditorSnapshot, PendingSubmit, ReviewSync},
 };
 
 use super::{
@@ -71,10 +73,12 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             state.dirty = true;
             Vec::new()
         }
-        AppAction::OpenComment | AppAction::OpenSuggestion => {
-            if state.selection_anchor.is_none() {
-                state.selection_anchor = Some(state.session.cursor_row);
-            }
+        AppAction::OpenComment => {
+            open_editor(state, false);
+            Vec::new()
+        }
+        AppAction::OpenSuggestion => {
+            open_editor(state, true);
             Vec::new()
         }
         AppAction::OpenThreads => {
@@ -343,6 +347,7 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
                 state.provider.drafts.retain(|item| item.id != draft.id);
                 state.provider.drafts.push(draft);
                 state.session.editor = None;
+                state.editor_open = false;
             }
             Err(message) => state.error_banner = Some(message),
         },
@@ -371,6 +376,58 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
 fn set_error(state: &mut AppState, result: Result<(), String>) {
     if let Err(message) = result {
         state.error_banner = Some(message);
+    }
+}
+
+fn open_editor(state: &mut AppState, suggestion: bool) {
+    if let Some(editor) = &state.session.editor {
+        state.editor_open = true;
+        state.editor_suggestion = suggestion;
+        if editor.stale {
+            state.notices.push("stale editor opened read-only".into());
+        }
+        return;
+    }
+    let Some(diff) = state.parsed_diff.as_ref() else {
+        state.error_banner = Some("diff is still loading".into());
+        return;
+    };
+    let start_row = state.selection_anchor.unwrap_or(state.session.cursor_row);
+    let end_row = state.session.cursor_row;
+    let side = diff
+        .rows
+        .get(end_row)
+        .and_then(|row| {
+            row.right
+                .as_ref()
+                .map(|_| DiffSide::Right)
+                .or_else(|| row.left.as_ref().map(|_| DiffSide::Left))
+        })
+        .unwrap_or(DiffSide::Right);
+    match validate_selection(
+        diff,
+        DiffCursor {
+            row: start_row,
+            side,
+        },
+        DiffCursor { row: end_row, side },
+    ) {
+        Ok(selection) => {
+            let path = selection.end.path.clone();
+            state.session.editor = Some(EditorSnapshot {
+                lines: vec![String::new()],
+                cursor_row: 0,
+                grapheme_col: 0,
+                original_head: state.provider.head.clone(),
+                path,
+                selection,
+                stale: false,
+            });
+            state.editor_open = true;
+            state.editor_suggestion = suggestion;
+            state.dirty = true;
+        }
+        Err(error) => state.error_banner = Some(error.to_string()),
     }
 }
 

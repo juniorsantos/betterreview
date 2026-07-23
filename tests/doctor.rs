@@ -5,7 +5,6 @@ use betterreview::{
     domain::ProviderKind,
     process::{CommandError, CommandOutput, CommandRunner, CommandSpec},
 };
-use predicates::str::contains;
 use std::{collections::BTreeMap, io, sync::Arc};
 
 enum FakeResponse {
@@ -170,11 +169,12 @@ async fn all_ready_checks_produce_ready_report() {
 }
 
 #[test]
-fn sessions_command_does_not_succeed_without_runtime() {
+fn sessions_command_uses_the_installed_runtime() {
+    let state = tempfile::tempdir().unwrap();
     AssertCommand::cargo_bin("betterreview")
         .unwrap()
         .arg("sessions")
+        .env("BETTERREVIEW_STATE_DIR", state.path())
         .assert()
-        .failure()
-        .stderr(contains("application runtime is not installed"));
+        .success();
 }

@@ -7,6 +7,9 @@ use ratatui::{
 use crate::app::AppState;
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
+    if !state.editor_open {
+        return;
+    }
     let Some(editor) = &state.session.editor else {
         return;
     };

@@ -11,6 +11,7 @@ use crate::{
 
 use super::{AppEffect, EffectEnvelope, EffectOutcome, EffectResult, RenderedFile};
 
+#[derive(Clone)]
 pub struct Runtime {
     key: ChangeRequestKey,
     provider: Arc<dyn ReviewProvider>,
@@ -117,12 +118,21 @@ impl Runtime {
                     .await
                     .map_err(|error| error.to_string()),
             )),
-            AppEffect::SubmitReview { request } => EffectOutcome::ReviewSubmitted(
-                self.provider
-                    .submit_review(&self.key, request)
-                    .await
-                    .map_err(|error| error.to_string()),
-            ),
+            AppEffect::SubmitReview { request } => {
+                let result = match self.provider.read_head(&self.key).await {
+                    Ok(head) if head == request.expected_head => self
+                        .provider
+                        .submit_review(&self.key, request)
+                        .await
+                        .map_err(|error| error.to_string()),
+                    Ok(head) => Err(format!(
+                        "review head changed from {} to {}; refresh before submitting",
+                        request.expected_head.0, head.0
+                    )),
+                    Err(error) => Err(error.to_string()),
+                };
+                EffectOutcome::ReviewSubmitted(result)
+            }
             AppEffect::DiscardReview => EffectOutcome::Completed(
                 self.provider
                     .discard_review(&self.key)
