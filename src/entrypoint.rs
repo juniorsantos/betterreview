@@ -66,14 +66,18 @@ impl InstalledRuntime {
 
     async fn launch_key(&self, key: ChangeRequestKey) -> Result<(), LaunchError> {
         let runner: Arc<dyn CommandRunner> = self.runner.clone();
-        let report = Doctor::new(runner)
-            .check(Some(key.provider), Some(&key.host))
-            .await;
+        let provider = self.providers.get(key.provider);
+        // The doctor check hits the network (auth status); overlap it with the
+        // snapshot load instead of paying for it up front.
+        let doctor = Doctor::new(runner);
+        let (report, loaded) = tokio::join!(
+            doctor.check(Some(key.provider), Some(&key.host)),
+            provider.load(&key),
+        );
         if !report.is_ready() {
             return Err(LaunchError::Dependencies(report.to_string()));
         }
-        let provider = self.providers.get(key.provider);
-        let fresh = provider.load(&key).await?;
+        let fresh = loaded?;
         let store = JsonSessionStore::discover()?;
         let saved = store.load(&key)?;
         let access = store.open(&key)?;

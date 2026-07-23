@@ -73,9 +73,9 @@ where
     ) -> Result<ProviderSnapshot, ProviderError> {
         let project = encode(&key.repository);
         let root = format!("projects/{project}/merge_requests/{}", key.number);
-        let diffs_endpoint = format!("{root}/diffs?unidiff=true");
+        let diffs_endpoint = format!("{root}/diffs?unidiff=true&per_page=100");
         let drafts_endpoint = format!("{root}/draft_notes");
-        let discussions_endpoint = format!("{root}/discussions");
+        let discussions_endpoint = format!("{root}/discussions?per_page=100");
         let approvals_endpoint = format!("{root}/approvals");
         let (merge_request, diffs, drafts, discussions, approvals, version) = tokio::try_join!(
             async {

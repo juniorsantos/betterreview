@@ -69,7 +69,7 @@ fn snapshot_responses() -> Vec<(&'static str, CommandOutput)> {
             fixture("merge-request.json"),
         ),
         (
-            "projects/group%2Fapi/merge_requests/42/diffs?unidiff=true",
+            "projects/group%2Fapi/merge_requests/42/diffs?unidiff=true&per_page=100",
             fixture("diffs.ndjson"),
         ),
         (
@@ -77,7 +77,7 @@ fn snapshot_responses() -> Vec<(&'static str, CommandOutput)> {
             fixture("draft-notes.json"),
         ),
         (
-            "projects/group%2Fapi/merge_requests/42/discussions",
+            "projects/group%2Fapi/merge_requests/42/discussions?per_page=100",
             fixture("discussions.ndjson"),
         ),
         (
@@ -141,7 +141,7 @@ async fn loads_gitlab_snapshot_and_capabilities_with_encoded_namespace() {
             "--paginate",
             "--output",
             "ndjson",
-            "projects/group%2Fapi/merge_requests/42/diffs?unidiff=true",
+            "projects/group%2Fapi/merge_requests/42/diffs?unidiff=true&per_page=100",
         ],
         vec![
             "api",
@@ -156,7 +156,7 @@ async fn loads_gitlab_snapshot_and_capabilities_with_encoded_namespace() {
             "--paginate",
             "--output",
             "ndjson",
-            "projects/group%2Fapi/merge_requests/42/discussions",
+            "projects/group%2Fapi/merge_requests/42/discussions?per_page=100",
         ],
         vec![
             "api",
@@ -214,7 +214,7 @@ async fn maps_malformed_ndjson_and_authentication() {
     let mut responses = snapshot_responses();
     responses.retain(|(endpoint, _)| !endpoint.ends_with("diffs?unidiff=true"));
     responses.push((
-        "projects/group%2Fapi/merge_requests/42/diffs?unidiff=true",
+        "projects/group%2Fapi/merge_requests/42/diffs?unidiff=true&per_page=100",
         output(b"not-json\n".to_vec()),
     ));
     let malformed = Arc::new(RoutingRunner::new(responses));

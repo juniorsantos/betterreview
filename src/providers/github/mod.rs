@@ -45,6 +45,80 @@ where
         &self,
         key: &ChangeRequestKey,
     ) -> Result<ProviderSnapshot, ProviderError> {
+        repository_parts(&key.repository)?;
+        let ((metadata, wire_threads, viewed), rest_files, raw_diff) = tokio::try_join!(
+            self.load_graphql_snapshot(key),
+            self.load_rest_files(key),
+            self.load_raw_diff(key),
+        )?;
+
+        let patches = split_patches(&raw_diff)?;
+        let mut files = Vec::with_capacity(rest_files.len());
+        for rest in rest_files {
+            let status = file_status(&rest.status)?;
+            let patch = patches
+                .get(&rest.filename)
+                .cloned()
+                .map(|patch| {
+                    if patch.len() > MAX_PATCH_BYTES {
+                        PatchAvailability::TooLarge
+                    } else {
+                        PatchAvailability::Available(patch)
+                    }
+                })
+                .unwrap_or_else(|| {
+                    if rest.patch.is_none() {
+                        PatchAvailability::Truncated {
+                            reason: "GitHub omitted this file patch".into(),
+                        }
+                    } else {
+                        PatchAvailability::Truncated {
+                            reason: "raw diff did not contain this file".into(),
+                        }
+                    }
+                });
+            let path = RepoPath(rest.filename.clone());
+            // GitHub's files endpoint reports the blob sha at head, except for
+            // deleted files where it is the blob that was removed (the base).
+            let (base_blob, head_blob) = if status == FileStatus::Deleted {
+                (rest.sha, None)
+            } else {
+                (None, rest.sha)
+            };
+            files.push(ChangedFile {
+                path,
+                previous_path: rest.previous_filename.map(RepoPath),
+                status,
+                additions: rest.additions,
+                deletions: rest.deletions,
+                patch,
+                base_blob,
+                head_blob,
+                remotely_reviewed: viewed.get(&rest.filename).copied().flatten(),
+            });
+        }
+
+        let (threads, drafts) = map_threads(wire_threads);
+        Ok(ProviderSnapshot {
+            key: key.clone(),
+            title: metadata.title,
+            author: metadata
+                .author
+                .map_or_else(|| "unknown".into(), |author| author.login),
+            web_url: metadata.url,
+            base: CommitOid(metadata.base_ref_oid),
+            head: CommitOid(metadata.head_ref_oid),
+            files,
+            threads,
+            drafts,
+            capabilities: ProviderCapabilities::all_supported(),
+        })
+    }
+
+    async fn load_graphql_snapshot(
+        &self,
+        key: &ChangeRequestKey,
+    ) -> Result<(PullRequest, Vec<WireThread>, BTreeMap<String, Option<bool>>), ProviderError> {
         let (owner, name) = repository_parts(&key.repository)?;
         let mut cursor: Option<String> = None;
         let mut metadata: Option<PullRequest> = None;
@@ -110,7 +184,17 @@ where
                 "response number did not match the requested pull request",
             ));
         }
-        let endpoint = format!("repos/{}/pulls/{}/files", key.repository, key.number);
+        Ok((metadata, wire_threads, viewed))
+    }
+
+    async fn load_rest_files(
+        &self,
+        key: &ChangeRequestKey,
+    ) -> Result<Vec<RestFile>, ProviderError> {
+        let endpoint = format!(
+            "repos/{}/pulls/{}/files?per_page=100",
+            key.repository, key.number
+        );
         let file_bytes = self
             .client
             .api(
@@ -127,11 +211,12 @@ where
             )
             .await?;
         let pages: Vec<Vec<RestFile>> = parse_json(&file_bytes, "load pull request files")?;
-        let rest_files: Vec<_> = pages.into_iter().flatten().collect();
+        Ok(pages.into_iter().flatten().collect())
+    }
 
+    async fn load_raw_diff(&self, key: &ChangeRequestKey) -> Result<Vec<u8>, ProviderError> {
         let diff_endpoint = format!("repos/{}/pulls/{}", key.repository, key.number);
-        let raw_diff = self
-            .client
+        self.client
             .api(
                 &key.host,
                 [
@@ -144,68 +229,7 @@ where
                 ],
                 "load pull request diff",
             )
-            .await?;
-        let patches = split_patches(&raw_diff)?;
-        let mut files = Vec::with_capacity(rest_files.len());
-        for rest in rest_files {
-            let status = file_status(&rest.status)?;
-            let patch = patches
-                .get(&rest.filename)
-                .cloned()
-                .map(|patch| {
-                    if patch.len() > MAX_PATCH_BYTES {
-                        PatchAvailability::TooLarge
-                    } else {
-                        PatchAvailability::Available(patch)
-                    }
-                })
-                .unwrap_or_else(|| {
-                    if rest.patch.is_none() {
-                        PatchAvailability::Truncated {
-                            reason: "GitHub omitted this file patch".into(),
-                        }
-                    } else {
-                        PatchAvailability::Truncated {
-                            reason: "raw diff did not contain this file".into(),
-                        }
-                    }
-                });
-            let path = RepoPath(rest.filename.clone());
-            // GitHub's files endpoint reports the blob sha at head, except for
-            // deleted files where it is the blob that was removed (the base).
-            let (base_blob, head_blob) = if status == FileStatus::Deleted {
-                (rest.sha, None)
-            } else {
-                (None, rest.sha)
-            };
-            files.push(ChangedFile {
-                path,
-                previous_path: rest.previous_filename.map(RepoPath),
-                status,
-                additions: rest.additions,
-                deletions: rest.deletions,
-                patch,
-                base_blob,
-                head_blob,
-                remotely_reviewed: viewed.get(&rest.filename).copied().flatten(),
-            });
-        }
-
-        let (threads, drafts) = map_threads(wire_threads);
-        Ok(ProviderSnapshot {
-            key: key.clone(),
-            title: metadata.title,
-            author: metadata
-                .author
-                .map_or_else(|| "unknown".into(), |author| author.login),
-            web_url: metadata.url,
-            base: CommitOid(metadata.base_ref_oid),
-            head: CommitOid(metadata.head_ref_oid),
-            files,
-            threads,
-            drafts,
-            capabilities: ProviderCapabilities::all_supported(),
-        })
+            .await
     }
 }
 

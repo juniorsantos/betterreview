@@ -6,40 +6,86 @@ use betterreview::{
 };
 use serde_json::Value;
 use std::{
-    collections::VecDeque,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 
-struct RecordingRunner {
-    responses: Mutex<VecDeque<CommandOutput>>,
+/// Answers by inspecting the request (endpoint args or GraphQL cursor), so
+/// calls may arrive in any order or concurrently.
+struct RoutingRunner {
     calls: Mutex<Vec<CommandSpec>>,
+    delay: Option<Duration>,
+    fail_all: bool,
 }
 
-impl RecordingRunner {
-    fn new(responses: Vec<CommandOutput>) -> Self {
+impl RoutingRunner {
+    fn new() -> Self {
         Self {
-            responses: Mutex::new(responses.into()),
             calls: Mutex::new(Vec::new()),
+            delay: None,
+            fail_all: false,
+        }
+    }
+
+    fn with_delay(mut self, delay: Duration) -> Self {
+        self.delay = Some(delay);
+        self
+    }
+
+    fn failing() -> Self {
+        Self {
+            calls: Mutex::new(Vec::new()),
+            delay: None,
+            fail_all: true,
+        }
+    }
+
+    fn respond(&self, spec: &CommandSpec) -> CommandOutput {
+        let args: Vec<String> = spec
+            .args
+            .iter()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect();
+        if args.iter().any(|arg| arg == "graphql") {
+            let body: Value =
+                serde_json::from_slice(spec.stdin.as_ref().expect("graphql stdin")).unwrap();
+            let cursor = &body["variables"]["cursor"];
+            if cursor.is_null() {
+                ok(fixture("change_request.json"))
+            } else {
+                ok(fixture("threads-page-2.json"))
+            }
+        } else if args.iter().any(|arg| arg.contains("/files")) {
+            ok(fixture("files-page-1.json"))
+        } else if args.iter().any(|arg| arg.starts_with("Accept:")) {
+            ok(std::fs::read("tests/fixtures/github/pull.diff").unwrap())
+        } else {
+            ok(b"{}".to_vec())
         }
     }
 }
 
 #[async_trait]
-impl CommandRunner for RecordingRunner {
+impl CommandRunner for RoutingRunner {
     async fn run(&self, spec: CommandSpec) -> Result<CommandOutput, CommandError> {
-        self.calls.lock().unwrap().push(spec);
-        Ok(self.responses.lock().unwrap().pop_front().unwrap())
+        if let Some(delay) = self.delay {
+            tokio::time::sleep(delay).await;
+        }
+        self.calls.lock().unwrap().push(spec.clone());
+        if self.fail_all {
+            return Ok(CommandOutput {
+                status: 1,
+                stdout: Vec::new(),
+                stderr: b"authentication required; run gh auth login".to_vec(),
+            });
+        }
+        Ok(self.respond(&spec))
     }
 }
 
 #[tokio::test]
 async fn loads_paginated_github_snapshot_with_structured_commands() {
-    let page_1 = fixture("change_request.json");
-    let page_2 = fixture("threads-page-2.json");
-    let files = fixture("files-page-1.json");
-    let diff = std::fs::read("tests/fixtures/github/pull.diff").unwrap();
-    let responses = vec![ok(page_1), ok(page_2), ok(files), ok(diff)];
-    let runner = Arc::new(RecordingRunner::new(responses));
+    let runner = Arc::new(RoutingRunner::new());
     let provider = GitHubProvider::new(runner.clone());
     let key = github_key();
 
@@ -77,7 +123,7 @@ async fn loads_paginated_github_snapshot_with_structured_commands() {
             "ghe.acme.test",
             "--paginate",
             "--slurp",
-            "repos/acme/api/pulls/42/files"
+            "repos/acme/api/pulls/42/files?per_page=100"
         ]));
     assert!(calls.iter().any(|spec| args(spec)
         == [
@@ -109,20 +155,39 @@ async fn loads_paginated_github_snapshot_with_structured_commands() {
 }
 
 #[tokio::test]
+async fn snapshot_fetches_overlap_instead_of_running_sequentially() {
+    let delay = Duration::from_millis(50);
+    let runner = Arc::new(RoutingRunner::new().with_delay(delay));
+    let provider = GitHubProvider::new(runner);
+
+    let started = std::time::Instant::now();
+    provider.load(&github_key()).await.unwrap();
+    let elapsed = started.elapsed();
+
+    // 4 sequential calls would take >= 200ms; thread pages must stay
+    // sequential (pagination) but files and diff overlap with them.
+    assert!(
+        elapsed < Duration::from_millis(175),
+        "load took {elapsed:?}, fetches are not overlapping"
+    );
+}
+
+#[tokio::test]
 async fn maps_malformed_json_and_authentication_errors() {
-    let malformed = Arc::new(RecordingRunner::new(vec![ok(b"{".to_vec())]));
-    let provider = GitHubProvider::new(malformed);
+    struct MalformedRunner;
+    #[async_trait]
+    impl CommandRunner for MalformedRunner {
+        async fn run(&self, _spec: CommandSpec) -> Result<CommandOutput, CommandError> {
+            Ok(ok(b"{".to_vec()))
+        }
+    }
+    let provider = GitHubProvider::new(Arc::new(MalformedRunner));
     assert!(matches!(
         provider.load(&github_key()).await,
         Err(ProviderError::MalformedResponse { .. })
     ));
 
-    let auth = Arc::new(RecordingRunner::new(vec![CommandOutput {
-        status: 1,
-        stdout: Vec::new(),
-        stderr: b"authentication required; run gh auth login".to_vec(),
-    }]));
-    let provider = GitHubProvider::new(auth);
+    let provider = GitHubProvider::new(Arc::new(RoutingRunner::failing()));
     assert!(matches!(
         provider.probe("ghe.acme.test").await,
         Err(ProviderError::Authentication { .. })
