@@ -133,7 +133,7 @@ fn submission_modal_remains_usable_on_a_small_terminal() {
 
     assert!(screen.contains("Submit review"));
     assert!(screen.contains("2 drafts"));
-    assert!(screen.contains("Ctrl-S submit"));
+    assert!(screen.contains("Enter submit"));
     assert!(screen.contains("Esc cancel"));
 }
 

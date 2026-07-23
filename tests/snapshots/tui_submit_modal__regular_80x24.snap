@@ -18,7 +18,7 @@ expression: "screen(&app_with_drafts(3), 80, 24)"
 │    │                                                                    │    │
 │    │Comment review                                                      │    │
 │    │Tab field  ↑/↓ outcome                                              │    │
-│    │Ctrl-S submit  Esc cancel                                           │    │
+│    │Enter submit  Esc cancel                                            │    │
 │    │                                                                    │    │
 │    └────────────────────────────────────────────────────────────────────┘    │
 │                            ││                                                │

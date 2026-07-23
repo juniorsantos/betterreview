@@ -14,7 +14,7 @@ expression: "screen(&app_with_drafts(2), 50, 16)"
 ││                                              ││
 ││Comment review                                ││
 ││Tab field  ↑/↓ outcome                        ││
-││Ctrl-S submit  Esc cancel                     ││
+││Enter submit  Esc cancel                      ││
 └│                                              │┘
  └──────────────────────────────────────────────┘ 
  Tab/h/l focus  j/k move  ]f/[f file  ]u/[u unrevi

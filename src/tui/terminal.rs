@@ -50,7 +50,7 @@ pub async fn run(
             result = result_rx.recv() => result.map(|result| AppEvent::EffectFinished(Box::new(result))),
             terminal_event = events.next() => match terminal_event {
                 Some(Ok(Event::Key(key))) if is_interrupt(key) => return Ok(ExitReason::Interrupted),
-                Some(Ok(Event::Key(key))) => key_event(&mut app, &mut keymap, key),
+                Some(Ok(Event::Key(key))) => handle_key(&mut app, &mut keymap, key),
                 Some(Ok(event)) => Some(AppEvent::Terminal(event)),
                 Some(Err(error)) => return Err(TuiError::Event(error)),
                 None => return Ok(ExitReason::Interrupted),
@@ -71,7 +71,7 @@ pub async fn run(
     }
 }
 
-fn key_event(app: &mut AppState, keymap: &mut KeyMap, key: KeyEvent) -> Option<AppEvent> {
+pub fn handle_key(app: &mut AppState, keymap: &mut KeyMap, key: KeyEvent) -> Option<AppEvent> {
     if app.quit_dialog {
         return match key.code {
             KeyCode::Esc => action(AppAction::ConfirmQuit(QuitChoice::Cancel)),
@@ -88,7 +88,11 @@ fn key_event(app: &mut AppState, keymap: &mut KeyMap, key: KeyEvent) -> Option<A
     if let Some(modal) = &mut app.submission_modal {
         match (key.code, key.modifiers) {
             (KeyCode::Esc, _) => return action(AppAction::CancelSubmit),
-            (KeyCode::Char('s'), modifiers) if modifiers.contains(KeyModifiers::CONTROL) => {
+            (code, modifiers)
+                if code == KeyCode::Enter
+                    || (code == KeyCode::Char('s')
+                        && modifiers.contains(KeyModifiers::CONTROL)) =>
+            {
                 return action(AppAction::SubmitReview {
                     summary: modal.summary.clone(),
                     outcome: modal.outcome,
@@ -126,7 +130,9 @@ fn editor_key(app: &mut AppState, key: KeyEvent) -> Option<AppEvent> {
         app.editor_open = false;
         return None;
     }
-    if key.code == KeyCode::Char('s') && key.modifiers.contains(KeyModifiers::CONTROL) {
+    let saves = (key.code == KeyCode::Enter && !key.modifiers.contains(KeyModifiers::ALT))
+        || (key.code == KeyCode::Char('s') && key.modifiers.contains(KeyModifiers::CONTROL));
+    if saves {
         if snapshot.stale {
             app.error_banner = Some("stale editor cannot be submitted".into());
             return None;
@@ -154,7 +160,9 @@ fn editor_key(app: &mut AppState, key: KeyEvent) -> Option<AppEvent> {
         (KeyCode::Char(value), KeyModifiers::NONE | KeyModifiers::SHIFT) => {
             editor.insert_char(value)
         }
-        (KeyCode::Enter, _) => editor.insert_text("\n"),
+        (KeyCode::Enter, modifiers) if modifiers.contains(KeyModifiers::ALT) => {
+            editor.insert_text("\n")
+        }
         (KeyCode::Backspace, _) => editor.backspace(),
         (KeyCode::Left, _) => editor.move_left(),
         (KeyCode::Right, _) => editor.move_right(),

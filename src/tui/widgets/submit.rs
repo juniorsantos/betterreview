@@ -47,7 +47,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         Line::raw(""),
         Line::raw(action_label(modal.outcome)),
         Line::raw("Tab field  ↑/↓ outcome"),
-        Line::raw("Ctrl-S submit  Esc cancel"),
+        Line::raw("Enter submit  Esc cancel"),
     ];
     frame.render_widget(Clear, popup);
     frame.render_widget(

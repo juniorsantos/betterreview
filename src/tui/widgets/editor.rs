@@ -24,7 +24,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let title = if editor.stale {
         " Stale editor — read only "
     } else {
-        " Comment editor — Ctrl-S save / Esc close "
+        " Comment editor — Enter save / Alt+Enter newline / Esc close "
     };
     frame.render_widget(Clear, popup);
     frame.render_widget(
