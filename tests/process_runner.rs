@@ -28,6 +28,22 @@ async fn wait_until_gone(pid: Pid, timeout: Duration) -> bool {
     true
 }
 
+async fn wait_for_file(path: &Path, timeout: Duration) {
+    let deadline = Instant::now() + timeout;
+    while !path.exists() {
+        assert!(Instant::now() < deadline, "fixture did not create {path:?}");
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+}
+
+async fn heartbeat_stopped(path: &Path) -> bool {
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let before = fs::metadata(path).unwrap().len();
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let after = fs::metadata(path).unwrap().len();
+    before == after
+}
+
 #[tokio::test]
 async fn passes_metacharacters_without_shell_expansion() {
     let runner = TokioCommandRunner;
@@ -75,17 +91,17 @@ async fn kills_process_when_timeout_expires() {
     let parent = read_pid(&state.path().join("parent.pid"));
     let descendant = read_pid(&state.path().join("descendant.pid"));
     let parent_gone = wait_until_gone(parent, Duration::from_secs(2)).await;
-    let descendant_gone = wait_until_gone(descendant, Duration::from_secs(2)).await;
+    let descendant_stopped = heartbeat_stopped(&state.path().join("heartbeat")).await;
 
     if !parent_gone {
         let _ = kill_process(parent, Signal::KILL);
     }
-    if !descendant_gone {
+    if !descendant_stopped {
         let _ = kill_process(descendant, Signal::KILL);
     }
 
     assert!(parent_gone);
-    assert!(descendant_gone);
+    assert!(descendant_stopped);
 }
 
 #[tokio::test]
@@ -111,4 +127,38 @@ async fn timeout_covers_blocked_stdin() {
         error,
         CommandError::Timeout { timeout } if timeout == configured_timeout
     ));
+}
+
+#[tokio::test]
+async fn cancellation_stops_the_process_group() {
+    let state = tempfile::tempdir().unwrap();
+    let state_path = state.path().as_os_str().to_os_string();
+    let task = tokio::spawn(async move {
+        TokioCommandRunner
+            .run(CommandSpec {
+                program: PathBuf::from("tests/fixtures/bin/wait-forever"),
+                args: vec![state_path],
+                stdin: None,
+                cwd: None,
+                timeout: Duration::from_secs(30),
+                env: BTreeMap::new(),
+                env_remove: Vec::new(),
+            })
+            .await
+    });
+
+    let descendant_path = state.path().join("descendant.pid");
+    let heartbeat_path = state.path().join("heartbeat");
+    wait_for_file(&descendant_path, Duration::from_secs(2)).await;
+    wait_for_file(&heartbeat_path, Duration::from_secs(2)).await;
+    let descendant = read_pid(&descendant_path);
+
+    task.abort();
+    assert!(task.await.unwrap_err().is_cancelled());
+
+    let descendant_stopped = heartbeat_stopped(&heartbeat_path).await;
+    if !descendant_stopped {
+        let _ = kill_process(descendant, Signal::KILL);
+    }
+    assert!(descendant_stopped);
 }

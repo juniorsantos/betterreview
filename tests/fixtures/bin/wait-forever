@@ -1,7 +1,14 @@
 #!/bin/sh
 state_dir=$1
 printf '%s\n' "$$" > "$state_dir/parent.pid"
-sleep 30 &
+heartbeat="$state_dir/heartbeat"
+: > "$heartbeat"
+(
+  while :; do
+    printf '.' >> "$heartbeat"
+    sleep 0.05
+  done
+) &
 descendant=$!
 printf '%s\n' "$descendant" > "$state_dir/descendant.pid"
 wait "$descendant"

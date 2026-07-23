@@ -11,6 +11,28 @@ use super::{CommandError, CommandOutput, CommandRunner, CommandSpec};
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TokioCommandRunner;
 
+struct ProcessGroupGuard {
+    pid: Option<Pid>,
+}
+
+impl ProcessGroupGuard {
+    fn new(pid: Pid) -> Self {
+        Self { pid: Some(pid) }
+    }
+
+    fn disarm(&mut self) {
+        self.pid = None;
+    }
+}
+
+impl Drop for ProcessGroupGuard {
+    fn drop(&mut self) {
+        if let Some(pid) = self.pid {
+            let _ = kill_process_group(pid, Signal::KILL);
+        }
+    }
+}
+
 async fn terminate_process_group(child: &mut Child, pid: Pid) {
     let _ = kill_process_group(pid, Signal::KILL);
     let _ = child.start_kill();
@@ -52,13 +74,16 @@ impl CommandRunner for TokioCommandRunner {
             .id()
             .and_then(|raw| Pid::from_raw(raw as i32))
             .ok_or_else(|| CommandError::Io(std::io::Error::other("child has no process id")))?;
+        let mut process_group = ProcessGroupGuard::new(pid);
         let child_stdin = child.stdin.take();
         let Some(mut child_stdout) = child.stdout.take() else {
             terminate_process_group(&mut child, pid).await;
+            process_group.disarm();
             return Err(CommandError::Io(missing_pipe("stdout")));
         };
         let Some(mut child_stderr) = child.stderr.take() else {
             terminate_process_group(&mut child, pid).await;
+            process_group.disarm();
             return Err(CommandError::Io(missing_pipe("stderr")));
         };
 
@@ -90,13 +115,18 @@ impl CommandRunner for TokioCommandRunner {
         };
 
         let (status, stdout, stderr) = match tokio::time::timeout(spec.timeout, operation).await {
-            Ok(Ok(output)) => output,
+            Ok(Ok(output)) => {
+                process_group.disarm();
+                output
+            }
             Ok(Err(source)) => {
                 terminate_process_group(&mut child, pid).await;
+                process_group.disarm();
                 return Err(CommandError::Io(source));
             }
             Err(_) => {
                 terminate_process_group(&mut child, pid).await;
+                process_group.disarm();
                 return Err(CommandError::Timeout {
                     timeout: spec.timeout,
                 });
