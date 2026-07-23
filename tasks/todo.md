@@ -38,6 +38,19 @@ Causas raiz encontradas:
   blob presente e igual (codificava o comportamento defeituoso); intenção preservada.
 - Não commitado — aguardando ok do usuário.
 
+## Rodada 2 (mesmo dia, feedback do teste do usuário)
+
+- [x] Bug: `viewerPendingReview` não existe no schema GitHub → `reviews(states: PENDING, first: 1)`.
+      Quebrava comentar, marcar arquivo (m) e submeter.
+- [x] Bug: help não fechava (agora Esc/q/Enter/? fecham; teclas não vazam) e ficou compacto (51x7).
+- [x] Bug: diálogo de quit sem dicas nem seleção → menu real com j/k + Enter + Esc e hints.
+- [x] Tema GitHub Dark High Contrast (src/tui/theme.rs) em todos os painéis + cores +/- do delta.
+- [x] Diff: coluna única de número de linha; cursor destaca a linha inteira.
+- [x] Files: agrupado por diretório (referência do usuário), letra de status colorida,
+      contadores +N -N à direita, `e` expande o painel (30↔50 colunas).
+- [x] Perf rodada 2: doctor em paralelo com o load; GitHub threads/files/diff em paralelo;
+      per_page=100 nos dois providers. Startup ~2s → ~0,8-1,2s (dominado por 2 RTTs).
+
 ## Etapas seguintes (aprovadas, specs pendentes)
 - Etapa 2: seletor de PR/MR ao abrir no repo (branch atual destacada + lista, prefetch do
   destacado com debounce ~300ms). Brainstorm concluído; escrever spec + plano.
