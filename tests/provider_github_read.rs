@@ -49,11 +49,7 @@ impl RoutingRunner {
         if args.iter().any(|arg| arg == "graphql") {
             let body: Value =
                 serde_json::from_slice(spec.stdin.as_ref().expect("graphql stdin")).unwrap();
-            if body["query"]
-                .as_str()
-                .unwrap_or("")
-                .contains("pullRequests(")
-            {
+            if body["query"].as_str().unwrap_or("").contains("ListOpen(") {
                 return ok(fixture("list-open.json"));
             }
             let cursor = &body["variables"]["cursor"];
