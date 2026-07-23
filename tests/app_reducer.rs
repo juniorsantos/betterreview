@@ -123,19 +123,38 @@ fn next_unreviewed_skips_reviewed_files_and_wraps() {
 }
 
 #[test]
-fn previous_file_wraps_and_resets_diff_position() {
+fn direct_file_navigation_stops_at_both_boundaries() {
     let mut state = app_with_reviewed_pattern([false; 4]);
+
+    let effects = update(&mut state, AppEvent::Action(AppAction::PreviousFile));
+
+    assert_eq!(state.active_file_index, 0);
+    assert!(effects.is_empty());
+
+    state.active_file_index = 3;
+    state.session.active_file = Some(RepoPath("src/file_3.rs".into()));
+    let effects = update(&mut state, AppEvent::Action(AppAction::NextFile));
+
+    assert_eq!(state.active_file_index, 3);
+    assert!(effects.is_empty());
+}
+
+#[test]
+fn file_navigation_resets_diff_position() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    state.active_file_index = 1;
+    state.session.active_file = Some(RepoPath("src/file_1.rs".into()));
     state.session.cursor_row = 2;
     state.session.scroll_row = 1;
 
     update(&mut state, AppEvent::Action(AppAction::PreviousFile));
 
-    assert_eq!(state.active_file_index, 3);
+    assert_eq!(state.active_file_index, 0);
     assert_eq!(state.session.cursor_row, 0);
     assert_eq!(state.session.scroll_row, 0);
     assert_eq!(
         state.session.active_file,
-        Some(RepoPath("src/file_3.rs".into()))
+        Some(RepoPath("src/file_0.rs".into()))
     );
 }
 

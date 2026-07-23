@@ -10,6 +10,7 @@ use crate::{
     app::{AppFocus, AppState},
     domain::FileStatus,
     state::ReviewSync,
+    tui::viewport,
 };
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
@@ -18,6 +19,12 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         .files
         .iter()
         .enumerate()
+        .skip(viewport::start(
+            state.active_file_index,
+            state.provider.files.len(),
+            area.height.saturating_sub(2) as usize,
+        ))
+        .take(area.height.saturating_sub(2) as usize)
         .map(|(index, file)| {
             let progress = state.session.files.get(&file.path);
             let marker = match progress {

@@ -194,7 +194,10 @@ fn navigate_by(state: &mut AppState, delta: i32) -> Vec<EffectEnvelope> {
     if count == 0 {
         return Vec::new();
     }
-    let index = move_index_wrapped(state.active_file_index, delta, count);
+    let index = move_index(state.active_file_index, delta, count);
+    if index == state.active_file_index {
+        return Vec::new();
+    }
     activate_file(state, index)
 }
 

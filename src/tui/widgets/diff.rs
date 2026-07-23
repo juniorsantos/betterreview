@@ -9,6 +9,7 @@ use ratatui::{
 use crate::{
     app::{AppFocus, AppState},
     domain::PatchAvailability,
+    tui::viewport,
 };
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
@@ -56,15 +57,16 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     } else {
         Color::DarkGray
     };
+    let visible = area.height.saturating_sub(2) as usize;
+    let start = viewport::start(state.session.cursor_row, lines.len(), visible);
+    let scroll = u16::try_from(start).unwrap_or(u16::MAX);
     frame.render_widget(
-        Paragraph::new(lines)
-            .scroll((state.session.scroll_row as u16, 0))
-            .block(
-                Block::default()
-                    .title(" Diff ")
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(border)),
-            ),
+        Paragraph::new(lines).scroll((scroll, 0)).block(
+            Block::default()
+                .title(" Diff ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(border)),
+        ),
         area,
     );
 }

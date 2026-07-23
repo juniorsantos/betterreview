@@ -130,6 +130,36 @@ fn app() -> AppState {
     app
 }
 
+fn app_with_long_content() -> AppState {
+    let mut state = app();
+    state.provider.files = (0..20)
+        .map(|index| ChangedFile {
+            path: RepoPath(format!("src/file_{index}.rs")),
+            previous_path: None,
+            status: FileStatus::Modified,
+            additions: 1,
+            deletions: 0,
+            patch: PatchAvailability::Available(format!("@@ -0,0 +1 @@\n+line-{index}\n")),
+            base_blob: None,
+            head_blob: Some(format!("head-{index}")),
+            remotely_reviewed: Some(false),
+        })
+        .collect();
+    state.rendered_diff = Some(RenderedDiff {
+        rows: (0..20)
+            .map(|index| RenderedRow {
+                text: Line::raw(format!("diff-row-{index:02}")),
+                binding: RowBinding {
+                    row_index: index,
+                    left: None,
+                    right: None,
+                },
+            })
+            .collect(),
+    });
+    state
+}
+
 fn screen(state: &AppState, width: u16, height: u16) -> String {
     let backend = TestBackend::new(width, height);
     let mut terminal = Terminal::new(backend).unwrap();
@@ -172,6 +202,29 @@ fn narrow_layout_prioritizes_diff_and_can_overlay_files() {
     let files = screen(&state, 50, 16);
     assert!(files.contains("src/app.rs"));
     assert!(files.contains("src/new.rs"));
+}
+
+#[test]
+fn file_panel_scrolls_to_keep_the_active_file_visible() {
+    let mut state = app_with_long_content();
+    state.focus = AppFocus::Files;
+    state.active_file_index = 15;
+
+    let rendered = screen(&state, 80, 12);
+
+    assert!(rendered.contains("src/file_15.rs"));
+    assert!(!rendered.contains("src/file_0.rs"));
+}
+
+#[test]
+fn diff_panel_scrolls_to_keep_the_cursor_visible() {
+    let mut state = app_with_long_content();
+    state.session.cursor_row = 15;
+
+    let rendered = screen(&state, 80, 12);
+
+    assert!(rendered.contains("diff-row-15"));
+    assert!(!rendered.contains("diff-row-00"));
 }
 
 #[test]
