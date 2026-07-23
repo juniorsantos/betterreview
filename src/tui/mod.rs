@@ -1,5 +1,6 @@
 mod editor_state;
 mod keymap;
+pub mod picker;
 mod render;
 mod terminal;
 pub mod theme;
