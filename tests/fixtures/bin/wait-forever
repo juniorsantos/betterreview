@@ -1,5 +1,7 @@
 #!/bin/sh
-printf '%s\n' ready
-while :; do
-  sleep 1
-done
+state_dir=$1
+printf '%s\n' "$$" > "$state_dir/parent.pid"
+sleep 30 &
+descendant=$!
+printf '%s\n' "$descendant" > "$state_dir/descendant.pid"
+wait "$descendant"
