@@ -18,9 +18,9 @@ use crate::{
     context::DiscoveryInput,
     diff::MAX_PATCH_BYTES,
     domain::{
-        ChangeRequestKey, ChangedFile, CommitOid, DraftComment, DraftId, FileStatus,
-        PatchAvailability, ProviderCapabilities, ProviderKind, ProviderSnapshot, RepoPath,
-        ReviewComment, ReviewThread, SubmitRequest, SubmitResult, Support, ThreadId,
+        ChangeRequestKey, ChangeRequestSummary, ChangedFile, CommitOid, DraftComment, DraftId,
+        FileStatus, PatchAvailability, ProviderCapabilities, ProviderKind, ProviderSnapshot,
+        RepoPath, ReviewComment, ReviewThread, SubmitRequest, SubmitResult, Support, ThreadId,
     },
     process::CommandRunner,
 };
@@ -346,6 +346,14 @@ where
             }
             _ => Err(unsupported("discover", "input belongs to another provider")),
         }
+    }
+
+    async fn list_open(
+        &self,
+        _host: &str,
+        _repository: &str,
+    ) -> Result<Vec<ChangeRequestSummary>, ProviderError> {
+        Err(unsupported("list open", "implemented in the next task"))
     }
 
     async fn load(&self, key: &ChangeRequestKey) -> Result<ProviderSnapshot, ProviderError> {

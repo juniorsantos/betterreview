@@ -12,18 +12,20 @@ use crate::{
     context::DiscoveryInput,
     diff::MAX_PATCH_BYTES,
     domain::{
-        ChangeRequestKey, ChangedFile, CommitOid, DiffPosition, DiffSelection, DiffSide,
-        DraftComment, DraftId, FileStatus, PatchAvailability, ProviderCapabilities, ProviderKind,
-        ProviderSnapshot, RepoPath, ReviewComment, ReviewThread, SubmitRequest, SubmitResult,
-        ThreadId,
+        ChangeRequestKey, ChangeRequestSummary, ChangedFile, CommitOid, DiffPosition,
+        DiffSelection, DiffSide, DraftComment, DraftId, FileStatus, PatchAvailability,
+        ProviderCapabilities, ProviderKind, ProviderSnapshot, RepoPath, ReviewComment,
+        ReviewThread, SubmitRequest, SubmitResult, ThreadId,
     },
     process::CommandRunner,
 };
 
 use self::{
     client::GhClient,
-    graphql::{DISCOVER_QUERY, SNAPSHOT_QUERY},
-    wire::{GraphQlEnvelope, PullRequest, RestFile, ReviewThread as WireThread, SnapshotData},
+    graphql::{DISCOVER_QUERY, LIST_OPEN_QUERY, SNAPSHOT_QUERY},
+    wire::{
+        GraphQlEnvelope, ListData, PullRequest, RestFile, ReviewThread as WireThread, SnapshotData,
+    },
 };
 use super::{DraftBody, NewDraftComment, ProviderError, ReviewProvider};
 
@@ -285,6 +287,50 @@ where
             }
             _ => Err(unsupported("discover", "input belongs to another provider")),
         }
+    }
+
+    async fn list_open(
+        &self,
+        host: &str,
+        repository: &str,
+    ) -> Result<Vec<ChangeRequestSummary>, ProviderError> {
+        let (owner, name) = repository_parts(repository)?;
+        let bytes = self
+            .client
+            .graphql(
+                host,
+                LIST_OPEN_QUERY,
+                json!({ "owner": owner, "name": name }),
+                "list open pull requests",
+            )
+            .await?;
+        let envelope: GraphQlEnvelope<ListData> = parse_json(&bytes, "list open pull requests")?;
+        ensure_graphql(&envelope, "list open pull requests")?;
+        let nodes = envelope
+            .data
+            .and_then(|data| data.repository)
+            .map(|repository| repository.pull_requests.nodes)
+            .unwrap_or_default();
+        nodes
+            .into_iter()
+            .map(|node| {
+                Ok(ChangeRequestSummary {
+                    number: node.number,
+                    title: node.title,
+                    author: node
+                        .author
+                        .map_or_else(|| "unknown".into(), |author| author.login),
+                    source_branch: node.head_ref_name,
+                    updated_at: time::OffsetDateTime::parse(
+                        &node.updated_at,
+                        &time::format_description::well_known::Rfc3339,
+                    )
+                    .map_err(|error| malformed("list open pull requests", &error.to_string()))?,
+                    draft: node.is_draft,
+                    web_url: node.url,
+                })
+            })
+            .collect()
     }
 
     async fn load(&self, key: &ChangeRequestKey) -> Result<ProviderSnapshot, ProviderError> {

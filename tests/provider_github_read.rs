@@ -49,6 +49,13 @@ impl RoutingRunner {
         if args.iter().any(|arg| arg == "graphql") {
             let body: Value =
                 serde_json::from_slice(spec.stdin.as_ref().expect("graphql stdin")).unwrap();
+            if body["query"]
+                .as_str()
+                .unwrap_or("")
+                .contains("pullRequests(")
+            {
+                return ok(fixture("list-open.json"));
+            }
             let cursor = &body["variables"]["cursor"];
             if cursor.is_null() {
                 ok(fixture("change_request.json"))
@@ -192,6 +199,33 @@ async fn maps_malformed_json_and_authentication_errors() {
         provider.probe("ghe.acme.test").await,
         Err(ProviderError::Authentication { .. })
     ));
+}
+
+#[tokio::test]
+async fn lists_open_pull_requests_in_one_call() {
+    let runner = Arc::new(RoutingRunner::new());
+    let provider = GitHubProvider::new(runner.clone());
+
+    let list = provider
+        .list_open("ghe.acme.test", "acme/api")
+        .await
+        .unwrap();
+
+    assert_eq!(list.len(), 2);
+    assert_eq!(list[0].number, 7);
+    assert_eq!(list[0].source_branch, "feature/picker");
+    assert_eq!(list[0].author, "jsjunior");
+    assert!(!list[0].draft);
+    assert_eq!(list[1].author, "unknown");
+    assert!(list[1].draft);
+    let calls = runner.calls.lock().unwrap();
+    assert_eq!(
+        calls
+            .iter()
+            .filter(|spec| args(spec).get(1) == Some(&"graphql".to_owned()))
+            .count(),
+        1
+    );
 }
 
 fn github_key() -> ChangeRequestKey {

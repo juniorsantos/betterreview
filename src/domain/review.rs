@@ -39,6 +39,17 @@ pub struct ReviewThread {
     pub comments: Vec<ReviewComment>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChangeRequestSummary {
+    pub number: u64,
+    pub title: String,
+    pub author: String,
+    pub source_branch: String,
+    pub updated_at: time::OffsetDateTime,
+    pub draft: bool,
+    pub web_url: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProviderSnapshot {
     pub key: ChangeRequestKey,

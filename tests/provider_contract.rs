@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use betterreview::{
     context::DiscoveryInput,
     domain::{
-        ChangeRequestKey, CommitOid, DraftComment, DraftId, ProviderKind, ProviderSnapshot,
-        RepoPath, ReviewThread, SubmitRequest, SubmitResult, ThreadId,
+        ChangeRequestKey, ChangeRequestSummary, CommitOid, DraftComment, DraftId, ProviderKind,
+        ProviderSnapshot, RepoPath, ReviewThread, SubmitRequest, SubmitResult, ThreadId,
     },
     providers::{DraftBody, NewDraftComment, ProviderError, ProviderRegistry, ReviewProvider},
 };
@@ -30,6 +30,14 @@ impl ReviewProvider for FakeProvider {
     }
 
     async fn discover(&self, _input: &DiscoveryInput) -> Result<ChangeRequestKey, ProviderError> {
+        unimplemented!()
+    }
+
+    async fn list_open(
+        &self,
+        _host: &str,
+        _repository: &str,
+    ) -> Result<Vec<ChangeRequestSummary>, ProviderError> {
         unimplemented!()
     }
 

@@ -111,6 +111,34 @@ pub struct ReviewState {
 }
 
 #[derive(Deserialize)]
+pub struct ListData {
+    pub repository: Option<ListRepository>,
+}
+
+#[derive(Deserialize)]
+pub struct ListRepository {
+    #[serde(rename = "pullRequests")]
+    pub pull_requests: ListConnection,
+}
+
+#[derive(Deserialize)]
+pub struct ListConnection {
+    pub nodes: Vec<ListNode>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListNode {
+    pub number: u64,
+    pub title: String,
+    pub is_draft: bool,
+    pub updated_at: String,
+    pub head_ref_name: String,
+    pub url: String,
+    pub author: Option<Author>,
+}
+
+#[derive(Deserialize)]
 pub struct RestFile {
     pub filename: String,
     pub previous_filename: Option<String>,

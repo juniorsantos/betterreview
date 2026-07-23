@@ -29,6 +29,11 @@ pub trait ReviewProvider: Send + Sync {
         &self,
         input: &crate::context::DiscoveryInput,
     ) -> Result<crate::domain::ChangeRequestKey, ProviderError>;
+    async fn list_open(
+        &self,
+        host: &str,
+        repository: &str,
+    ) -> Result<Vec<crate::domain::ChangeRequestSummary>, ProviderError>;
     async fn load(
         &self,
         key: &crate::domain::ChangeRequestKey,

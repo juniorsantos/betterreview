@@ -1,0 +1,28 @@
+{
+  "data": {
+    "repository": {
+      "pullRequests": {
+        "nodes": [
+          {
+            "number": 7,
+            "title": "feat: add picker",
+            "isDraft": false,
+            "updatedAt": "2026-07-23T10:00:00Z",
+            "headRefName": "feature/picker",
+            "url": "https://ghe.acme.test/acme/api/pull/7",
+            "author": { "login": "jsjunior" }
+          },
+          {
+            "number": 5,
+            "title": "chore: bump deps",
+            "isDraft": true,
+            "updatedAt": "2026-07-22T09:00:00Z",
+            "headRefName": "chore/deps",
+            "url": "https://ghe.acme.test/acme/api/pull/5",
+            "author": null
+          }
+        ]
+      }
+    }
+  }
+}
