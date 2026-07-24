@@ -296,8 +296,12 @@ fn comment_box_renders_under_its_line() {
         .expect("anchored diff row rendered");
     // Card: top border with the meta, body line, bottom border with hints.
     assert!(lines[anchor + 1].contains("╭─ @você · draft"));
-    assert!(lines[anchor + 2].contains("│  Please double-check this line"));
-    assert!(lines[anchor + 3].contains("╰─"));
+    assert!(
+        lines[anchor + 2].trim().starts_with('│'),
+        "a blank padding row separates the border from the text"
+    );
+    assert!(lines[anchor + 3].contains("│   Please double-check this line"));
+    assert!(lines[anchor + 5].contains("╰─"));
 }
 
 #[test]
@@ -389,8 +393,8 @@ fn comment_block_renders_as_a_card_with_action_hints() {
     let screen = screen_wide(&terminal);
 
     assert!(screen.contains("╭─ @você · draft"));
-    assert!(screen.contains("│  corpo do comentário"));
-    assert!(screen.contains("│  segunda linha"));
+    assert!(screen.contains("│   corpo do comentário"));
+    assert!(screen.contains("│   segunda linha"));
     assert!(screen.contains("╰─ e editar · x excluir"));
 }
 

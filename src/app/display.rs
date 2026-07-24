@@ -480,6 +480,13 @@ fn push_block(rows: &mut Vec<DisplayRow>, block: PendingBlock) {
         text: String::new(),
         author: block.author,
     });
+    // Vertical breathing room: one blank body row against each border.
+    rows.push(DisplayRow::Comment {
+        entry: block.entry.clone(),
+        kind: CommentRowKind::Body,
+        text: String::new(),
+        author: None,
+    });
     let mut body_lines = block.body.lines().peekable();
     if body_lines.peek().is_none() {
         rows.push(DisplayRow::Comment {
@@ -497,6 +504,12 @@ fn push_block(rows: &mut Vec<DisplayRow>, block: PendingBlock) {
             author: None,
         });
     }
+    rows.push(DisplayRow::Comment {
+        entry: block.entry.clone(),
+        kind: CommentRowKind::Body,
+        text: String::new(),
+        author: None,
+    });
     rows.push(DisplayRow::Comment {
         entry: block.entry.clone(),
         kind: CommentRowKind::Footer,

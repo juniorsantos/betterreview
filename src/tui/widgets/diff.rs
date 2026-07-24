@@ -208,13 +208,13 @@ fn comment_line(
             spans.push(Span::styled("╮", border_style));
         }
         CommentRowKind::Body => {
-            // │  texto (padding interno) │
-            spans.push(Span::styled("│  ", border_style));
+            // │   texto (padding interno) │
+            spans.push(Span::styled("│   ", border_style));
             spans.push(Span::styled(
                 text.to_owned(),
                 Style::default().fg(theme::FG),
             ));
-            let used = 3 + text.chars().count();
+            let used = 4 + text.chars().count();
             let pad = card_width.saturating_sub(used + 1);
             spans.push(Span::raw(" ".repeat(pad)));
             spans.push(Span::styled("│", border_style));

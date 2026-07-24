@@ -141,7 +141,23 @@ fn draft_block_appears_under_its_anchor() {
                     id: DraftId("d1".into())
                 },
                 kind: CommentRowKind::Body,
+                text: String::new(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Draft {
+                    id: DraftId("d1".into())
+                },
+                kind: CommentRowKind::Body,
                 text: "please fix".into(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Draft {
+                    id: DraftId("d1".into())
+                },
+                kind: CommentRowKind::Body,
+                text: String::new(),
                 author: None,
             },
             DisplayRow::Comment {
@@ -195,6 +211,15 @@ fn multiline_body_expands_between_header_and_footer() {
                     comment_index: 0,
                 },
                 kind: CommentRowKind::Body,
+                text: String::new(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 0,
+                },
+                kind: CommentRowKind::Body,
                 text: "line1".into(),
                 author: None,
             },
@@ -214,6 +239,15 @@ fn multiline_body_expands_between_header_and_footer() {
                 },
                 kind: CommentRowKind::Body,
                 text: "line3".into(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 0,
+                },
+                kind: CommentRowKind::Body,
+                text: String::new(),
                 author: None,
             },
             DisplayRow::Comment {
@@ -269,7 +303,25 @@ fn thread_with_two_comments_produces_two_blocks() {
                     comment_index: 0,
                 },
                 kind: CommentRowKind::Body,
+                text: String::new(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 0,
+                },
+                kind: CommentRowKind::Body,
                 text: "first".into(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 0,
+                },
+                kind: CommentRowKind::Body,
+                text: String::new(),
                 author: None,
             },
             DisplayRow::Comment {
@@ -296,7 +348,25 @@ fn thread_with_two_comments_produces_two_blocks() {
                     comment_index: 1,
                 },
                 kind: CommentRowKind::Body,
+                text: String::new(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 1,
+                },
+                kind: CommentRowKind::Body,
                 text: "second".into(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 1,
+                },
+                kind: CommentRowKind::Body,
+                text: String::new(),
                 author: None,
             },
             DisplayRow::Comment {
@@ -367,7 +437,25 @@ fn unanchored_comments_group_after_an_orphan_header() {
                     comment_index: 0,
                 },
                 kind: CommentRowKind::Body,
+                text: String::new(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 0,
+                },
+                kind: CommentRowKind::Body,
                 text: "stale".into(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 0,
+                },
+                kind: CommentRowKind::Body,
+                text: String::new(),
                 author: None,
             },
             DisplayRow::Comment {
@@ -392,7 +480,23 @@ fn unanchored_comments_group_after_an_orphan_header() {
                     id: DraftId("d1".into())
                 },
                 kind: CommentRowKind::Body,
+                text: String::new(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Draft {
+                    id: DraftId("d1".into())
+                },
+                kind: CommentRowKind::Body,
                 text: "no selection".into(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Draft {
+                    id: DraftId("d1".into())
+                },
+                kind: CommentRowKind::Body,
+                text: String::new(),
                 author: None,
             },
             DisplayRow::Comment {

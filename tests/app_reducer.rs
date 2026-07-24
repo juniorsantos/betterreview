@@ -837,13 +837,13 @@ fn cursor_walks_through_comment_blocks() {
 
     update(&mut state, AppEvent::Action(AppAction::MoveCursor(1)));
     assert_eq!(
-        state.display_cursor, 6,
+        state.display_cursor, 8,
         "body and footer rows are skipped, landing on Diff{{1}}"
     );
     assert_eq!(state.session.cursor_row, 1);
 
     update(&mut state, AppEvent::Action(AppAction::MoveCursor(1)));
-    assert_eq!(state.display_cursor, 7);
+    assert_eq!(state.display_cursor, 9);
     assert_eq!(state.session.cursor_row, 2);
 
     update(&mut state, AppEvent::Action(AppAction::MoveCursor(1)));
@@ -905,7 +905,7 @@ fn selection_can_be_canceled_from_a_comment_row() {
 #[test]
 fn toggle_comments_resyncs_cursor() {
     let mut state = state_with_multiline_comment();
-    state.display_cursor = 6;
+    state.display_cursor = 8;
     state.session.cursor_row = 1;
 
     update(&mut state, AppEvent::Action(AppAction::ToggleComments));
@@ -920,7 +920,7 @@ fn toggle_comments_resyncs_cursor() {
 
     assert!(!state.comments_hidden);
     assert_eq!(
-        state.display_cursor, 6,
+        state.display_cursor, 8,
         "re-synced back to Diff{{1}} once comments are shown again"
     );
 }
@@ -1437,12 +1437,12 @@ fn bracket_c_jumps_between_comment_blocks() {
     assert_eq!(state.display_cursor, 1, "lands on the first comment block");
 
     update(&mut state, AppEvent::Action(AppAction::NextComment));
-    assert_eq!(state.display_cursor, 6, "lands on the second comment block");
+    assert_eq!(state.display_cursor, 8, "lands on the second comment block");
 
     let effects = update(&mut state, AppEvent::Action(AppAction::NextComment));
     assert!(effects.is_empty());
     assert_eq!(
-        state.display_cursor, 6,
+        state.display_cursor, 8,
         "clamped, no wrap past the last comment"
     );
     assert!(
@@ -2288,9 +2288,9 @@ fn toggle_fold_dir_folds_and_unfolds_an_arbitrary_directory() {
 fn jump_to_display_row_lands_directly_on_a_diff_row() {
     let mut state = state_with_multiline_comment();
 
-    update(&mut state, AppEvent::Action(AppAction::JumpToDisplayRow(6)));
+    update(&mut state, AppEvent::Action(AppAction::JumpToDisplayRow(8)));
 
-    assert_eq!(state.display_cursor, 6);
+    assert_eq!(state.display_cursor, 8);
     assert_eq!(state.session.cursor_row, 1);
 }
 
