@@ -3,7 +3,7 @@ use serde_json::{Map, Value, json};
 use crate::{
     domain::{
         ChangeRequestKey, CommitOid, DiffSelection, DiffSide, DraftComment, DraftId, RepoPath,
-        ReviewComment, ReviewOutcome, ReviewThread, SubmitRequest, SubmitResult, ThreadId,
+        ReviewOutcome, ReviewThread, SubmitRequest, SubmitResult, ThreadId,
     },
     process::{CommandError, CommandRunner},
 };
