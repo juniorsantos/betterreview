@@ -1,6 +1,7 @@
 mod display;
 mod effect;
 mod event;
+mod generated;
 mod reducer;
 mod runtime;
 mod state;
@@ -10,6 +11,7 @@ pub use display::{
 };
 pub use effect::{AppEffect, EffectEnvelope, EffectOutcome, EffectResult, RenderedFile};
 pub use event::{AppAction, AppEvent, QuitChoice};
+pub use generated::is_generated;
 pub(crate) use reducer::push_notice;
 pub use reducer::update;
 pub use runtime::Runtime;

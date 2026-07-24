@@ -9,7 +9,7 @@ use crate::{
 
 use super::{
     AppAction, AppEffect, AppEvent, AppFocus, AppState, DisplayRow, EffectEnvelope, EffectOutcome,
-    EffectResult, QuitChoice, SubmissionModal, refresh_display_rows,
+    EffectResult, QuitChoice, SubmissionModal, generated::is_generated, refresh_display_rows,
 };
 
 /// Pushes a user-facing notice and arms its on-screen lifetime. Every refusal
@@ -363,12 +363,12 @@ fn navigate_unreviewed(state: &mut AppState, delta: i32) -> Vec<EffectEnvelope> 
     for _ in 0..count {
         index = move_index_wrapped(index, delta, count);
         let path = &state.provider.files[index].path;
-        if !state
+        let reviewed = state
             .session
             .files
             .get(path)
-            .is_some_and(|progress| progress.reviewed)
-        {
+            .is_some_and(|progress| progress.reviewed);
+        if !reviewed && !is_generated(&path.0) {
             return activate_file(state, index);
         }
     }

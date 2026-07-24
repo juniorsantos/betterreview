@@ -86,6 +86,73 @@ fn app_with_reviewed_pattern(pattern: [bool; 4]) -> AppState {
     AppState::new(provider, session)
 }
 
+fn app_with_paths_all_unreviewed(paths: &[&str]) -> AppState {
+    let files = paths
+        .iter()
+        .enumerate()
+        .map(|(index, path)| ChangedFile {
+            path: RepoPath((*path).to_owned()),
+            previous_path: None,
+            status: FileStatus::Modified,
+            additions: 1,
+            deletions: 1,
+            patch: PatchAvailability::Available("@@ -1 +1 @@\n-old\n+new\n".into()),
+            base_blob: Some(format!("base-{index}")),
+            head_blob: Some(format!("head-{index}")),
+            remotely_reviewed: Some(false),
+        })
+        .collect::<Vec<_>>();
+    let progress = files
+        .iter()
+        .map(|file| {
+            (
+                file.path.clone(),
+                FileProgress {
+                    identity: ContentIdentity {
+                        path: file.path.clone(),
+                        base_blob: file.base_blob.clone(),
+                        head_blob: file.head_blob.clone(),
+                    },
+                    reviewed: false,
+                    sync: ReviewSync::Synced,
+                },
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let key = ChangeRequestKey {
+        provider: ProviderKind::GitHub,
+        host: "github.com".into(),
+        repository: "owner/repo".into(),
+        number: 10,
+    };
+    let provider = ProviderSnapshot {
+        key: key.clone(),
+        title: "Change".into(),
+        author: "dev".into(),
+        web_url: "https://github.com/owner/repo/pull/10".into(),
+        base: CommitOid("base".into()),
+        head: CommitOid("new-head".into()),
+        files,
+        threads: Vec::new(),
+        drafts: Vec::new(),
+        capabilities: ProviderCapabilities::all_supported(),
+    };
+    let session = SessionSnapshot {
+        schema_version: SESSION_SCHEMA_VERSION,
+        key,
+        base: CommitOid("base".into()),
+        head: CommitOid("new-head".into()),
+        active_file: Some(RepoPath(paths[0].to_owned())),
+        cursor_row: 0,
+        scroll_row: 0,
+        files: progress,
+        editor: None,
+        pending_submit: None,
+        updated_at: OffsetDateTime::UNIX_EPOCH,
+    };
+    AppState::new(provider, session)
+}
+
 fn rendered_file(text: &str) -> RenderedFile {
     RenderedFile {
         parsed: ParsedFileDiff {
@@ -146,6 +213,27 @@ fn next_unreviewed_skips_reviewed_files_and_wraps() {
     assert_eq!(state.active_file_index, 3);
     update(&mut state, AppEvent::Action(AppAction::NextUnreviewed));
     assert_eq!(state.active_file_index, 1);
+}
+
+#[test]
+fn unreviewed_navigation_skips_generated_files() {
+    let mut state =
+        app_with_paths_all_unreviewed(&["src/a.rs", "Cargo.lock", "src/b.rs", "vendor/lib.rs"]);
+
+    let effects = update(&mut state, AppEvent::Action(AppAction::NextUnreviewed));
+
+    assert!(
+        effects
+            .iter()
+            .any(|effect| matches!(effect.effect, AppEffect::RenderActiveFile { .. }))
+    );
+    // Starting from src/a.rs (index 0), the generated Cargo.lock (index 1) is
+    // skipped even though it is unreviewed.
+    assert_eq!(state.active_file_index, 2);
+    update(&mut state, AppEvent::Action(AppAction::NextUnreviewed));
+    // vendor/lib.rs (index 3) is also generated and skipped, wrapping back to
+    // src/a.rs (index 0).
+    assert_eq!(state.active_file_index, 0);
 }
 
 #[test]

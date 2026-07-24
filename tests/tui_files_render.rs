@@ -171,3 +171,83 @@ fn e_toggles_the_expanded_files_panel() {
     };
     assert!(corner(&wide) > corner(&narrow));
 }
+
+#[test]
+fn generated_files_show_muted_marker_instead_of_status_letter() {
+    let key = ChangeRequestKey {
+        provider: ProviderKind::GitHub,
+        host: "github.com".into(),
+        repository: "owner/repo".into(),
+        number: 42,
+    };
+    let files = vec![
+        file("src/app/one.rs", FileStatus::Modified, 3, 1),
+        file("Cargo.lock", FileStatus::Modified, 5, 2),
+    ];
+    let progress = files
+        .iter()
+        .map(|file| {
+            (
+                file.path.clone(),
+                FileProgress {
+                    identity: ContentIdentity {
+                        path: file.path.clone(),
+                        base_blob: None,
+                        head_blob: file.head_blob.clone(),
+                    },
+                    reviewed: false,
+                    sync: ReviewSync::Synced,
+                },
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let provider = ProviderSnapshot {
+        key: key.clone(),
+        title: "Review terminal".into(),
+        author: "dev".into(),
+        web_url: "https://github.com/owner/repo/pull/42".into(),
+        base: CommitOid("base".into()),
+        head: CommitOid("head".into()),
+        files,
+        threads: Vec::new(),
+        drafts: Vec::new(),
+        capabilities: ProviderCapabilities::all_supported(),
+    };
+    let session = SessionSnapshot {
+        schema_version: SESSION_SCHEMA_VERSION,
+        key,
+        base: CommitOid("base".into()),
+        head: CommitOid("head".into()),
+        active_file: Some(RepoPath("src/app/one.rs".into())),
+        cursor_row: 0,
+        scroll_row: 0,
+        files: progress,
+        editor: None,
+        pending_submit: None,
+        updated_at: OffsetDateTime::UNIX_EPOCH,
+    };
+    let state = AppState::new(provider, session);
+
+    let mut terminal = Terminal::new(TestBackend::new(100, 30)).unwrap();
+    terminal
+        .draw(|frame| betterreview::tui::render(frame, &state))
+        .unwrap();
+    let buffer = terminal.backend().buffer().clone();
+    let text = screen(&state);
+
+    // The generated file's status letter ("M") is replaced by the muted
+    // marker, while the ordinary file keeps its colored status letter.
+    assert!(text.contains("⊘ Cargo.lock"));
+    assert!(!text.contains("M Cargo.lock"));
+    assert!(text.contains("M one.rs"));
+    // +5 -2 counts remain visible for the generated file.
+    assert!(text.contains("+5 -2"));
+
+    let marker_pos = text
+        .lines()
+        .enumerate()
+        .find_map(|(y, line)| line.find('⊘').map(|x| (x as u16, y as u16)))
+        .expect("marker cell not found");
+    let marker_cell = buffer.cell(marker_pos).unwrap();
+    assert_eq!(marker_cell.fg, betterreview::tui::theme::MUTED);
+}
