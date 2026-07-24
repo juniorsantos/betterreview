@@ -1,8 +1,8 @@
 ---
 source: tests/tui_submit_modal.rs
-expression: "screen(&app_with_drafts(3), 80, 24)"
+expression: "redact_version(screen(&app_with_drafts(3), 80, 24))"
 ---
- betterreview  owner/repo #42 · Review terminal · @dev                   v0.1.0 
+ betterreview  owner/repo #42 · Review terminal · @dev                   vX.Y.Z 
                                                                                 
 ┌ [2] Arquivos — e expandir /┐┌ [3] Diff ──────────────────────────────────────┐
 │ ▾ src/                     ││ Carregando diff…                               │

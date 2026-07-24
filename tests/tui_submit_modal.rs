@@ -139,8 +139,20 @@ fn submission_modal_remains_usable_on_a_small_terminal() {
     assert!(screen.contains("Tab campo"));
 }
 
+/// A versão do crate aparece no cabeçalho renderizado; sem a redação os
+/// snapshots quebrariam a cada bump automático de release.
+fn redact_version(screen: String) -> String {
+    screen.replace(concat!("v", env!("CARGO_PKG_VERSION")), "vX.Y.Z")
+}
+
 #[test]
 fn submission_modal_snapshots_cover_regular_and_small_terminals() {
-    insta::assert_snapshot!("regular_80x24", screen(&app_with_drafts(3), 80, 24));
-    insta::assert_snapshot!("small_50x16", screen(&app_with_drafts(2), 50, 16));
+    insta::assert_snapshot!(
+        "regular_80x24",
+        redact_version(screen(&app_with_drafts(3), 80, 24))
+    );
+    insta::assert_snapshot!(
+        "small_50x16",
+        redact_version(screen(&app_with_drafts(2), 50, 16))
+    );
 }

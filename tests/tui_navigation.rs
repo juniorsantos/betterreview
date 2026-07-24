@@ -232,11 +232,17 @@ fn diff_panel_scrolls_to_keep_the_cursor_visible() {
     assert!(!rendered.contains("diff-row-00"));
 }
 
+/// A versão do crate aparece no cabeçalho renderizado; sem a redação os
+/// snapshots quebrariam a cada bump automático de release.
+fn redact_version(screen: String) -> String {
+    screen.replace(concat!("v", env!("CARGO_PKG_VERSION")), "vX.Y.Z")
+}
+
 #[test]
 fn layout_snapshots_cover_wide_medium_and_narrow_terminals() {
-    insta::assert_snapshot!("wide_120x36", screen(&app(), 120, 36));
-    insta::assert_snapshot!("medium_80x24", screen(&app(), 80, 24));
-    insta::assert_snapshot!("narrow_50x16", screen(&app(), 50, 16));
+    insta::assert_snapshot!("wide_120x36", redact_version(screen(&app(), 120, 36)));
+    insta::assert_snapshot!("medium_80x24", redact_version(screen(&app(), 80, 24)));
+    insta::assert_snapshot!("narrow_50x16", redact_version(screen(&app(), 50, 16)));
 }
 
 #[test]

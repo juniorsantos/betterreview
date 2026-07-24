@@ -1,8 +1,8 @@
 ---
 source: tests/tui_navigation.rs
-expression: "screen(&app(), 80, 24)"
+expression: "redact_version(screen(&app(), 80, 24))"
 ---
- betterreview  owner/repo #42 · Add terminal review · @developer         v0.1.0
+ betterreview  owner/repo #42 · Add terminal review · @developer         vX.Y.Z
 
 ┌ [2] Arquivos — e expandir /┐┌ [3] Diff ──────────────────────────────────────┐
 │ ▾ src/                     ││     8 -old                                     │
