@@ -184,8 +184,8 @@ fn list_panel_shows_the_table_header() {
 fn item_rows_share_the_same_author_column_start() {
     let picker = state(
         vec![
-            item(1, "shortname", "main", false, false),
-            item(2, "muchlongerauthorname", "other", false, false),
+            item(1, "ann", "main", false, false),
+            item(2, "longname", "other", false, false),
         ],
         0,
     );
@@ -200,8 +200,8 @@ fn item_rows_share_the_same_author_column_start() {
         .find(|line| line.contains("#2"))
         .expect("second row rendered");
 
-    let author_one = char_offset(row_one, "@shortname").expect("author one present");
-    let author_two = char_offset(row_two, "@muchlonger").expect("author two present");
+    let author_one = char_offset(row_one, "@ann").expect("author one present");
+    let author_two = char_offset(row_two, "@longname").expect("author two present");
     assert_eq!(author_one, author_two);
 }
 
@@ -212,11 +212,19 @@ fn narrow_terminal_hides_the_branch_column() {
         0,
     );
 
+    // Only inspect the list panel's rows: the description panel below it
+    // shows the branch regardless of width, so scanning the whole screen
+    // would give a false negative.
     let terminal = draw_sized(&picker, 60, 30);
-    let screen = screen_sized(&terminal, 60, 30);
+    let list_lines: Vec<String> = screen_sized(&terminal, 60, 30)
+        .lines()
+        .take_while(|line| !line.contains("[1] Descrição da revisão"))
+        .map(str::to_owned)
+        .collect();
+    let list_screen = list_lines.join("\n");
 
-    assert!(!screen.contains("distinctive-branch-name"));
-    assert!(screen.contains("@dev"));
+    assert!(!list_screen.contains("distinctive-branch-name"));
+    assert!(list_screen.contains("@dev"));
 }
 
 #[test]

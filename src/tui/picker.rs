@@ -428,6 +428,9 @@ const AUTHOR_TEXT_WIDTH: usize = 10;
 const AUTHOR_WIDTH: usize = AUTHOR_DOT_WIDTH + AUTHOR_TEXT_WIDTH;
 const BRANCH_WIDTH: usize = 16;
 const QUANDO_WIDTH: usize = 6;
+/// Room reserved after QUANDO for the ragged " draft"/" sessão" badges, so
+/// they never get clipped by the panel's right edge.
+const BADGE_RESERVE: usize = 14;
 /// Below this inner width the BRANCH column is dropped so the title keeps
 /// room to breathe.
 const NARROW_BRANCH_THRESHOLD: usize = 70;
@@ -437,7 +440,7 @@ const NARROW_AUTHOR_THRESHOLD: usize = 50;
 fn columns_for(width: usize) -> Columns {
     let show_branch = width >= NARROW_BRANCH_THRESHOLD;
     let show_author = width >= NARROW_AUTHOR_THRESHOLD;
-    let mut reserved = CURSOR_WIDTH + PR_WIDTH + QUANDO_WIDTH;
+    let mut reserved = CURSOR_WIDTH + PR_WIDTH + QUANDO_WIDTH + BADGE_RESERVE;
     if show_author {
         reserved += AUTHOR_WIDTH;
     }
