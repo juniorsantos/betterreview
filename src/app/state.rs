@@ -56,6 +56,12 @@ pub struct AppState {
     pub replying_thread: Option<ThreadId>,
     pub delete_dialog: Option<DraftId>,
     pub delete_selected: usize,
+    /// The in-progress query while typing after `/`; `None` once confirmed
+    /// (`Enter`) or canceled (`Esc`). Not persisted.
+    pub search_input: Option<String>,
+    /// The confirmed query driving `n`/`N` navigation and the status bar's
+    /// active-search display; `None` when no search is active. Not persisted.
+    pub search_query: Option<String>,
 }
 
 impl AppState {
@@ -100,6 +106,8 @@ impl AppState {
             replying_thread: None,
             delete_dialog: None,
             delete_selected: 0,
+            search_input: None,
+            search_query: None,
         }
     }
 }

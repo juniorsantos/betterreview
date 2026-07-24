@@ -8,6 +8,7 @@ mod state;
 
 pub use display::{
     CommentEntry, DisplayRow, build_display_rows, display_rows, refresh_display_rows,
+    search_matches,
 };
 pub use effect::{AppEffect, EffectEnvelope, EffectOutcome, EffectResult, RenderedFile};
 pub use event::{AppAction, AppEvent, QuitChoice};

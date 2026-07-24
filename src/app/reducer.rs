@@ -267,7 +267,82 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             refresh_display_rows(state);
             Vec::new()
         }
+        AppAction::ConfirmSearch => confirm_search(state),
+        AppAction::SearchNext => search_step(state, 1),
+        AppAction::SearchPrevious => search_step(state, -1),
+        AppAction::CancelSearch => {
+            state.search_input = None;
+            state.search_query = None;
+            Vec::new()
+        }
     }
+}
+
+/// Fixes the typed query as the active search and jumps to the first match
+/// at or after the cursor — an empty query (typed nothing, just hit `Enter`)
+/// clears the search instead of fixing an empty one.
+fn confirm_search(state: &mut AppState) -> Vec<EffectEnvelope> {
+    let typed = state.search_input.take().unwrap_or_default();
+    let trimmed = typed.trim();
+    if trimmed.is_empty() {
+        state.search_query = None;
+        return Vec::new();
+    }
+    state.search_query = Some(trimmed.to_owned());
+    jump_to_match(state, state.display_cursor, 1, true)
+}
+
+/// Steps to the next (`step = 1`) or previous (`step = -1`) match, wrapping
+/// around the ends of the match list. A no-op when there is no active query.
+fn search_step(state: &mut AppState, step: i32) -> Vec<EffectEnvelope> {
+    if state.search_query.is_none() {
+        return Vec::new();
+    }
+    jump_to_match(state, state.display_cursor, step, false)
+}
+
+/// Lands on the nearest match to `from` in `step`'s direction. `inclusive`
+/// lets a match sitting exactly on `from` count (used by `confirm_search`,
+/// which searches "from the cursor" onward); `n`/`N` always look strictly
+/// past the cursor so repeated presses keep advancing. Wraps to the first
+/// (or last) match when nothing is found in that direction; a notice is
+/// left when there are no matches at all.
+fn jump_to_match(
+    state: &mut AppState,
+    from: usize,
+    step: i32,
+    inclusive: bool,
+) -> Vec<EffectEnvelope> {
+    let matches = crate::app::search_matches(state);
+    let Some(&target) = (if step >= 0 {
+        matches
+            .iter()
+            .find(|&&index| {
+                if inclusive {
+                    index >= from
+                } else {
+                    index > from
+                }
+            })
+            .or_else(|| matches.first())
+    } else {
+        matches
+            .iter()
+            .rev()
+            .find(|&&index| {
+                if inclusive {
+                    index <= from
+                } else {
+                    index < from
+                }
+            })
+            .or_else(|| matches.last())
+    }) else {
+        push_notice(state, "sem resultados");
+        return Vec::new();
+    };
+    land_on_display_row(state, target);
+    Vec::new()
 }
 
 /// Moves `display_cursor` through the display rows, stopping only on rows

@@ -1433,3 +1433,94 @@ fn bracket_c_jumps_between_comment_blocks() {
     update(&mut state, AppEvent::Action(AppAction::PreviousComment));
     assert_eq!(state.display_cursor, 1, "back to the first comment block");
 }
+
+/// Four plain diff rows, two of which contain the word "needle": rows 1 and
+/// 3. No comments, so display rows mirror the rendered rows one-to-one.
+fn state_with_search_fixture() -> AppState {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    state.rendered_diff = Some(RenderedDiff {
+        rows: [" alpha", " beta needle", " gamma", " delta NEEDLE"]
+            .into_iter()
+            .enumerate()
+            .map(|(index, text)| RenderedRow {
+                text: Line::raw(text),
+                binding: RowBinding {
+                    row_index: index,
+                    left: None,
+                    right: None,
+                },
+            })
+            .collect(),
+    });
+    betterreview::app::refresh_display_rows(&mut state);
+    state
+}
+
+#[test]
+fn search_jumps_to_the_first_match() {
+    let mut state = state_with_search_fixture();
+    state.search_input = Some("needle".into());
+
+    update(&mut state, AppEvent::Action(AppAction::ConfirmSearch));
+
+    assert_eq!(state.search_query.as_deref(), Some("needle"));
+    assert!(state.search_input.is_none());
+    assert_eq!(
+        state.display_cursor, 1,
+        "lands on the first match at/after the cursor"
+    );
+    assert_eq!(state.session.cursor_row, 1);
+}
+
+#[test]
+fn n_wraps_around_matches() {
+    let mut state = state_with_search_fixture();
+    state.search_query = Some("needle".into());
+    state.display_cursor = 1;
+    state.session.cursor_row = 1;
+
+    update(&mut state, AppEvent::Action(AppAction::SearchNext));
+    assert_eq!(state.display_cursor, 3, "moves to the second match");
+
+    update(&mut state, AppEvent::Action(AppAction::SearchNext));
+    assert_eq!(
+        state.display_cursor, 1,
+        "wraps back around to the first match"
+    );
+
+    update(&mut state, AppEvent::Action(AppAction::SearchPrevious));
+    assert_eq!(state.display_cursor, 3, "wraps backward to the last match");
+}
+
+#[test]
+fn esc_clears_the_search() {
+    let mut state = state_with_search_fixture();
+    state.search_input = Some("needle".into());
+    state.search_query = Some("needle".into());
+
+    update(&mut state, AppEvent::Action(AppAction::CancelSearch));
+
+    assert!(state.search_input.is_none());
+    assert!(state.search_query.is_none());
+}
+
+#[test]
+fn search_with_no_matches_leaves_a_notice() {
+    let mut state = state_with_search_fixture();
+    state.search_input = Some("missing".into());
+
+    let effects = update(&mut state, AppEvent::Action(AppAction::ConfirmSearch));
+
+    assert!(effects.is_empty());
+    assert_eq!(
+        state.search_query.as_deref(),
+        Some("missing"),
+        "the query is fixed even when nothing matches"
+    );
+    assert!(
+        state
+            .notices
+            .iter()
+            .any(|notice| notice.contains("sem resultados"))
+    );
+}

@@ -56,6 +56,10 @@ pub enum AppAction {
     ToggleFilesPanel,
     ToggleFold,
     ToggleComments,
+    ConfirmSearch,
+    SearchNext,
+    SearchPrevious,
+    CancelSearch,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -306,3 +306,27 @@ fn comment_block_renders_as_a_card_with_action_hints() {
     assert!(screen.contains("@você · draft · e editar / x excluir"));
     assert!(screen.contains("│ segunda linha"));
 }
+
+#[test]
+fn status_shows_the_search_input_while_typing() {
+    let mut state = app();
+    state.search_input = Some("added".into());
+
+    let screen = screen(&draw(&state));
+
+    assert!(screen.contains("/added▌"));
+}
+
+#[test]
+fn status_shows_query_and_match_count_for_an_active_search() {
+    let mut state = app();
+    // "context", "-removed" and "+added" all contain the letter "e".
+    state.search_query = Some("e".into());
+
+    let screen = screen(&draw(&state));
+
+    assert!(screen.contains("e"), "sanity: screen renders at all");
+    assert!(screen.contains("1/3"));
+    assert!(screen.contains("n/N navega"));
+    assert!(screen.contains("Esc limpa"));
+}

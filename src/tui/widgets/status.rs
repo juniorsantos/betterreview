@@ -22,10 +22,26 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             state.notices.last().cloned().unwrap_or_default(),
             ratatui::style::Style::default().fg(crate::tui::theme::WARNING),
         )
+    } else if let Some(query) = &state.search_input {
+        (
+            format!("/{query}▌"),
+            ratatui::style::Style::default().fg(crate::tui::theme::FG),
+        )
     } else if let Some((_, label)) = state.pending_labels.iter().next_back() {
         (
             format!(" {} {label}", SPINNER[state.spinner_frame % SPINNER.len()]),
             ratatui::style::Style::default().fg(crate::tui::theme::ACCENT),
+        )
+    } else if let Some(query) = &state.search_query {
+        let matches = crate::app::search_matches(state);
+        let total = matches.len();
+        let current = matches
+            .iter()
+            .position(|&index| index == state.display_cursor)
+            .map_or(0, |position| position + 1);
+        (
+            format!("\u{201c}{query}\u{201d} {current}/{total}  n/N navega  Esc limpa"),
+            ratatui::style::Style::default().fg(crate::tui::theme::MUTED),
         )
     } else {
         (

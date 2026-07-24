@@ -151,6 +151,40 @@ pub fn handle_key(app: &mut AppState, keymap: &mut KeyMap, key: KeyEvent) -> Opt
         }
         return None;
     }
+    if let Some(input) = &mut app.search_input {
+        return match key.code {
+            KeyCode::Esc => action(AppAction::CancelSearch),
+            KeyCode::Enter => action(AppAction::ConfirmSearch),
+            KeyCode::Backspace => {
+                input.pop();
+                None
+            }
+            KeyCode::Char(value)
+                if key.modifiers == KeyModifiers::NONE || key.modifiers == KeyModifiers::SHIFT =>
+            {
+                input.push(value);
+                None
+            }
+            _ => None,
+        };
+    }
+    if app.search_query.is_some() {
+        match key.code {
+            KeyCode::Esc => return action(AppAction::CancelSearch),
+            KeyCode::Char('n') if key.modifiers == KeyModifiers::NONE => {
+                return action(AppAction::SearchNext);
+            }
+            KeyCode::Char('N') => return action(AppAction::SearchPrevious),
+            _ => {}
+        }
+    }
+    if app.focus == AppFocus::Diff
+        && key.code == KeyCode::Char('/')
+        && key.modifiers == KeyModifiers::NONE
+    {
+        app.search_input = Some(String::new());
+        return None;
+    }
     if app.focus == AppFocus::Diff {
         if let Some(event) = comment_row_key(app, key) {
             return Some(event);

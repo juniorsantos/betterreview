@@ -416,3 +416,89 @@ fn x_deletes_when_cursor_is_on_a_draft_comment() {
         Some(AppEvent::Action(AppAction::DeleteComment(id))) if id == draft_id
     ));
 }
+
+#[test]
+fn slash_enters_search_input_and_chars_do_not_leak_to_the_keymap() {
+    let mut app = base_app();
+    app.focus = AppFocus::Diff;
+    let mut keymap = KeyMap::default();
+
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('/'), KeyModifiers::NONE),
+    );
+    assert!(event.is_none());
+    assert_eq!(app.search_input.as_deref(), Some(""));
+
+    // A key that would otherwise move the cursor must be typed into the
+    // query instead of falling through to the keymap.
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('j'), KeyModifiers::NONE),
+    );
+    assert!(event.is_none());
+    assert_eq!(app.search_input.as_deref(), Some("j"));
+
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Backspace, KeyModifiers::NONE),
+    );
+    assert!(event.is_none());
+    assert_eq!(app.search_input.as_deref(), Some(""));
+
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Enter, KeyModifiers::NONE),
+    );
+    assert!(matches!(
+        event,
+        Some(AppEvent::Action(AppAction::ConfirmSearch))
+    ));
+}
+
+#[test]
+fn esc_cancels_search_input() {
+    let mut app = base_app();
+    app.focus = AppFocus::Diff;
+    app.search_input = Some("term".into());
+    let mut keymap = KeyMap::default();
+
+    let event = handle_key(&mut app, &mut keymap, key(KeyCode::Esc, KeyModifiers::NONE));
+
+    assert!(matches!(
+        event,
+        Some(AppEvent::Action(AppAction::CancelSearch))
+    ));
+}
+
+#[test]
+fn n_and_shift_n_navigate_an_active_search() {
+    let mut app = base_app();
+    app.focus = AppFocus::Diff;
+    app.search_query = Some("term".into());
+    let mut keymap = KeyMap::default();
+
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('n'), KeyModifiers::NONE),
+    );
+    assert!(matches!(
+        event,
+        Some(AppEvent::Action(AppAction::SearchNext))
+    ));
+
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('N'), KeyModifiers::SHIFT),
+    );
+    assert!(matches!(
+        event,
+        Some(AppEvent::Action(AppAction::SearchPrevious))
+    ));
+}

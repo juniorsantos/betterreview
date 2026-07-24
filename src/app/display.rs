@@ -162,6 +162,52 @@ pub fn refresh_display_rows(state: &mut AppState) {
         .unwrap_or(0);
 }
 
+/// Display rows whose rendered text contains `state.search_query`
+/// (case-insensitive), in display order. `Diff` rows are matched against the
+/// rendered diff text; `Comment` rows against their own `text`. Returns an
+/// empty vector when there is no active query. Shared by the reducer (to
+/// land on/step between matches) and the status bar (to show the match
+/// count).
+pub fn search_matches(state: &AppState) -> Vec<usize> {
+    let Some(query) = state.search_query.as_deref() else {
+        return Vec::new();
+    };
+    let needle = query.to_lowercase();
+    if needle.is_empty() {
+        return Vec::new();
+    }
+    state
+        .display_rows
+        .iter()
+        .enumerate()
+        .filter_map(|(index, row)| {
+            row_search_text(state, row)
+                .is_some_and(|text| text.to_lowercase().contains(&needle))
+                .then_some(index)
+        })
+        .collect()
+}
+
+fn row_search_text(state: &AppState, row: &DisplayRow) -> Option<String> {
+    match row {
+        DisplayRow::Diff { row } => state
+            .rendered_diff
+            .as_ref()?
+            .rows
+            .get(*row)
+            .map(|rendered| line_text(&rendered.text)),
+        DisplayRow::Comment { text, .. } => Some(text.clone()),
+        DisplayRow::OrphanHeader => None,
+    }
+}
+
+fn line_text(line: &ratatui::text::Line<'_>) -> String {
+    line.spans
+        .iter()
+        .map(|span| span.content.as_ref())
+        .collect()
+}
+
 /// A draft belongs to `active_path` when its selection targets that file, or
 /// when it has no selection at all (its file cannot be determined, so it is
 /// kept and surfaced as an orphan rather than silently dropped).
