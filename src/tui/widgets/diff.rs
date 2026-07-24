@@ -77,6 +77,17 @@ fn render_display_row(
             "— comentários desatualizados —",
             Style::default().fg(theme::MUTED),
         ),
+        DisplayRow::Gap { hidden, .. } => Line::from(vec![
+            Span::raw(GUTTER),
+            Span::styled(
+                format!("· · · {hidden} linhas ocultas · · · — z expandir"),
+                Style::default().fg(theme::MUTED),
+            ),
+        ]),
+        DisplayRow::Context { new_line, text } => Line::from(vec![
+            Span::styled(format!("{new_line:>5} "), Style::default().fg(theme::MUTED)),
+            Span::styled(text.clone(), Style::default().fg(theme::FG)),
+        ]),
     };
 
     let selected = matches!(display_row, DisplayRow::Diff { row } if state.selection_anchor.is_some_and(|anchor| {

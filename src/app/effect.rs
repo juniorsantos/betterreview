@@ -28,6 +28,7 @@ pub enum AppEffect {
     RefreshSnapshot,
     SubmitReview { request: SubmitRequest },
     DiscardReview,
+    LoadFileContext { path: RepoPath, revision: CommitOid },
 }
 
 #[derive(Debug)]
@@ -62,4 +63,8 @@ pub enum EffectOutcome {
         result: Result<(), String>,
     },
     Completed(Result<(), String>),
+    FileContextLoaded {
+        path: RepoPath,
+        result: Result<String, String>,
+    },
 }

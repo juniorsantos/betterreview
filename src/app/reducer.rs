@@ -282,6 +282,7 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             refresh_display_rows(state);
             Vec::new()
         }
+        AppAction::ExpandGap => expand_gap(state),
         AppAction::ConfirmSearch => confirm_search(state),
         AppAction::SearchNext => search_step(state, 1),
         AppAction::SearchPrevious => search_step(state, -1),
@@ -418,6 +419,8 @@ fn is_display_stop(row: &DisplayRow) -> bool {
                 kind: CommentRowKind::Header,
                 ..
             }
+            | DisplayRow::Gap { .. }
+            | DisplayRow::Context { .. }
     )
 }
 
@@ -568,6 +571,8 @@ fn activate_file(state: &mut AppState, index: usize) -> Vec<EffectEnvelope> {
     state.parsed_diff = None;
     state.rendered_diff = None;
     state.selection_anchor = None;
+    state.expanded_gaps.clear();
+    state.pending_gap = None;
     state.dirty = false;
     refresh_display_rows(state);
     let Some(file) = state.provider.files.get(index).cloned() else {
@@ -641,6 +646,42 @@ fn toggle_reviewed(state: &mut AppState) -> Vec<EffectEnvelope> {
     ));
     push_notice(state, message);
     effects
+}
+
+/// `z` on a `Gap` row: expands it in place when the active file's contents
+/// are already cached, or schedules `LoadFileContext` and parks the gap's
+/// key in `pending_gap` so the response can expand it once it lands. A no-op
+/// when the cursor isn't on a `Gap` row.
+fn expand_gap(state: &mut AppState) -> Vec<EffectEnvelope> {
+    let Some(DisplayRow::Gap { after_new_line, .. }) =
+        state.display_rows.get(state.display_cursor).cloned()
+    else {
+        return Vec::new();
+    };
+    let Some(active_path) = state
+        .provider
+        .files
+        .get(state.active_file_index)
+        .map(|file| file.path.clone())
+    else {
+        return Vec::new();
+    };
+    if state.file_contexts.contains_key(&active_path) {
+        if !state.expanded_gaps.remove(&after_new_line) {
+            state.expanded_gaps.insert(after_new_line);
+        }
+        refresh_display_rows(state);
+        return Vec::new();
+    }
+    state.pending_gap = Some(after_new_line);
+    vec![envelope(
+        state,
+        Some(state.provider.head.clone()),
+        AppEffect::LoadFileContext {
+            path: active_path,
+            revision: state.provider.head.clone(),
+        },
+    )]
 }
 
 fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelope> {
@@ -765,6 +806,20 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
             }
             Err(message) => state.error_banner = Some(message),
         },
+        EffectOutcome::FileContextLoaded { path, result } => match result {
+            Ok(content) => {
+                let lines: Vec<String> = content.split('\n').map(str::to_owned).collect();
+                state.file_contexts.insert(path, lines);
+                if let Some(gap) = state.pending_gap.take() {
+                    state.expanded_gaps.insert(gap);
+                }
+                refresh_display_rows(state);
+            }
+            Err(message) => {
+                state.pending_gap = None;
+                state.error_banner = Some(message);
+            }
+        },
     }
     Vec::new()
 }
@@ -776,11 +831,11 @@ fn set_error(state: &mut AppState, result: Result<(), String>) {
 }
 
 fn open_editor(state: &mut AppState, suggestion: bool) {
-    let on_comment_row = matches!(
+    let blocks_editor = matches!(
         state.display_rows.get(state.display_cursor),
-        Some(DisplayRow::Comment { .. })
+        Some(DisplayRow::Comment { .. } | DisplayRow::Gap { .. } | DisplayRow::Context { .. })
     );
-    if on_comment_row {
+    if blocks_editor {
         push_notice(state, "mova para uma linha de código");
         return;
     }
@@ -958,6 +1013,7 @@ fn effect_label(effect: &AppEffect) -> Option<&'static str> {
         AppEffect::Reply { .. } => Some("respondendo…"),
         AppEffect::SubmitReview { .. } => Some("enviando revisão…"),
         AppEffect::RefreshSnapshot => Some("atualizando…"),
+        AppEffect::LoadFileContext { .. } => Some("carregando contexto…"),
         _ => None,
     }
 }

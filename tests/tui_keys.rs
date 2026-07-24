@@ -529,3 +529,46 @@ fn number_keys_focus_the_review_panels() {
         Some(AppEvent::Action(AppAction::FocusDiff))
     ));
 }
+
+#[test]
+fn z_expands_when_cursor_is_on_a_gap_row() {
+    let mut app = base_app();
+    app.focus = AppFocus::Diff;
+    app.display_rows = vec![DisplayRow::Gap {
+        after_new_line: 4,
+        hidden: 2,
+    }];
+    app.display_cursor = 0;
+    let mut keymap = KeyMap::default();
+
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('z'), KeyModifiers::NONE),
+    );
+
+    assert!(matches!(
+        event,
+        Some(AppEvent::Action(AppAction::ExpandGap))
+    ));
+}
+
+#[test]
+fn z_still_toggles_fold_elsewhere() {
+    let mut app = base_app();
+    app.focus = AppFocus::Diff;
+    app.display_rows = vec![DisplayRow::Diff { row: 0 }];
+    app.display_cursor = 0;
+    let mut keymap = KeyMap::default();
+
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('z'), KeyModifiers::NONE),
+    );
+
+    assert!(matches!(
+        event,
+        Some(AppEvent::Action(AppAction::ToggleFold))
+    ));
+}

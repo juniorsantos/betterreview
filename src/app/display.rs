@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::diff::RenderedDiff;
 use crate::domain::{DiffPosition, DraftComment, DraftId, RepoPath, ReviewThread, ThreadId};
@@ -43,6 +43,21 @@ pub enum DisplayRow {
         author: Option<String>,
     },
     OrphanHeader,
+    /// A run of unchanged lines the diff didn't show, sitting right after
+    /// new-file line `after_new_line` (`0` for a gap before the first hunk).
+    /// `hidden` is how many lines it collapses. Replaced by `Context` rows
+    /// once its key is in `AppState::expanded_gaps` and the file's contents
+    /// are cached in `AppState::file_contexts`.
+    Gap {
+        after_new_line: u32,
+        hidden: usize,
+    },
+    /// One expanded line of unchanged context, pulled from the cached file
+    /// contents at the head revision.
+    Context {
+        new_line: u32,
+        text: String,
+    },
 }
 
 /// A comment block waiting to be placed into the display, either right after
@@ -192,12 +207,120 @@ pub fn refresh_display_rows(state: &mut AppState) {
             },
         );
     }
+    insert_gap_rows(state);
     let target = state.session.cursor_row;
     state.display_cursor = state
         .display_rows
         .iter()
         .position(|row| matches!(row, DisplayRow::Diff { row } if *row == target))
         .unwrap_or(0);
+}
+
+/// Finds runs of unchanged lines the parsed diff skipped over — between
+/// hunks, before the first hunk, and after the last one — and splices a
+/// `Gap` row (or, when the gap is expanded and the file's contents are
+/// cached, one `Context` row per hidden line) into `state.display_rows` at
+/// each spot. A no-op when there's no parsed diff or no active file, and
+/// when every consecutive pair of code rows is already contiguous.
+fn insert_gap_rows(state: &mut AppState) {
+    let Some(parsed) = state.parsed_diff.as_ref() else {
+        return;
+    };
+    let Some(active_path) = state
+        .provider
+        .files
+        .get(state.active_file_index)
+        .map(|file| file.path.clone())
+    else {
+        return;
+    };
+
+    let new_lines: Vec<Option<u32>> = parsed.rows.iter().map(|row| row.new_line).collect();
+    let total_lines = state
+        .file_contexts
+        .get(&active_path)
+        .map(|lines| lines.len() as u32);
+
+    // Keyed by the display index a gap sits *before*; `old_len` (past the
+    // last index) means "append at the very end".
+    let mut insert_before: BTreeMap<usize, (u32, usize)> = BTreeMap::new();
+    let mut last_new_line: Option<u32> = None;
+    let mut last_diff_display_index: Option<usize> = None;
+
+    for (display_index, row) in state.display_rows.iter().enumerate() {
+        let DisplayRow::Diff { row: parsed_index } = row else {
+            continue;
+        };
+        last_diff_display_index = Some(display_index);
+        let Some(new_line) = new_lines.get(*parsed_index).copied().flatten() else {
+            continue;
+        };
+        match last_new_line {
+            None if new_line > 1 => {
+                insert_before.insert(display_index, (0, (new_line - 1) as usize));
+            }
+            Some(prev) if new_line > prev + 1 => {
+                insert_before.insert(display_index, (prev, (new_line - prev - 1) as usize));
+            }
+            _ => {}
+        }
+        last_new_line = Some(new_line);
+    }
+
+    if let (Some(total), Some(prev), Some(last_index)) =
+        (total_lines, last_new_line, last_diff_display_index)
+    {
+        if total > prev {
+            insert_before.insert(last_index + 1, (prev, (total - prev) as usize));
+        }
+    }
+
+    if insert_before.is_empty() {
+        return;
+    }
+
+    let old_rows = std::mem::take(&mut state.display_rows);
+    let old_len = old_rows.len();
+    let mut new_rows = Vec::with_capacity(old_len + insert_before.len());
+    for (index, row) in old_rows.into_iter().enumerate() {
+        if let Some((after, hidden)) = insert_before.remove(&index) {
+            push_gap_row(state, &mut new_rows, after, hidden, &active_path);
+        }
+        new_rows.push(row);
+    }
+    if let Some((after, hidden)) = insert_before.remove(&old_len) {
+        push_gap_row(state, &mut new_rows, after, hidden, &active_path);
+    }
+    state.display_rows = new_rows;
+}
+
+/// Pushes either a single collapsed `Gap` row, or — when `after_new_line` is
+/// in `expanded_gaps` and the file's contents are cached — one `Context` row
+/// per hidden line, numbered from `after_new_line + 1`.
+fn push_gap_row(
+    state: &AppState,
+    rows: &mut Vec<DisplayRow>,
+    after_new_line: u32,
+    hidden: usize,
+    active_path: &RepoPath,
+) {
+    if state.expanded_gaps.contains(&after_new_line) {
+        if let Some(lines) = state.file_contexts.get(active_path) {
+            for offset in 1..=hidden as u32 {
+                let new_line = after_new_line + offset;
+                let text = lines
+                    .get((new_line - 1) as usize)
+                    .cloned()
+                    .unwrap_or_default();
+                rows.push(DisplayRow::Context { new_line, text });
+            }
+            return;
+        }
+    }
+    rows.push(DisplayRow::Gap {
+        after_new_line,
+        hidden,
+    });
 }
 
 /// Display rows whose rendered text contains `state.search_query`
@@ -235,7 +358,8 @@ fn row_search_text(state: &AppState, row: &DisplayRow) -> Option<String> {
             .get(*row)
             .map(|rendered| line_text(&rendered.text)),
         DisplayRow::Comment { text, .. } => Some(text.clone()),
-        DisplayRow::FileHeader { .. } | DisplayRow::OrphanHeader => None,
+        DisplayRow::Context { text, .. } => Some(text.clone()),
+        DisplayRow::FileHeader { .. } | DisplayRow::OrphanHeader | DisplayRow::Gap { .. } => None,
     }
 }
 

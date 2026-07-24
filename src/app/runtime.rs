@@ -141,6 +141,14 @@ impl Runtime {
                     .await
                     .map_err(|error| error.to_string()),
             ),
+            AppEffect::LoadFileContext { path, revision } => EffectOutcome::FileContextLoaded {
+                path: path.clone(),
+                result: self
+                    .provider
+                    .read_file(&self.key, &path, &revision)
+                    .await
+                    .map_err(|error| error.to_string()),
+            },
         };
         EffectResult {
             id: envelope.id,

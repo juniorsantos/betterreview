@@ -1778,3 +1778,326 @@ fn submitting_an_unsupported_outcome_is_refused_with_a_notice() {
             .is_some_and(|notice| notice.contains("não permite"))
     );
 }
+
+// --- Hidden context: gap/context display rows, expand flow, guards ---
+
+fn gap_index(state: &AppState) -> usize {
+    state
+        .display_rows
+        .iter()
+        .position(|row| matches!(row, DisplayRow::Gap { .. }))
+        .expect("a gap row must be present")
+}
+
+#[test]
+fn gap_row_sits_between_the_two_hunks_with_the_right_hidden_count() {
+    let state = state_with_two_hunks();
+
+    assert_eq!(
+        state.display_rows,
+        vec![
+            DisplayRow::FileHeader {
+                path: "src/file_0.rs".into()
+            },
+            DisplayRow::Diff { row: 0 },
+            DisplayRow::Diff { row: 1 },
+            DisplayRow::Diff { row: 2 },
+            DisplayRow::Gap {
+                after_new_line: 1,
+                hidden: 3
+            },
+            DisplayRow::Diff { row: 3 },
+        ],
+        "lines 2-4 sit between the hunk covering line 1 and the one covering line 5"
+    );
+}
+
+fn state_with_leading_gap() -> AppState {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let path = RepoPath("src/file_0.rs".into());
+    state.parsed_diff = Some(ParsedFileDiff {
+        path: path.clone(),
+        head: CommitOid("new-head".into()),
+        rows: vec![
+            betterreview::diff::DiffRow {
+                raw: "@@ -5 +5 @@".into(),
+                kind: betterreview::diff::DiffRowKind::HunkHeader,
+                old_line: None,
+                new_line: None,
+                left: None,
+                right: None,
+            },
+            betterreview::diff::DiffRow {
+                raw: " context".into(),
+                kind: betterreview::diff::DiffRowKind::Context,
+                old_line: Some(5),
+                new_line: Some(5),
+                left: Some(comment_pos(&path, DiffSide::Left, 5)),
+                right: Some(comment_pos(&path, DiffSide::Right, 5)),
+            },
+        ],
+        hunks: Vec::new(),
+    });
+    state.rendered_diff = Some(RenderedDiff {
+        rows: (0..2).map(|index| diff_row(index, None, None)).collect(),
+    });
+    betterreview::app::refresh_display_rows(&mut state);
+    state
+}
+
+#[test]
+fn leading_gap_appears_when_the_first_hunk_starts_past_line_one() {
+    let state = state_with_leading_gap();
+
+    assert_eq!(
+        state.display_rows,
+        vec![
+            DisplayRow::FileHeader {
+                path: "src/file_0.rs".into()
+            },
+            DisplayRow::Diff { row: 0 },
+            DisplayRow::Gap {
+                after_new_line: 0,
+                hidden: 4
+            },
+            DisplayRow::Diff { row: 1 },
+        ]
+    );
+}
+
+fn state_with_trailing_gap() -> AppState {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let path = RepoPath("src/file_0.rs".into());
+    state.parsed_diff = Some(ParsedFileDiff {
+        path: path.clone(),
+        head: CommitOid("new-head".into()),
+        rows: vec![betterreview::diff::DiffRow {
+            raw: " context".into(),
+            kind: betterreview::diff::DiffRowKind::Context,
+            old_line: Some(1),
+            new_line: Some(1),
+            left: Some(comment_pos(&path, DiffSide::Left, 1)),
+            right: Some(comment_pos(&path, DiffSide::Right, 1)),
+        }],
+        hunks: Vec::new(),
+    });
+    state.rendered_diff = Some(RenderedDiff {
+        rows: (0..1).map(|index| diff_row(index, None, None)).collect(),
+    });
+    state
+        .file_contexts
+        .insert(path, vec!["one".into(), "two".into(), "three".into()]);
+    betterreview::app::refresh_display_rows(&mut state);
+    state
+}
+
+#[test]
+fn trailing_gap_appears_when_the_cached_file_has_more_lines_than_the_diff() {
+    let state = state_with_trailing_gap();
+
+    assert_eq!(
+        state.display_rows,
+        vec![
+            DisplayRow::FileHeader {
+                path: "src/file_0.rs".into()
+            },
+            DisplayRow::Diff { row: 0 },
+            DisplayRow::Gap {
+                after_new_line: 1,
+                hidden: 2
+            },
+        ]
+    );
+}
+
+#[test]
+fn expanded_gap_emits_context_rows_from_the_cached_file() {
+    let mut state = state_with_two_hunks();
+    let path = RepoPath("src/file_0.rs".into());
+    state.file_contexts.insert(
+        path,
+        vec![
+            "one".into(),
+            "two".into(),
+            "three".into(),
+            "four".into(),
+            "five".into(),
+        ],
+    );
+    state.expanded_gaps.insert(1);
+    betterreview::app::refresh_display_rows(&mut state);
+
+    assert_eq!(
+        state.display_rows,
+        vec![
+            DisplayRow::FileHeader {
+                path: "src/file_0.rs".into()
+            },
+            DisplayRow::Diff { row: 0 },
+            DisplayRow::Diff { row: 1 },
+            DisplayRow::Diff { row: 2 },
+            DisplayRow::Context {
+                new_line: 2,
+                text: "two".into()
+            },
+            DisplayRow::Context {
+                new_line: 3,
+                text: "three".into()
+            },
+            DisplayRow::Context {
+                new_line: 4,
+                text: "four".into()
+            },
+            DisplayRow::Diff { row: 3 },
+        ]
+    );
+}
+
+#[test]
+fn z_on_an_uncached_gap_schedules_load_file_context_and_labels_it() {
+    let mut state = state_with_two_hunks();
+    state.display_cursor = gap_index(&state);
+
+    let effects = update(&mut state, AppEvent::Action(AppAction::ExpandGap));
+
+    assert_eq!(effects.len(), 1);
+    match &effects[0].effect {
+        AppEffect::LoadFileContext { path, revision } => {
+            assert_eq!(path, &RepoPath("src/file_0.rs".into()));
+            assert_eq!(revision, &CommitOid("new-head".into()));
+        }
+        other => panic!("expected LoadFileContext, got {other:?}"),
+    }
+    assert_eq!(state.pending_gap, Some(1));
+    assert_eq!(
+        state.pending_labels.get(&effects[0].id),
+        Some(&"carregando contexto…")
+    );
+}
+
+#[test]
+fn z_on_a_cached_gap_toggles_expansion_without_scheduling_an_effect() {
+    let mut state = state_with_two_hunks();
+    let path = RepoPath("src/file_0.rs".into());
+    state
+        .file_contexts
+        .insert(path, vec!["a".into(), "b".into(), "c".into(), "d".into()]);
+    state.display_cursor = gap_index(&state);
+
+    let effects = update(&mut state, AppEvent::Action(AppAction::ExpandGap));
+
+    assert!(effects.is_empty());
+    assert!(state.expanded_gaps.contains(&1));
+    assert!(
+        state
+            .display_rows
+            .iter()
+            .any(|row| matches!(row, DisplayRow::Context { .. })),
+        "the gap must have expanded into context rows"
+    );
+}
+
+#[test]
+fn file_context_loaded_expands_the_pending_gap() {
+    let mut state = state_with_two_hunks();
+    state.display_cursor = gap_index(&state);
+    state.pending_gap = Some(1);
+
+    update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: 7,
+            generation: Some(CommitOid("new-head".into())),
+            outcome: EffectOutcome::FileContextLoaded {
+                path: RepoPath("src/file_0.rs".into()),
+                result: Ok("one\ntwo\nthree\nfour\nfive".into()),
+            },
+        })),
+    );
+
+    assert_eq!(state.pending_gap, None);
+    assert!(state.expanded_gaps.contains(&1));
+    assert_eq!(
+        state.file_contexts.get(&RepoPath("src/file_0.rs".into())),
+        Some(&vec![
+            "one".to_owned(),
+            "two".to_owned(),
+            "three".to_owned(),
+            "four".to_owned(),
+            "five".to_owned(),
+        ])
+    );
+    assert!(
+        state
+            .display_rows
+            .iter()
+            .any(|row| matches!(row, DisplayRow::Context { .. })),
+        "the newly loaded file must expand the gap that requested it"
+    );
+}
+
+#[test]
+fn file_context_load_failure_shows_an_error_banner() {
+    let mut state = state_with_two_hunks();
+    state.pending_gap = Some(1);
+
+    update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: 7,
+            generation: Some(CommitOid("new-head".into())),
+            outcome: EffectOutcome::FileContextLoaded {
+                path: RepoPath("src/file_0.rs".into()),
+                result: Err("network error".into()),
+            },
+        })),
+    );
+
+    assert_eq!(state.pending_gap, None);
+    assert_eq!(state.error_banner.as_deref(), Some("network error"));
+}
+
+#[test]
+fn activating_another_file_clears_expanded_gaps_and_the_pending_one() {
+    let mut state = state_with_two_hunks();
+    state.expanded_gaps.insert(1);
+    state.pending_gap = Some(9);
+
+    update(&mut state, AppEvent::Action(AppAction::NextFile));
+
+    assert!(state.expanded_gaps.is_empty());
+    assert_eq!(state.pending_gap, None);
+}
+
+#[test]
+fn selection_is_refused_on_a_gap_row() {
+    let mut state = state_with_two_hunks();
+    state.display_cursor = gap_index(&state);
+
+    let effects = update(&mut state, AppEvent::Action(AppAction::ToggleSelection));
+
+    assert!(effects.is_empty());
+    assert!(state.selection_anchor.is_none());
+    assert!(
+        state
+            .notices
+            .iter()
+            .any(|notice| notice == "mova para uma linha de código")
+    );
+}
+
+#[test]
+fn opening_a_comment_is_refused_on_a_gap_row() {
+    let mut state = state_with_two_hunks();
+    state.display_cursor = gap_index(&state);
+
+    update(&mut state, AppEvent::Action(AppAction::OpenComment));
+
+    assert!(state.session.editor.is_none());
+    assert!(
+        state
+            .notices
+            .iter()
+            .any(|notice| notice == "mova para uma linha de código")
+    );
+}

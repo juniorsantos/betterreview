@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use betterreview::{
     app::{AppState, DisplayRow, refresh_display_rows},
-    diff::{RenderedDiff, RenderedRow, RowBinding},
+    diff::{DiffRow, DiffRowKind, ParsedFileDiff, RenderedDiff, RenderedRow, RowBinding},
     domain::{
         ChangeRequestKey, ChangedFile, CommitOid, DiffPosition, DiffSelection, DiffSide,
         DraftComment, DraftId, FileStatus, PatchAvailability, ProviderCapabilities, ProviderKind,
@@ -109,6 +109,91 @@ fn app() -> AppState {
     });
     refresh_display_rows(&mut app);
     app
+}
+
+/// Two rows a hidden run of context apart: new-file line 1, then line 5 —
+/// lines 2-4 are collapsed into a gap.
+fn app_with_gap() -> AppState {
+    let mut state = app();
+    let path = RepoPath("src/app.rs".into());
+    state.rendered_diff = Some(RenderedDiff {
+        rows: vec![
+            RenderedRow {
+                text: Line::raw("context"),
+                binding: RowBinding {
+                    row_index: 0,
+                    left: Some(position(DiffSide::Left, 3)),
+                    right: Some(position(DiffSide::Right, 1)),
+                },
+            },
+            RenderedRow {
+                text: Line::raw("+added"),
+                binding: RowBinding {
+                    row_index: 1,
+                    left: None,
+                    right: Some(position(DiffSide::Right, 5)),
+                },
+            },
+        ],
+    });
+    state.parsed_diff = Some(ParsedFileDiff {
+        path: path.clone(),
+        head: CommitOid("head".into()),
+        rows: vec![
+            DiffRow {
+                raw: " context".into(),
+                kind: DiffRowKind::Context,
+                old_line: Some(3),
+                new_line: Some(1),
+                left: Some(position(DiffSide::Left, 3)),
+                right: Some(position(DiffSide::Right, 1)),
+            },
+            DiffRow {
+                raw: "+added".into(),
+                kind: DiffRowKind::Added,
+                old_line: None,
+                new_line: Some(5),
+                left: None,
+                right: Some(position(DiffSide::Right, 5)),
+            },
+        ],
+        hunks: Vec::new(),
+    });
+    refresh_display_rows(&mut state);
+    state
+}
+
+#[test]
+fn gap_row_shows_the_hidden_count_and_the_expand_hint() {
+    let state = app_with_gap();
+    let screen = screen_wide(&draw_wide(&state));
+
+    assert!(screen.contains("· · · 3 linhas ocultas · · · — z expandir"));
+}
+
+#[test]
+fn expanded_gap_shows_the_cached_context_lines_and_hides_the_gap_hint() {
+    let mut state = app_with_gap();
+    let path = RepoPath("src/app.rs".into());
+    state.file_contexts.insert(
+        path,
+        vec![
+            "line one".into(),
+            "line two".into(),
+            "line three".into(),
+            "line four".into(),
+            "line five".into(),
+        ],
+    );
+    state.expanded_gaps.insert(1);
+    refresh_display_rows(&mut state);
+
+    let screen = screen(&draw(&state));
+
+    assert!(screen.contains("    2 line two"));
+    assert!(screen.contains("    3 line three"));
+    assert!(screen.contains("    4 line four"));
+    assert!(!screen.contains("linhas ocultas"));
 }
 
 fn draw(state: &AppState) -> Terminal<TestBackend> {

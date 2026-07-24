@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
     diff::{ParsedFileDiff, RenderedDiff},
-    domain::{DraftId, ProviderSnapshot, ReviewOutcome, ThreadId},
+    domain::{DraftId, ProviderSnapshot, RepoPath, ReviewOutcome, ThreadId},
     state::SessionSnapshot,
 };
 
@@ -63,6 +63,18 @@ pub struct AppState {
     /// The confirmed query driving `n`/`N` navigation and the status bar's
     /// active-search display; `None` when no search is active. Not persisted.
     pub search_query: Option<String>,
+    /// File contents at the head revision, cached per path once fetched via
+    /// `LoadFileContext` so a gap can be expanded instantly the next time
+    /// it's toggled. Lines are split on `\n`, indexed from 0 (new-file line
+    /// `n` is `file_contexts[path][n - 1]`).
+    pub file_contexts: BTreeMap<RepoPath, Vec<String>>,
+    /// Gap keys — the new-file line number right after which the gap sits —
+    /// that are currently expanded into `Context` rows for the active file.
+    /// Cleared whenever the active file changes.
+    pub expanded_gaps: BTreeSet<u32>,
+    /// The gap key awaiting its `LoadFileContext` result, so the response can
+    /// be folded straight into `expanded_gaps` once the fetch completes.
+    pub pending_gap: Option<u32>,
 }
 
 impl AppState {
@@ -110,6 +122,9 @@ impl AppState {
             delete_selected: 0,
             search_input: None,
             search_query: None,
+            file_contexts: BTreeMap::new(),
+            expanded_gaps: BTreeSet::new(),
+            pending_gap: None,
         }
     }
 }

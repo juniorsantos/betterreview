@@ -186,11 +186,26 @@ pub fn handle_key(app: &mut AppState, keymap: &mut KeyMap, key: KeyEvent) -> Opt
         return None;
     }
     if app.focus == AppFocus::Diff {
+        if let Some(event) = gap_row_key(app, key) {
+            return Some(event);
+        }
         if let Some(event) = comment_row_key(app, key) {
             return Some(event);
         }
     }
     keymap.feed(key).map(AppEvent::Action)
+}
+
+/// `z` on a `Gap` row expands it instead of folding the active directory —
+/// everywhere else it falls through to the regular keymap (`ToggleFold`).
+fn gap_row_key(app: &AppState, key: KeyEvent) -> Option<AppEvent> {
+    if key.code != KeyCode::Char('z') || key.modifiers != KeyModifiers::NONE {
+        return None;
+    }
+    match app.display_rows.get(app.display_cursor) {
+        Some(DisplayRow::Gap { .. }) => action(AppAction::ExpandGap),
+        _ => None,
+    }
 }
 
 /// Resolves `e`/`x`/`r` against the comment entry under the cursor: editing
