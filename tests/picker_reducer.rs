@@ -415,3 +415,60 @@ fn enter_still_opens_the_highlighted_item_while_the_detail_panel_is_focused() {
     assert!(commands.is_empty());
     assert_eq!(state.chosen, Some((1, Some(provider_snapshot(1)))));
 }
+
+#[test]
+fn clicking_a_different_row_moves_the_highlight_there() {
+    let mut state = PickerState::new(
+        vec![item(1, true), item(2, false), item(3, false)],
+        "owner/repo".into(),
+    );
+    assert_eq!(state.highlight, 0);
+
+    let commands = update(&mut state, PickerEvent::ClickList(2));
+
+    assert!(commands.is_empty());
+    assert_eq!(state.highlight, 2);
+    assert!(state.chosen.is_none());
+}
+
+#[test]
+fn clicking_the_already_highlighted_row_opens_it_like_enter() {
+    let mut state = PickerState::new(vec![item(1, true)], "owner/repo".into());
+    state.cache.insert(1, provider_snapshot(1));
+
+    let commands = update(&mut state, PickerEvent::ClickList(0));
+
+    assert!(commands.is_empty());
+    assert_eq!(state.chosen, Some((1, Some(provider_snapshot(1)))));
+}
+
+#[test]
+fn clicking_past_the_last_row_is_ignored() {
+    let mut state = PickerState::new(vec![item(1, true)], "owner/repo".into());
+
+    let commands = update(&mut state, PickerEvent::ClickList(5));
+
+    assert!(commands.is_empty());
+    assert_eq!(state.highlight, 0);
+    assert!(state.chosen.is_none());
+}
+
+#[test]
+fn clicking_the_description_panel_focuses_it() {
+    let mut state = PickerState::new(vec![item(1, true)], "owner/repo".into());
+    assert!(!state.focus_detail);
+
+    update(&mut state, PickerEvent::ClickDetail);
+
+    assert!(state.focus_detail);
+}
+
+#[test]
+fn clicking_the_description_panel_is_ignored_while_it_is_hidden() {
+    let mut state = PickerState::new(vec![item(1, true)], "owner/repo".into());
+    state.detail_visible = false;
+
+    update(&mut state, PickerEvent::ClickDetail);
+
+    assert!(!state.focus_detail);
+}

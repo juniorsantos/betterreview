@@ -21,6 +21,21 @@ pub enum AppAction {
     NextComment,
     PreviousComment,
     MoveCursor(i32),
+    /// Selects the file at this index in `provider.files`, mirroring
+    /// `NextFile`/`PreviousFile`'s `activate_file` landing — used by a mouse
+    /// click on a file row. A folded, non-representative index is a no-op
+    /// (defensive: the click handler should never produce one, since folded
+    /// files don't appear in `visible_rows`).
+    ActivateFile(usize),
+    /// Toggles the fold state of an arbitrary directory, not necessarily the
+    /// active file's — used by a mouse click on a directory header (`z`/
+    /// `Enter` only ever fold the active file's directory via `ToggleFold`).
+    ToggleFoldDir(String),
+    /// Clamps `index` into `display_rows` and lands on it, snapping a
+    /// non-stop row (comment body/footer, file/orphan header) back to the
+    /// nearest preceding stop — used by a mouse click on the diff panel,
+    /// which can land on any drawn line, not just a navigation stop.
+    JumpToDisplayRow(usize),
     ToggleReviewed,
     ToggleSelection,
     OpenComment,

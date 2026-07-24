@@ -87,6 +87,22 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             AppFocus::Diff => move_display_cursor(state, delta),
             AppFocus::Threads => Vec::new(),
         },
+        AppAction::ActivateFile(index) => {
+            if index >= state.provider.files.len() {
+                return Vec::new();
+            }
+            if is_folded(state, index) && !is_directory_representative(state, index) {
+                return Vec::new();
+            }
+            activate_file(state, index)
+        }
+        AppAction::ToggleFoldDir(dir) => {
+            if !state.collapsed_dirs.remove(&dir) {
+                state.collapsed_dirs.insert(dir);
+            }
+            Vec::new()
+        }
+        AppAction::JumpToDisplayRow(index) => jump_to_display_row(state, index),
         AppAction::ToggleReviewed => toggle_reviewed(state),
         AppAction::ToggleSelection => {
             let on_diff_row = matches!(
@@ -424,6 +440,38 @@ fn land_on_display_row(state: &mut AppState, index: usize) {
         state.session.cursor_row = *row;
     }
     state.dirty = true;
+}
+
+/// Lands on `index` after clamping it into `display_rows` and snapping a
+/// non-stop row back to the nearest preceding stop (see `snap_to_stop`) —
+/// the mouse click can land on any row the diff panel drew, not just a
+/// navigation stop.
+fn jump_to_display_row(state: &mut AppState, index: usize) -> Vec<EffectEnvelope> {
+    if state.display_rows.is_empty() {
+        return Vec::new();
+    }
+    let clamped = index.min(state.display_rows.len() - 1);
+    let target = snap_to_stop(&state.display_rows, clamped);
+    land_on_display_row(state, target);
+    Vec::new()
+}
+
+/// Walks backward from `index` to the nearest display-stop row. Comment
+/// blocks are pushed contiguously (`Header`, `Body`*, `Footer`), so this
+/// finds a block's header the same way search's `block_header_index` does —
+/// but it also covers `FileHeader`/`OrphanHeader`, falling back to `index`
+/// itself when nothing behind it is a stop.
+fn snap_to_stop(rows: &[DisplayRow], index: usize) -> usize {
+    let mut cursor = index;
+    loop {
+        if is_display_stop(&rows[cursor]) {
+            return cursor;
+        }
+        match cursor.checked_sub(1) {
+            Some(previous) => cursor = previous,
+            None => return index,
+        }
+    }
 }
 
 fn is_display_stop(row: &DisplayRow) -> bool {

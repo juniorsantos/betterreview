@@ -5,7 +5,8 @@ use std::{
 };
 
 use crossterm::event::{
-    Event, EventStream, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEventKind,
+    Event, EventStream, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent,
+    MouseEventKind,
 };
 use futures_util::StreamExt;
 use ratatui::{
@@ -77,6 +78,13 @@ pub enum PickerEvent {
         items: Vec<PickerItem>,
     },
     ListFailed(String),
+    /// A left click on list row `index` (0-based into `items`, already
+    /// resolved from screen coordinates by `run`'s row math). Highlights it,
+    /// or opens it (like `Enter`) when it was already highlighted.
+    ClickList(usize),
+    /// A left click anywhere inside the description panel: focuses it, the
+    /// same as `Tab`/`1`.
+    ClickDetail,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -130,7 +138,30 @@ pub fn update(state: &mut PickerState, event: PickerEvent) -> Vec<PickerCommand>
             state.error_banner = Some(message);
             Vec::new()
         }
+        PickerEvent::ClickList(index) => click_list_update(state, index),
+        PickerEvent::ClickDetail => {
+            if state.detail_visible {
+                state.focus_detail = true;
+            }
+            Vec::new()
+        }
     }
+}
+
+/// A click on a list row moves the highlight there, same as `j`/`k` — unless
+/// it was already the highlighted row, in which case the click opens it
+/// (`enter_update`), mirroring a double-click/second-click-to-open pattern.
+/// Clicks past the end of the list (e.g. into the row's trailing blank
+/// space) are ignored.
+fn click_list_update(state: &mut PickerState, index: usize) -> Vec<PickerCommand> {
+    if index >= state.items.len() {
+        return Vec::new();
+    }
+    if index == state.highlight {
+        return enter_update(state);
+    }
+    move_highlight(state, index);
+    Vec::new()
 }
 
 fn key_update(state: &mut PickerState, key: KeyEvent) -> Vec<PickerCommand> {
@@ -820,7 +851,13 @@ pub async fn run(
             terminal_event = events.next() => match terminal_event {
                 Some(Ok(Event::Key(key))) if is_interrupt(key) => return Ok(PickerOutcome::Quit),
                 Some(Ok(Event::Key(key))) => Some(PickerEvent::Key(key)),
-                Some(Ok(Event::Mouse(mouse))) => wheel_to_key(mouse.kind).map(PickerEvent::Key),
+                Some(Ok(Event::Mouse(mouse))) => wheel_to_key(mouse.kind)
+                    .map(PickerEvent::Key)
+                    .or_else(|| {
+                        terminal.size().ok().and_then(|size| {
+                            click_event(&state, Rect::new(0, 0, size.width, size.height), mouse)
+                        })
+                    }),
                 Some(Ok(_)) => None,
                 Some(Err(error)) => return Err(TuiError::Event(error)),
                 None => return Ok(PickerOutcome::Quit),
@@ -913,9 +950,196 @@ fn wheel_to_key(kind: MouseEventKind) -> Option<KeyEvent> {
     }
 }
 
+/// Splits `area` into the list panel rect and, when the description panel
+/// is on screen (`state.detail_visible`, refreshed every frame by `run`),
+/// the detail panel rect below it — the same vertical split `render`
+/// performs, shared here so a click can be hit-tested against exactly the
+/// geometry the frame was last drawn with.
+fn panel_layout(area: Rect, state: &PickerState) -> (Rect, Option<Rect>) {
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Min(1),
+            Constraint::Length(1),
+        ])
+        .split(area);
+    let body = rows[2];
+    if !state.detail_visible {
+        return (body, None);
+    }
+    let list_height = ((body.height as u32 * 60) / 100)
+        .max(LIST_MIN_HEIGHT as u32)
+        .min(body.height as u32) as u16;
+    let panels = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(list_height),
+            Constraint::Length(body.height - list_height),
+        ])
+        .split(body);
+    (panels[0], Some(panels[1]))
+}
+
+/// The list panel's item rows, one row of border/padding in from the panel
+/// and with the trailing counter row excluded — reusing `Block::inner` so
+/// this can never drift from `render_panel`'s own border/padding math.
+fn list_items_rect(list_rect: Rect) -> Rect {
+    let inner = Block::default()
+        .padding(ratatui::widgets::Padding::horizontal(1))
+        .borders(Borders::ALL)
+        .inner(list_rect);
+    Rect {
+        height: inner.height.saturating_sub(1),
+        ..inner
+    }
+}
+
+fn contains(rect: Rect, point: (u16, u16)) -> bool {
+    let (x, y) = point;
+    x >= rect.x && x < rect.x + rect.width && y >= rect.y && y < rect.y + rect.height
+}
+
+/// Handles a left mouse-button press by hit-testing it against the panel
+/// layout for `area` (recomputed here from `terminal.size()`, see
+/// `panel_layout`): a click on a list row resolves to `ClickList`, a click
+/// anywhere in the description panel to `ClickDetail`. Every other mouse
+/// event kind, and a click landing outside both panels, is not ours to
+/// interpret.
+fn click_event(state: &PickerState, area: Rect, mouse: MouseEvent) -> Option<PickerEvent> {
+    if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
+        return None;
+    }
+    let (list_rect, detail_rect) = panel_layout(area, state);
+    let point = (mouse.column, mouse.row);
+    if contains(list_rect, point) {
+        return click_list_row(state, list_rect, mouse.row).map(PickerEvent::ClickList);
+    }
+    if let Some(detail_rect) = detail_rect
+        && contains(detail_rect, point)
+    {
+        return Some(PickerEvent::ClickDetail);
+    }
+    None
+}
+
+/// Maps a click's row inside the list panel to an item index, mirroring
+/// `render_list`'s "two blank rows + header" offset and scroll — `None`
+/// when the click landed on the header/blank rows or past the last item.
+fn click_list_row(state: &PickerState, list_rect: Rect, mouse_row: u16) -> Option<usize> {
+    let items_area = list_items_rect(list_rect);
+    let content_row = mouse_row.checked_sub(items_area.y)?;
+    if content_row >= items_area.height {
+        return None;
+    }
+    let total_lines = 3 + state.items.len();
+    let start =
+        super::viewport::start(3 + state.highlight, total_lines, items_area.height as usize);
+    (content_row as usize + start)
+        .checked_sub(3)
+        .filter(|&index| index < state.items.len())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn items(count: u64) -> Vec<PickerItem> {
+        (1..=count)
+            .map(|number| PickerItem {
+                summary: ChangeRequestSummary {
+                    number,
+                    title: format!("PR {number}"),
+                    author: "dev".into(),
+                    source_branch: "feature".into(),
+                    updated_at: time::OffsetDateTime::UNIX_EPOCH,
+                    draft: false,
+                    web_url: String::new(),
+                    description: String::new(),
+                },
+                has_session: false,
+                current_branch: false,
+            })
+            .collect()
+    }
+
+    fn left_click(column: u16, row: u16) -> MouseEvent {
+        MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column,
+            row,
+            modifiers: KeyModifiers::NONE,
+        }
+    }
+
+    /// 100x30: `panel_layout` puts the list panel at `(0, 2, 100, 16)` and
+    /// the description panel at `(0, 18, 100, 11)` (60% of the 27-row body,
+    /// clamped to `LIST_MIN_HEIGHT`).
+    const TERMINAL_SIZE: Rect = Rect::new(0, 0, 100, 30);
+
+    #[test]
+    fn clicking_an_item_row_resolves_to_its_index() {
+        let state = PickerState::new(items(3), "owner/repo".into());
+
+        // List content starts at y = 3 (2 blank/header rows follow); row 6
+        // is the first item.
+        let event = click_event(&state, TERMINAL_SIZE, left_click(5, 6));
+
+        assert!(matches!(event, Some(PickerEvent::ClickList(0))));
+    }
+
+    #[test]
+    fn clicking_the_column_header_row_is_ignored() {
+        let state = PickerState::new(items(3), "owner/repo".into());
+
+        // Row 4 is the "PR TÍTULO ..." header, not an item.
+        let event = click_event(&state, TERMINAL_SIZE, left_click(5, 4));
+
+        assert!(event.is_none());
+    }
+
+    #[test]
+    fn clicking_the_description_panel_resolves_to_click_detail() {
+        let state = PickerState::new(items(3), "owner/repo".into());
+
+        let event = click_event(&state, TERMINAL_SIZE, left_click(5, 20));
+
+        assert!(matches!(event, Some(PickerEvent::ClickDetail)));
+    }
+
+    #[test]
+    fn clicking_outside_both_panels_is_ignored() {
+        let state = PickerState::new(items(3), "owner/repo".into());
+
+        let event = click_event(&state, TERMINAL_SIZE, left_click(5, 0));
+
+        assert!(event.is_none());
+    }
+
+    #[test]
+    fn a_right_click_is_not_translated() {
+        let state = PickerState::new(items(3), "owner/repo".into());
+        let mouse = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Right),
+            column: 5,
+            row: 6,
+            modifiers: KeyModifiers::NONE,
+        };
+
+        assert!(click_event(&state, TERMINAL_SIZE, mouse).is_none());
+    }
+
+    #[test]
+    fn hidden_detail_panel_leaves_the_list_spanning_the_whole_body() {
+        let mut state = PickerState::new(items(3), "owner/repo".into());
+        state.detail_visible = false;
+
+        let (list_rect, detail_rect) = panel_layout(TERMINAL_SIZE, &state);
+
+        assert_eq!(list_rect, Rect::new(0, 2, 100, 27));
+        assert!(detail_rect.is_none());
+    }
 
     #[test]
     fn scroll_down_translates_to_a_j_key() {

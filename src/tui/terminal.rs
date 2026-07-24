@@ -1,7 +1,10 @@
 use std::{io, sync::Arc, time::Duration};
 
-use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, KeyModifiers, MouseEventKind};
+use crossterm::event::{
+    Event, EventStream, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+};
 use futures_util::StreamExt;
+use ratatui::layout::Rect;
 use tokio::sync::mpsc;
 
 use crate::{
@@ -13,7 +16,12 @@ use crate::{
     providers::{DraftBody, NewDraftComment},
 };
 
-use super::{EditorState, KeyMap, render};
+use super::{
+    EditorState, KeyMap,
+    layout::screen_layout,
+    render, viewport,
+    widgets::files::{self, FilesRow},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExitReason {
@@ -54,9 +62,15 @@ pub async fn run(
             terminal_event = events.next() => match terminal_event {
                 Some(Ok(Event::Key(key))) if is_interrupt(key) => return Ok(ExitReason::Interrupted),
                 Some(Ok(Event::Key(key))) => handle_key(&mut app, &mut keymap, key),
-                Some(Ok(Event::Mouse(mouse))) => {
-                    wheel_to_event(mouse.kind).or(Some(AppEvent::Terminal(Event::Mouse(mouse))))
-                }
+                Some(Ok(Event::Mouse(mouse))) => wheel_to_event(mouse.kind).or_else(|| {
+                    terminal
+                        .size()
+                        .ok()
+                        .and_then(|size| {
+                            click_event(&mut app, Rect::new(0, 0, size.width, size.height), mouse)
+                        })
+                        .or(Some(AppEvent::Terminal(Event::Mouse(mouse))))
+                }),
                 Some(Ok(event)) => Some(AppEvent::Terminal(event)),
                 Some(Err(error)) => return Err(TuiError::Event(error)),
                 None => return Ok(ExitReason::Interrupted),
@@ -329,6 +343,59 @@ fn wheel_to_event(kind: MouseEventKind) -> Option<AppEvent> {
     }
 }
 
+/// Handles a left mouse-button press by hit-testing it against the same
+/// layout `render` last drew for `terminal_size` (recomputed here via
+/// `layout::screen_layout`, since the handler has no access to the frame
+/// `render` drew), focusing whichever panel it landed in and translating it
+/// into the same action a key press would produce. Every other mouse event
+/// kind, and a click landing outside both panels, is not ours to interpret —
+/// the caller falls back to forwarding it as `AppEvent::Terminal`.
+fn click_event(app: &mut AppState, terminal_size: Rect, mouse: MouseEvent) -> Option<AppEvent> {
+    if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
+        return None;
+    }
+    let layout = screen_layout(terminal_size, app);
+    let point = (mouse.column, mouse.row);
+    if let Some(files_rect) = layout.files
+        && contains(files_rect, point)
+    {
+        app.focus = AppFocus::Files;
+        return files_click(app, files_rect, mouse.row).map(AppEvent::Action);
+    }
+    if contains(layout.diff, point) {
+        app.focus = AppFocus::Diff;
+        return diff_click(app, layout.diff, mouse.row).map(AppEvent::Action);
+    }
+    None
+}
+
+fn contains(rect: Rect, point: (u16, u16)) -> bool {
+    let (x, y) = point;
+    x >= rect.x && x < rect.x + rect.width && y >= rect.y && y < rect.y + rect.height
+}
+
+/// Maps a click's row inside the files panel — one row of border above the
+/// content — through `visible_rows`, the same windowed row list the widget
+/// rendered, into the action selecting that file or toggling that
+/// directory's fold would dispatch from the keyboard.
+fn files_click(app: &AppState, rect: Rect, mouse_row: u16) -> Option<AppAction> {
+    let content_row = mouse_row.checked_sub(rect.y + 1)?;
+    match files::visible_rows(app, rect.height).get(content_row as usize)? {
+        FilesRow::File(index) => Some(AppAction::ActivateFile(*index)),
+        FilesRow::Directory(dir) => Some(AppAction::ToggleFoldDir((*dir).to_owned())),
+    }
+}
+
+/// Maps a click's row inside the diff panel to a display row index, combining
+/// the same border offset `files_click` uses with the viewport scroll offset
+/// the diff widget's `Paragraph` was drawn with.
+fn diff_click(app: &AppState, rect: Rect, mouse_row: u16) -> Option<AppAction> {
+    let content_row = mouse_row.checked_sub(rect.y + 1)?;
+    let visible = rect.height.saturating_sub(2) as usize;
+    let start = viewport::start(app.display_cursor, app.display_rows.len(), visible);
+    Some(AppAction::JumpToDisplayRow(content_row as usize + start))
+}
+
 fn is_interrupt(key: KeyEvent) -> bool {
     key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL)
 }
@@ -352,6 +419,150 @@ fn previous_outcome(outcome: ReviewOutcome) -> ReviewOutcome {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::{
+        ChangeRequestKey, ChangedFile, CommitOid, FileStatus, PatchAvailability,
+        ProviderCapabilities, ProviderKind, ProviderSnapshot, RepoPath,
+    };
+    use crate::state::{SESSION_SCHEMA_VERSION, SessionSnapshot};
+
+    fn changed_file(path: &str) -> ChangedFile {
+        ChangedFile {
+            path: RepoPath(path.into()),
+            previous_path: None,
+            status: FileStatus::Modified,
+            additions: 1,
+            deletions: 1,
+            patch: PatchAvailability::Available("@@ -1 +1 @@\n-old\n+new\n".into()),
+            base_blob: None,
+            head_blob: None,
+            remotely_reviewed: Some(false),
+        }
+    }
+
+    /// Two directories (`a/`, `b/`) of three files, wide enough for the
+    /// files column to appear in `screen_layout`, with three synthetic diff
+    /// rows so a diff-panel click has something to land on.
+    fn state_with_two_directories() -> AppState {
+        let key = ChangeRequestKey {
+            provider: ProviderKind::GitHub,
+            host: "github.com".into(),
+            repository: "owner/repo".into(),
+            number: 1,
+        };
+        let provider = ProviderSnapshot {
+            key: key.clone(),
+            title: String::new(),
+            author: String::new(),
+            web_url: String::new(),
+            base: CommitOid("base".into()),
+            head: CommitOid("head".into()),
+            files: ["a/one.rs", "a/two.rs", "b/three.rs"]
+                .into_iter()
+                .map(changed_file)
+                .collect(),
+            threads: Vec::new(),
+            drafts: Vec::new(),
+            capabilities: ProviderCapabilities::all_supported(),
+        };
+        let session = SessionSnapshot {
+            schema_version: SESSION_SCHEMA_VERSION,
+            key,
+            base: CommitOid("base".into()),
+            head: CommitOid("head".into()),
+            active_file: None,
+            cursor_row: 0,
+            scroll_row: 0,
+            files: Default::default(),
+            editor: None,
+            pending_submit: None,
+            updated_at: time::OffsetDateTime::UNIX_EPOCH,
+        };
+        let mut state = AppState::new(provider, session);
+        state.display_rows = vec![
+            DisplayRow::Diff { row: 0 },
+            DisplayRow::Diff { row: 1 },
+            DisplayRow::Diff { row: 2 },
+        ];
+        state
+    }
+
+    fn left_click(column: u16, row: u16) -> MouseEvent {
+        MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column,
+            row,
+            modifiers: KeyModifiers::NONE,
+        }
+    }
+
+    /// 100x30, giving `screen_layout` a files column at `(0, 2, 30, 27)` and
+    /// a diff panel at `(30, 2, 70, 27)` — see the row/column math in
+    /// `layout::tests`.
+    const TERMINAL_SIZE: Rect = Rect::new(0, 0, 100, 30);
+
+    #[test]
+    fn clicking_a_file_row_focuses_files_and_activates_it() {
+        let mut app = state_with_two_directories();
+
+        // Files content starts at y = 3 (row 2 body top + 1 border); row 4
+        // is "a/one.rs" (index 0): Directory("a") then File(0).
+        let event = click_event(&mut app, TERMINAL_SIZE, left_click(5, 4));
+
+        assert_eq!(app.focus, AppFocus::Files);
+        assert!(matches!(
+            event,
+            Some(AppEvent::Action(AppAction::ActivateFile(0)))
+        ));
+    }
+
+    #[test]
+    fn clicking_a_directory_row_toggles_its_fold() {
+        let mut app = state_with_two_directories();
+
+        // Row 6 is the "b" directory header (a/, a/one.rs, a/two.rs, b/).
+        let event = click_event(&mut app, TERMINAL_SIZE, left_click(5, 6));
+
+        assert!(matches!(
+            event,
+            Some(AppEvent::Action(AppAction::ToggleFoldDir(dir))) if dir == "b"
+        ));
+    }
+
+    #[test]
+    fn clicking_the_diff_panel_focuses_diff_and_jumps_to_the_row() {
+        let mut app = state_with_two_directories();
+
+        // Diff content starts at y = 3; row 4 is display row 1.
+        let event = click_event(&mut app, TERMINAL_SIZE, left_click(50, 4));
+
+        assert_eq!(app.focus, AppFocus::Diff);
+        assert!(matches!(
+            event,
+            Some(AppEvent::Action(AppAction::JumpToDisplayRow(1)))
+        ));
+    }
+
+    #[test]
+    fn clicking_outside_both_panels_is_ignored() {
+        let mut app = state_with_two_directories();
+
+        let event = click_event(&mut app, TERMINAL_SIZE, left_click(5, 0));
+
+        assert!(event.is_none());
+    }
+
+    #[test]
+    fn a_right_click_is_not_translated() {
+        let mut app = state_with_two_directories();
+        let mouse = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Right),
+            column: 5,
+            row: 4,
+            modifiers: KeyModifiers::NONE,
+        };
+
+        assert!(click_event(&mut app, TERMINAL_SIZE, mouse).is_none());
+    }
 
     #[test]
     fn scroll_down_moves_the_cursor_forward_by_three() {

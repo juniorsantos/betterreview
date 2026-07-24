@@ -2240,3 +2240,79 @@ fn folded_directories_stay_reachable_for_unfolding() {
     update(&mut state, AppEvent::Action(AppAction::ToggleFold));
     assert!(!state.collapsed_dirs.contains("b"));
 }
+
+#[test]
+fn activate_file_selects_the_clicked_file() {
+    let mut state = app_with_two_directories();
+    assert_eq!(state.active_file_index, 0);
+
+    update(&mut state, AppEvent::Action(AppAction::ActivateFile(2)));
+
+    assert_eq!(state.active_file_index, 2);
+    assert_eq!(
+        state.session.active_file,
+        Some(RepoPath("b/three.rs".into()))
+    );
+}
+
+#[test]
+fn activate_file_ignores_a_folded_non_representative_index() {
+    let mut state = app_with_two_directories();
+    state.collapsed_dirs.insert("b".into());
+
+    // "b/four.rs" (index 3) is hidden behind the folded "b" directory; only
+    // its representative, "b/three.rs" (index 2), is reachable.
+    update(&mut state, AppEvent::Action(AppAction::ActivateFile(3)));
+
+    assert_eq!(state.active_file_index, 0);
+}
+
+#[test]
+fn toggle_fold_dir_folds_and_unfolds_an_arbitrary_directory() {
+    let mut state = app_with_two_directories();
+
+    update(
+        &mut state,
+        AppEvent::Action(AppAction::ToggleFoldDir("b".into())),
+    );
+    assert!(state.collapsed_dirs.contains("b"));
+
+    update(
+        &mut state,
+        AppEvent::Action(AppAction::ToggleFoldDir("b".into())),
+    );
+    assert!(!state.collapsed_dirs.contains("b"));
+}
+
+#[test]
+fn jump_to_display_row_lands_directly_on_a_diff_row() {
+    let mut state = state_with_multiline_comment();
+
+    update(&mut state, AppEvent::Action(AppAction::JumpToDisplayRow(6)));
+
+    assert_eq!(state.display_cursor, 6);
+    assert_eq!(state.session.cursor_row, 1);
+}
+
+#[test]
+fn jump_to_display_row_snaps_a_comment_body_click_to_its_header() {
+    let mut state = state_with_multiline_comment();
+
+    // Row 2 is a Body row inside the comment block that starts at row 1.
+    update(&mut state, AppEvent::Action(AppAction::JumpToDisplayRow(2)));
+
+    assert_eq!(state.display_cursor, 1);
+}
+
+#[test]
+fn jump_to_display_row_clamps_past_the_end_of_the_display_rows() {
+    let mut state = state_with_multiline_comment();
+    let last = state.display_rows.len() - 1;
+
+    update(
+        &mut state,
+        AppEvent::Action(AppAction::JumpToDisplayRow(999)),
+    );
+
+    assert_eq!(state.display_cursor, last);
+}
