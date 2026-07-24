@@ -47,10 +47,12 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         .map(|row| match row {
             Row::Directory { dir, folded } => {
                 let (reviewed, total) = directory_progress(state, dir);
+                // Chevron orientation signals the fold state: ▸ collapsed,
+                // ▾ expanded (toggled with z).
                 let text = if *folded {
                     format!("\u{25b8} {dir}/ ({reviewed}/{total})")
                 } else {
-                    format!("{dir}/")
+                    format!("\u{25be} {dir}/")
                 };
                 ListItem::new(Line::styled(text, Style::default().fg(theme::ACCENT)))
             }

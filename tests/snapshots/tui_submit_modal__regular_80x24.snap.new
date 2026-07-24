@@ -1,0 +1,29 @@
+---
+source: tests/tui_submit_modal.rs
+assertion_line: 144
+expression: "screen(&app_with_drafts(3), 80, 24)"
+---
+ betterreview  owner/repo #42 · Review terminal · @dev                   v0.1.0 
+┌ [2] Arquivos — e expandir /┐┌ [3] Diff ──────────────────────────────────────┐
+│ ▾ src/                     ││ Loading diff...                                │
+│ [ ] M app.rs         +1 -1 ││                                                │
+│                            ││                                                │
+│       ╭ Enviar revisão ──────────────────────────────────────────────╮       │
+│       │ 3 drafts will be published                                   │       │
+│       │                                                              │       │
+│       │ Summary                                                      │       │
+│       │ Ready to merge                                               │       │
+│       │                                                              │       │
+│       │ [COMMENT]  APPROVE  REQUEST_CHANGES                          │       │
+│       │                                                              │       │
+│       │                                                              │       │
+│       │ Comment review                                               │       │
+│       │                                                              │       │
+│       │                                                              │       │
+│       │   Tab campo · ↑/↓ resultado · Enter enviar · Esc cancelar    │       │
+│       ╰──────────────────────────────────────────────────────────────╯       │
+│                            ││                                                │
+│                            ││                                                │
+│                            ││                                                │
+└────────────────────────────┘└────────────────────────────────────────────────┘
+ 0/1 revisados · 3 drafts · 0 operações          j/k · ]h hunk · ]c comentário …
