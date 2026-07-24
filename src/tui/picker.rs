@@ -4,7 +4,9 @@ use std::{
     time::Duration,
 };
 
-use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::event::{
+    Event, EventStream, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEventKind,
+};
 use futures_util::StreamExt;
 use ratatui::{
     Frame,
@@ -818,6 +820,7 @@ pub async fn run(
             terminal_event = events.next() => match terminal_event {
                 Some(Ok(Event::Key(key))) if is_interrupt(key) => return Ok(PickerOutcome::Quit),
                 Some(Ok(Event::Key(key))) => Some(PickerEvent::Key(key)),
+                Some(Ok(Event::Mouse(mouse))) => wheel_to_key(mouse.kind).map(PickerEvent::Key),
                 Some(Ok(_)) => None,
                 Some(Err(error)) => return Err(TuiError::Event(error)),
                 None => return Ok(PickerOutcome::Quit),
@@ -895,4 +898,40 @@ fn dispatch_command(
 
 fn is_interrupt(key: KeyEvent) -> bool {
     key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL)
+}
+
+/// Translates a mouse wheel notch into the same synthetic key the keyboard
+/// would send — `j`/`k` — so it flows through the existing `key_update`
+/// handling unchanged (moving the highlight, or scrolling the description
+/// panel when it's focused). Any other mouse event kind is not ours to
+/// interpret and is dropped.
+fn wheel_to_key(kind: MouseEventKind) -> Option<KeyEvent> {
+    match kind {
+        MouseEventKind::ScrollDown => Some(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE)),
+        MouseEventKind::ScrollUp => Some(KeyEvent::new(KeyCode::Char('k'), KeyModifiers::NONE)),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scroll_down_translates_to_a_j_key() {
+        let key = wheel_to_key(MouseEventKind::ScrollDown).expect("scroll down maps to a key");
+        assert_eq!(key.code, KeyCode::Char('j'));
+    }
+
+    #[test]
+    fn scroll_up_translates_to_a_k_key() {
+        let key = wheel_to_key(MouseEventKind::ScrollUp).expect("scroll up maps to a key");
+        assert_eq!(key.code, KeyCode::Char('k'));
+    }
+
+    #[test]
+    fn other_mouse_kinds_are_not_translated() {
+        assert!(wheel_to_key(MouseEventKind::Moved).is_none());
+        assert!(wheel_to_key(MouseEventKind::Down(crossterm::event::MouseButton::Left)).is_none());
+    }
 }

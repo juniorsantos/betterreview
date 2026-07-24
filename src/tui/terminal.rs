@@ -1,6 +1,6 @@
 use std::{io, sync::Arc, time::Duration};
 
-use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, KeyModifiers, MouseEventKind};
 use futures_util::StreamExt;
 use tokio::sync::mpsc;
 
@@ -54,6 +54,9 @@ pub async fn run(
             terminal_event = events.next() => match terminal_event {
                 Some(Ok(Event::Key(key))) if is_interrupt(key) => return Ok(ExitReason::Interrupted),
                 Some(Ok(Event::Key(key))) => handle_key(&mut app, &mut keymap, key),
+                Some(Ok(Event::Mouse(mouse))) => {
+                    wheel_to_event(mouse.kind).or(Some(AppEvent::Terminal(Event::Mouse(mouse))))
+                }
                 Some(Ok(event)) => Some(AppEvent::Terminal(event)),
                 Some(Err(error)) => return Err(TuiError::Event(error)),
                 None => return Ok(ExitReason::Interrupted),
@@ -313,6 +316,19 @@ fn action(action: AppAction) -> Option<AppEvent> {
     Some(AppEvent::Action(action))
 }
 
+/// Translates a mouse wheel notch into the same cursor move a few `j`/`k`
+/// presses would produce — the wheel acts on whichever panel is focused,
+/// exactly like the keyboard, with no hit-testing at this level. Any other
+/// mouse event kind (clicks, drags, moves) is not ours to interpret, so
+/// callers fall back to forwarding it as `AppEvent::Terminal`.
+fn wheel_to_event(kind: MouseEventKind) -> Option<AppEvent> {
+    match kind {
+        MouseEventKind::ScrollDown => Some(AppEvent::Action(AppAction::MoveCursor(3))),
+        MouseEventKind::ScrollUp => Some(AppEvent::Action(AppAction::MoveCursor(-3))),
+        _ => None,
+    }
+}
+
 fn is_interrupt(key: KeyEvent) -> bool {
     key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL)
 }
@@ -330,5 +346,34 @@ fn previous_outcome(outcome: ReviewOutcome) -> ReviewOutcome {
         ReviewOutcome::Comment => ReviewOutcome::RequestChanges,
         ReviewOutcome::Approve => ReviewOutcome::Comment,
         ReviewOutcome::RequestChanges => ReviewOutcome::Approve,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scroll_down_moves_the_cursor_forward_by_three() {
+        assert!(matches!(
+            wheel_to_event(MouseEventKind::ScrollDown),
+            Some(AppEvent::Action(AppAction::MoveCursor(3)))
+        ));
+    }
+
+    #[test]
+    fn scroll_up_moves_the_cursor_backward_by_three() {
+        assert!(matches!(
+            wheel_to_event(MouseEventKind::ScrollUp),
+            Some(AppEvent::Action(AppAction::MoveCursor(-3)))
+        ));
+    }
+
+    #[test]
+    fn other_mouse_kinds_are_not_translated() {
+        assert!(wheel_to_event(MouseEventKind::Moved).is_none());
+        assert!(
+            wheel_to_event(MouseEventKind::Down(crossterm::event::MouseButton::Left)).is_none()
+        );
     }
 }

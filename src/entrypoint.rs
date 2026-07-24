@@ -71,6 +71,7 @@ impl InstalledRuntime {
         // snapshot load instead of paying for it up front.
         let doctor = Doctor::new(runner);
         let mut terminal = ratatui::init();
+        let _ = crossterm::execute!(std::io::stdout(), crossterm::event::EnableMouseCapture);
         let _restore = TerminalRestore;
         let _ = terminal.draw(tui::splash);
         let (report, loaded) = tokio::join!(
@@ -155,6 +156,10 @@ impl LaunchBackend for InstalledRuntime {
                         let runner: Arc<dyn CommandRunner> = self.runner.clone();
                         let doctor = Doctor::new(runner);
                         let mut terminal = ratatui::init();
+                        let _ = crossterm::execute!(
+                            std::io::stdout(),
+                            crossterm::event::EnableMouseCapture
+                        );
                         let _restore = TerminalRestore;
                         let _ = terminal.draw(tui::splash);
                         let (report, listed) = tokio::join!(
@@ -339,6 +344,7 @@ struct TerminalRestore;
 
 impl Drop for TerminalRestore {
     fn drop(&mut self) {
+        let _ = crossterm::execute!(std::io::stdout(), crossterm::event::DisableMouseCapture);
         ratatui::restore();
     }
 }
