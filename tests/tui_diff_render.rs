@@ -452,3 +452,36 @@ fn editor_shows_the_terminal_cursor_at_the_typing_position() {
         "cursor tracks the typing column"
     );
 }
+
+#[test]
+fn diff_line_background_extends_to_the_panel_edge() {
+    use ratatui::style::{Color, Style};
+    let mut state = app();
+    // Simulate delta's plus-line background on the row's content spans.
+    let bg = Color::Rgb(0x0e, 0x29, 0x19);
+    if let Some(diff) = state.rendered_diff.as_mut() {
+        diff.rows[2].text = Line::from(vec![ratatui::text::Span::styled(
+            "+added",
+            Style::default().bg(bg),
+        )]);
+    }
+    refresh_display_rows(&mut state);
+
+    let terminal = draw_wide(&state);
+    let buffer = terminal.backend().buffer();
+    let row = (0..30)
+        .find(|y| {
+            (0..120)
+                .map(|x| buffer.cell((x, *y)).unwrap().symbol())
+                .collect::<String>()
+                .contains("+added")
+        })
+        .expect("plus row rendered");
+    // Far beyond the text, still inside the panel: the background continues.
+    let cell = buffer.cell((110, row)).unwrap();
+    assert_eq!(
+        cell.style().bg,
+        Some(bg),
+        "background must run edge to edge"
+    );
+}

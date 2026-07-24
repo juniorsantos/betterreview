@@ -60,7 +60,7 @@ fn render_display_row(
     inner_width: usize,
 ) -> Line<'static> {
     let mut line = match display_row {
-        DisplayRow::Diff { row } => diff_line(diff, *row),
+        DisplayRow::Diff { row } => diff_line(diff, *row, inner_width),
         DisplayRow::Comment {
             entry,
             kind,
@@ -140,7 +140,7 @@ fn render_display_row(
     line
 }
 
-fn diff_line(diff: &RenderedDiff, row: usize) -> Line<'static> {
+fn diff_line(diff: &RenderedDiff, row: usize, inner_width: usize) -> Line<'static> {
     let Some(rendered_row): Option<&RenderedRow> = diff.rows.get(row) else {
         return Line::default();
     };
@@ -158,7 +158,20 @@ fn diff_line(diff: &RenderedDiff, row: usize) -> Line<'static> {
         Style::default().fg(theme::MUTED),
     )];
     spans.extend(rendered_row.text.spans.clone());
-    Line::from(spans)
+    let mut line = Line::from(spans);
+    // GitHub paints added/removed line backgrounds edge to edge; extend
+    // delta's per-character background across the remaining panel width
+    // (the number gutter stays neutral).
+    if let Some(bg) = line.spans.iter().skip(1).find_map(|span| span.style.bg) {
+        let text_width = line.width();
+        if text_width < inner_width {
+            line.spans.push(Span::styled(
+                " ".repeat(inner_width - text_width),
+                Style::default().bg(bg),
+            ));
+        }
+    }
+    line
 }
 
 fn comment_line(
