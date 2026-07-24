@@ -39,8 +39,11 @@ Run `betterreview doctor` to check that everything is ready.
 ### Homebrew (macOS and Linux)
 
 ```sh
-brew install juniorsantos/tap/betterreview
+brew tap juniorsantos/tap
+brew install betterreview
 ```
+
+Or in a single command: `brew install juniorsantos/tap/betterreview`.
 
 Installs `gh` and `delta` automatically as dependencies. For GitLab, also run `brew install glab`.
 
