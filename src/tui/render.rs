@@ -9,7 +9,7 @@ use crate::app::{AppFocus, AppState};
 
 use super::{
     theme,
-    widgets::{delete, diff, editor, files, help, quit, status, submit, threads},
+    widgets::{delete, diff, editor, files, header, help, quit, status, submit, threads},
 };
 
 pub fn render(frame: &mut Frame, state: &AppState) {
@@ -24,19 +24,18 @@ pub fn render(frame: &mut Frame, state: &AppState) {
             Constraint::Length(1),
             Constraint::Min(1),
             Constraint::Length(1),
-            Constraint::Length(1),
         ])
         .split(area);
 
+    let middle = format!(
+        " {} #{} · {} · @{} ",
+        state.provider.key.repository,
+        state.provider.key.number,
+        state.provider.title,
+        state.provider.author
+    );
     frame.render_widget(
-        Paragraph::new(format!(
-            " {} {} #{} — {} — by {}",
-            provider_name(state),
-            state.provider.key.repository,
-            state.provider.key.number,
-            state.provider.title,
-            state.provider.author
-        )),
+        Paragraph::new(header::chip_line(&middle, area.width)),
         rows[0],
     );
 
@@ -58,13 +57,6 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     }
 
     status::render(frame, rows[2], state);
-    frame.render_widget(
-        Paragraph::new(
-            " Tab/h/l foco  j/k mover  ]f/[f arquivo  m revisado  e expandir  R enviar  ? ajuda  q sair",
-        )
-        .style(Style::default().fg(theme::MUTED)),
-        rows[3],
-    );
 
     help::render(frame, area, state);
     threads::render(frame, area, state);
@@ -75,13 +67,6 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     }
     if state.delete_dialog.is_some() {
         delete::render(frame, area, state);
-    }
-}
-
-fn provider_name(state: &AppState) -> &'static str {
-    match state.provider.key.provider {
-        crate::domain::ProviderKind::GitHub => "GitHub",
-        crate::domain::ProviderKind::GitLab => "GitLab",
     }
 }
 

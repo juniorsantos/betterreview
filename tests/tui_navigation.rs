@@ -182,16 +182,17 @@ fn screen(state: &AppState, width: u16, height: u16) -> String {
 fn renders_wide_file_panel_canonical_diff_and_shortcuts() {
     let screen = screen(&app(), 120, 36);
 
-    assert!(screen.contains("GitHub owner/repo #42"));
+    assert!(screen.contains("owner/repo #42"));
     assert!(screen.contains("Add terminal review"));
+    assert!(screen.contains("@developer"));
     assert!(screen.contains("src/"));
     assert!(screen.contains("[x] M app.rs"));
     assert!(screen.contains("[~] A new.rs"));
     assert!(screen.contains("    8 -old"));
     assert!(screen.contains("    8 +new"));
-    assert!(screen.contains("]f/[f arquivo"));
-    assert!(screen.contains("h/l foco"));
-    assert!(screen.contains("R enviar"));
+    assert!(screen.contains("]h"));
+    assert!(screen.contains("hunk"));
+    assert!(screen.contains("ajuda"));
 }
 
 #[test]

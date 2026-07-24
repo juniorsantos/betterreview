@@ -2,7 +2,7 @@
 source: tests/tui_navigation.rs
 expression: "screen(&app(), 50, 16)"
 ---
- GitHub owner/repo #42 — Add terminal review — by
+ betterreview  owner/repo #42 · Add terminal revie
 ┌ Diff ──────────────────────────────────────────┐
 │    8 -old                                      │
 │    8 +new                                      │
@@ -15,6 +15,6 @@ expression: "screen(&app(), 50, 16)"
 │                                                │
 │                                                │
 │                                                │
+│                                                │
 └────────────────────────────────────────────────┘
- 1/2 revisados · 0 drafts · 0 operações
- Tab/h/l foco  j/k mover  ]f/[f arquivo  m revisad
+ 1/2 revisados · 0 drafts · 0 operações      j/k …

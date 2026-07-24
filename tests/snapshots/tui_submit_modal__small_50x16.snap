@@ -2,7 +2,7 @@
 source: tests/tui_submit_modal.rs
 expression: "screen(&app_with_drafts(2), 50, 16)"
 ---
- GitHub owner/repo #42 — Review terminal — by dev 
+ betterreview  owner/repo #42 · Review terminal · 
 ┌ Diff ──────────────────────────────────────────┐
 │Load╭ Enviar revisão ──────────────────────╮    │
 │    │2 drafts will be published            │    │
@@ -15,6 +15,6 @@ expression: "screen(&app_with_drafts(2), 50, 16)"
 │    │                                      │    │
 │    │                                      │    │
 │    │Tab campo · ↑/↓ resultado · Enter envi│    │
-└────╰──────────────────────────────────────╯────┘
- 0/1 revisados · 2 drafts · 0 operações           
- Tab/h/l foco  j/k mover  ]f/[f arquivo  m revisad
+│    ╰──────────────────────────────────────╯    │
+└────────────────────────────────────────────────┘
+ 0/1 revisados · 2 drafts · 0 operações      j/k …

@@ -2,7 +2,7 @@
 source: tests/tui_submit_modal.rs
 expression: "screen(&app_with_drafts(3), 80, 24)"
 ---
- GitHub owner/repo #42 — Review terminal — by dev                               
+ betterreview  owner/repo #42 · Review terminal · @dev                   v0.1.0 
 ┌ Arquivos — e expandir / z r┐┌ Diff ──────────────────────────────────────────┐
 │src/                        ││Loading diff...                                 │
 │[ ] M app.rs           +1 -1││                                                │
@@ -23,6 +23,6 @@ expression: "screen(&app_with_drafts(3), 80, 24)"
 │       ╰──────────────────────────────────────────────────────────────╯       │
 │                            ││                                                │
 │                            ││                                                │
+│                            ││                                                │
 └────────────────────────────┘└────────────────────────────────────────────────┘
- 0/1 revisados · 3 drafts · 0 operações                                         
- Tab/h/l foco  j/k mover  ]f/[f arquivo  m revisado  e expandir  R enviar  ? aju
+ 0/1 revisados · 3 drafts · 0 operações          j/k · ]h hunk · ]c comentário …
