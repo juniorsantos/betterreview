@@ -10,6 +10,8 @@ pub enum AppEvent {
 pub enum AppAction {
     FocusNext,
     FocusPrevious,
+    FocusFiles,
+    FocusDiff,
     NextFile,
     PreviousFile,
     NextUnreviewed,

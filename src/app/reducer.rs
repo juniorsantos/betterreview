@@ -66,6 +66,14 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             };
             Vec::new()
         }
+        AppAction::FocusFiles => {
+            state.focus = AppFocus::Files;
+            Vec::new()
+        }
+        AppAction::FocusDiff => {
+            state.focus = AppFocus::Diff;
+            Vec::new()
+        }
         AppAction::NextFile => navigate_by(state, 1),
         AppAction::PreviousFile => navigate_by(state, -1),
         AppAction::NextUnreviewed => navigate_unreviewed(state, 1),

@@ -43,7 +43,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     frame.render_widget(
         Paragraph::new(lines).scroll((scroll, 0)).block(
             Block::default()
-                .title(" Diff ")
+                .title(" [3] Diff ")
                 .borders(Borders::ALL)
                 .padding(ratatui::widgets::Padding::horizontal(1))
                 .border_style(Style::default().fg(border)),

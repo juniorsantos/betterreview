@@ -502,3 +502,30 @@ fn n_and_shift_n_navigate_an_active_search() {
         Some(AppEvent::Action(AppAction::SearchPrevious))
     ));
 }
+
+#[test]
+fn number_keys_focus_the_review_panels() {
+    let mut app = base_app();
+    app.focus = betterreview::app::AppFocus::Diff;
+    let mut keymap = KeyMap::default();
+
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('2'), KeyModifiers::NONE),
+    );
+    assert!(matches!(
+        event,
+        Some(AppEvent::Action(AppAction::FocusFiles))
+    ));
+
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('3'), KeyModifiers::NONE),
+    );
+    assert!(matches!(
+        event,
+        Some(AppEvent::Action(AppAction::FocusDiff))
+    ));
+}

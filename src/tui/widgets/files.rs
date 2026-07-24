@@ -66,7 +66,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     frame.render_widget(
         List::new(items).block(
             Block::default()
-                .title(" Arquivos — e expandir / z recolher ")
+                .title(" [2] Arquivos — e expandir / z recolher ")
                 .borders(Borders::ALL)
                 .padding(ratatui::widgets::Padding::horizontal(1))
                 .border_style(Style::default().fg(border)),

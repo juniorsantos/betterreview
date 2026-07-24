@@ -104,6 +104,7 @@ fn screen(state: &AppState) -> String {
 fn files_panel_groups_entries_by_directory() {
     let screen = screen(&app());
 
+    assert!(screen.contains("[2] Arquivos"));
     assert!(screen.contains("src/app/"));
     assert!(screen.contains("docs/"));
     // Files show only their basename under the directory header.
