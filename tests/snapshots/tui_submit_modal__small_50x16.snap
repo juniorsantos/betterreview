@@ -3,18 +3,18 @@ source: tests/tui_submit_modal.rs
 expression: "screen(&app_with_drafts(2), 50, 16)"
 ---
  GitHub owner/repo #42 — Review terminal — by dev 
-┌┌ Submit review ───────────────────────────────┐┐
-││2 drafts will be published                    ││
-││                                              ││
-││Summary                                       ││
-││Ready to merge                                ││
-││                                              ││
-││[COMMENT]  APPROVE  REQUEST_CHANGES           ││
-││                                              ││
-││                                              ││
-││Comment review                                ││
-││Tab field  ↑/↓ outcome                        ││
-││Enter submit  Esc cancel                      ││
-└│                                              │┘
- └──────────────────────────────────────────────┘ 
+┌ Diff ──────────────────────────────────────────┐
+│Load╭ Enviar revisão ──────────────────────╮    │
+│    │2 drafts will be published            │    │
+│    │                                      │    │
+│    │Summary                               │    │
+│    │Ready to merge                        │    │
+│    │                                      │    │
+│    │[COMMENT]  APPROVE  REQUEST_CHANGES   │    │
+│    │                                      │    │
+│    │                                      │    │
+│    │                                      │    │
+│    │Tab campo · ↑/↓ resultado · Enter envi│    │
+└────╰──────────────────────────────────────╯────┘
+ 0/1 reviewed  •  2 drafts  •  0 operations       
  Tab/h/l focus  j/k move  ]f/[f file  m reviewed

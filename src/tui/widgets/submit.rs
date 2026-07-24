@@ -3,19 +3,18 @@ use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, Paragraph, Wrap},
 };
 
 use crate::{
     app::AppState,
     domain::{ReviewOutcome, Support},
+    tui::widgets::dialog::{Dialog, render_dialog},
 };
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let Some(modal) = &state.submission_modal else {
         return;
     };
-    let popup = centered(area, 70, 14);
     let support = state.provider.capabilities.for_outcome(modal.outcome);
     let reason = match support {
         Support::Supported => String::new(),
@@ -36,7 +35,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             modal.outcome == ReviewOutcome::RequestChanges,
         ),
     ];
-    let lines = vec![
+    let body = vec![
         Line::raw(draft_label),
         Line::raw(""),
         Line::raw("Summary"),
@@ -46,17 +45,17 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         Line::styled(reason, Style::default().fg(crate::tui::theme::WARNING)),
         Line::raw(""),
         Line::raw(action_label(modal.outcome)),
-        Line::raw("Tab field  ↑/↓ outcome"),
-        Line::raw("Enter submit  Esc cancel"),
     ];
-    frame.render_widget(Clear, popup);
-    frame.render_widget(
-        Paragraph::new(lines).wrap(Wrap { trim: false }).block(
-            Block::default()
-                .title(" Submit review ")
-                .borders(Borders::ALL),
-        ),
-        popup,
+    render_dialog(
+        frame,
+        area,
+        Dialog {
+            title: " Enviar revisão ",
+            body,
+            hints: "Tab campo · ↑/↓ resultado · Enter enviar · Esc cancelar",
+            width: 70,
+            height: 14,
+        },
     );
 }
 
@@ -79,16 +78,5 @@ fn action_label(outcome: ReviewOutcome) -> &'static str {
         ReviewOutcome::Comment => "Comment review",
         ReviewOutcome::Approve => "Approve review",
         ReviewOutcome::RequestChanges => "Request changes",
-    }
-}
-
-fn centered(area: Rect, maximum_width: u16, maximum_height: u16) -> Rect {
-    let width = maximum_width.min(area.width.saturating_sub(2)).max(1);
-    let height = maximum_height.min(area.height.saturating_sub(2)).max(1);
-    Rect {
-        x: area.x + area.width.saturating_sub(width) / 2,
-        y: area.y + area.height.saturating_sub(height) / 2,
-        width,
-        height,
     }
 }

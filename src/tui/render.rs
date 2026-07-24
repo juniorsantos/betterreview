@@ -2,14 +2,14 @@ use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::Style,
-    widgets::{Block, Borders, Clear, Paragraph},
+    widgets::{Block, Clear, Paragraph},
 };
 
 use crate::app::{AppFocus, AppState};
 
 use super::{
     theme,
-    widgets::{delete, diff, editor, files, quit, status, submit, threads},
+    widgets::{delete, diff, editor, files, help, quit, status, submit, threads},
 };
 
 pub fn render(frame: &mut Frame, state: &AppState) {
@@ -66,41 +66,7 @@ pub fn render(frame: &mut Frame, state: &AppState) {
         rows[3],
     );
 
-    if state.help_visible {
-        let text = "Navigation          Files                Review\n\
-                    j/k       move      e    expand panel   v      selection\n\
-                    Tab/h/l   focus     z    fold folder    c      comment\n\
-                    ]f / [f   file      m    reviewed       s      suggestion\n\
-                    ]u / [u   unreviewed                    t      threads\n\
-                    ]h / [h   hunk\n\
-                    ]c / [c   comment\n\
-                    /         search\n\
-                    \n\
-                    Comments: e edit  x delete  r reply  T hide/show\n\
-                    Editor: Enter save   Alt+Enter newline   Esc close\n\
-                    R submit review      r refresh           q quit";
-        // Comfortable, but never the full screen.
-        let width = 66.min(area.width * 4 / 5);
-        let height = 12.min(area.height * 4 / 5);
-        let overlay = ratatui::layout::Rect {
-            x: area.x + area.width.saturating_sub(width) / 2,
-            y: area.y + area.height.saturating_sub(height) / 2,
-            width,
-            height,
-        };
-        frame.render_widget(Clear, overlay);
-        frame.render_widget(
-            Paragraph::new(text)
-                .style(Style::default().bg(theme::BG).fg(theme::FG))
-                .block(
-                    Block::default()
-                        .title(" Help — Esc close ")
-                        .borders(Borders::ALL)
-                        .border_style(Style::default().fg(theme::ACCENT)),
-                ),
-            overlay,
-        );
-    }
+    help::render(frame, area, state);
     threads::render(frame, area, state);
     editor::render(frame, area, state);
     submit::render(frame, area, state);

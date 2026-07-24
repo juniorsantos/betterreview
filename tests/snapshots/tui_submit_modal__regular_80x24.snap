@@ -7,20 +7,20 @@ expression: "screen(&app_with_drafts(3), 80, 24)"
 │src/                        ││Loading diff...                                 │
 │ M app.rs              +1 -1││                                                │
 │                            ││                                                │
-│    ┌ Submit review ─────────────────────────────────────────────────────┐    │
-│    │3 drafts will be published                                          │    │
-│    │                                                                    │    │
-│    │Summary                                                             │    │
-│    │Ready to merge                                                      │    │
-│    │                                                                    │    │
-│    │[COMMENT]  APPROVE  REQUEST_CHANGES                                 │    │
-│    │                                                                    │    │
-│    │                                                                    │    │
-│    │Comment review                                                      │    │
-│    │Tab field  ↑/↓ outcome                                              │    │
-│    │Enter submit  Esc cancel                                            │    │
-│    │                                                                    │    │
-│    └────────────────────────────────────────────────────────────────────┘    │
+│       ╭ Enviar revisão ──────────────────────────────────────────────╮       │
+│       │3 drafts will be published                                    │       │
+│       │                                                              │       │
+│       │Summary                                                       │       │
+│       │Ready to merge                                                │       │
+│       │                                                              │       │
+│       │[COMMENT]  APPROVE  REQUEST_CHANGES                           │       │
+│       │                                                              │       │
+│       │                                                              │       │
+│       │Comment review                                                │       │
+│       │                                                              │       │
+│       │                                                              │       │
+│       │   Tab campo · ↑/↓ resultado · Enter enviar · Esc cancelar    │       │
+│       ╰──────────────────────────────────────────────────────────────╯       │
 │                            ││                                                │
 │                            ││                                                │
 └────────────────────────────┘└────────────────────────────────────────────────┘

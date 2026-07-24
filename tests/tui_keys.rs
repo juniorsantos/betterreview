@@ -193,7 +193,7 @@ fn quit_dialog_navigates_with_jk_and_confirms_with_enter() {
     app.quit_dialog = true;
     let mut keymap = KeyMap::default();
 
-    // Highlight starts on "Keep session"; j moves to "Discard editor".
+    // Highlight starts on "Manter sessão"; j moves to "Descartar editor".
     let moved = handle_key(
         &mut app,
         &mut keymap,

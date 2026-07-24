@@ -1,10 +1,9 @@
-use ratatui::{
-    Frame,
-    layout::Rect,
-    widgets::{Block, Borders, Clear, Paragraph},
-};
+use ratatui::{Frame, layout::Rect, text::Line};
 
-use crate::app::AppState;
+use crate::{
+    app::AppState,
+    tui::widgets::dialog::{Dialog, render_dialog},
+};
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     if !state.editor_open {
@@ -13,40 +12,55 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let Some(editor) = &state.session.editor else {
         return;
     };
-    let width = area.width.saturating_sub(6).min(76);
-    let height = area.height.saturating_sub(4).min(14);
-    let popup = Rect {
-        x: area.x + area.width.saturating_sub(width) / 2,
-        y: area.y + area.height.saturating_sub(height) / 2,
-        width,
-        height,
-    };
-    let title = if editor.stale {
-        " Stale draft (head changed) — c new comment / Esc close "
+    let (title, hints) = if editor.stale {
+        (
+            " Draft antigo (head mudou) ",
+            "c novo comentário · Esc fechar",
+        )
     } else if state.editing_draft.is_some() {
-        " Editing draft — Enter save / Esc cancel "
+        (
+            " Editando draft ",
+            "Enter salvar · Alt+Enter nova linha · Esc fechar",
+        )
     } else if state.replying_thread.is_some() {
-        " Replying — Enter send / Esc cancel "
+        (
+            " Respondendo ",
+            "Enter enviar · Alt+Enter nova linha · Esc fechar",
+        )
     } else {
-        " Comment editor — Enter save / Alt+Enter newline / Esc close "
+        (
+            " Comentário ",
+            "Enter salvar · Alt+Enter nova linha · Esc fechar",
+        )
     };
-    frame.render_widget(Clear, popup);
-    frame.render_widget(
-        Paragraph::new(editor.lines.join("\n"))
-            .block(Block::default().title(title).borders(Borders::ALL)),
-        popup,
+    let body: Vec<Line> = editor
+        .lines
+        .iter()
+        .map(|line| Line::raw(line.clone()))
+        .collect();
+    let inner = render_dialog(
+        frame,
+        area,
+        Dialog {
+            title,
+            body,
+            hints,
+            width: 76,
+            height: 14,
+        },
     );
     if !editor.stale {
         // Show the real terminal cursor at the typing position so the user
-        // always knows where input lands.
-        let max_col = popup.width.saturating_sub(2).saturating_sub(1);
-        let max_row = popup.height.saturating_sub(2).saturating_sub(1);
+        // always knows where input lands. Clamped to the body region
+        // `render_dialog` reserved above the blank/hints rows.
+        let max_col = inner.width.saturating_sub(1);
+        let max_row = inner.height.saturating_sub(1);
         let col = u16::try_from(editor.grapheme_col)
             .unwrap_or(u16::MAX)
             .min(max_col);
         let row = u16::try_from(editor.cursor_row)
             .unwrap_or(u16::MAX)
             .min(max_row);
-        frame.set_cursor_position((popup.x + 1 + col, popup.y + 1 + row));
+        frame.set_cursor_position((inner.x + col, inner.y + row));
     }
 }

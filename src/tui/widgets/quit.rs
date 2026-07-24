@@ -1,55 +1,27 @@
-use ratatui::{
-    Frame,
-    layout::Rect,
-    style::{Modifier, Style},
-    text::Line,
-    widgets::{Block, Borders, Clear, Paragraph},
+use ratatui::{Frame, layout::Rect, text::Line};
+
+use crate::{
+    app::AppState,
+    tui::widgets::dialog::{Dialog, menu_line, render_dialog},
 };
 
-use crate::{app::AppState, tui::theme};
-
-const OPTIONS: [&str; 3] = ["Keep session", "Discard editor", "Cancel"];
+const OPTIONS: [&str; 3] = ["Manter sessão", "Descartar editor", "Cancelar"];
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
-    let width = area.width.saturating_sub(4).min(52);
-    let height = 7.min(area.height.saturating_sub(2));
-    let popup = Rect {
-        x: area.x + area.width.saturating_sub(width) / 2,
-        y: area.y + area.height.saturating_sub(height) / 2,
-        width,
-        height,
-    };
-    let mut lines: Vec<Line> = OPTIONS
+    let body: Vec<Line> = OPTIONS
         .iter()
         .enumerate()
-        .map(|(index, option)| {
-            if index == state.quit_selected {
-                Line::styled(
-                    format!("▸ {option}"),
-                    Style::default()
-                        .fg(theme::ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                )
-            } else {
-                Line::raw(format!("  {option}"))
-            }
-        })
+        .map(|(index, option)| menu_line(option, index == state.quit_selected))
         .collect();
-    lines.push(Line::raw(""));
-    lines.push(Line::styled(
-        "j/k move  Enter confirm  Esc cancel",
-        Style::default().fg(theme::MUTED),
-    ));
-    frame.render_widget(Clear, popup);
-    frame.render_widget(
-        Paragraph::new(lines)
-            .style(Style::default().bg(theme::BG).fg(theme::FG))
-            .block(
-                Block::default()
-                    .title(" Quit review? ")
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(theme::ACCENT)),
-            ),
-        popup,
+    render_dialog(
+        frame,
+        area,
+        Dialog {
+            title: " Sair da revisão ",
+            body,
+            hints: "j/k mover · Enter confirmar · Esc cancelar",
+            width: 52,
+            height: 7,
+        },
     );
 }
