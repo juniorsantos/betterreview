@@ -45,7 +45,7 @@ brew install betterreview
 
 Ou em um comando só: `brew install juniorsantos/tap/betterreview`.
 
-Instala `gh` e `delta` automaticamente como dependências. Para GitLab, rode também `brew install glab`.
+Instala `gh`, `glab` e `delta` automaticamente como dependências.
 
 ### Binário do release
 
