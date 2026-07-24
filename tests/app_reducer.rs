@@ -1642,3 +1642,55 @@ fn k_at_the_first_row_returns_to_the_previous_file_end() {
         "positioned at the last row of the previous file"
     );
 }
+
+#[test]
+fn file_header_and_metadata_rows_are_hidden_from_the_display() {
+    use betterreview::diff::{DiffRow, DiffRowKind, ParsedFileDiff};
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let mk = |raw: &str, kind| DiffRow {
+        raw: raw.into(),
+        kind,
+        old_line: None,
+        new_line: None,
+        left: None,
+        right: None,
+    };
+    state.parsed_diff = Some(ParsedFileDiff {
+        path: RepoPath("src/file_0.rs".into()),
+        head: CommitOid("new-head".into()),
+        rows: vec![
+            mk("diff --git a/x b/x", DiffRowKind::Header),
+            mk("index 1..2", DiffRowKind::Metadata),
+            mk("@@ -1 +1 @@", DiffRowKind::HunkHeader),
+            mk("+new", DiffRowKind::Added),
+        ],
+        hunks: Vec::new(),
+    });
+    state.rendered_diff = Some(RenderedDiff {
+        rows: (0..4)
+            .map(|index| RenderedRow {
+                text: Line::raw(format!("row-{index}")),
+                binding: RowBinding {
+                    row_index: index,
+                    left: None,
+                    right: None,
+                },
+            })
+            .collect(),
+    });
+    betterreview::app::refresh_display_rows(&mut state);
+
+    let diff_rows: Vec<usize> = state
+        .display_rows
+        .iter()
+        .filter_map(|row| match row {
+            betterreview::app::DisplayRow::Diff { row } => Some(*row),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        diff_rows,
+        vec![2, 3],
+        "header/metadata hidden, hunk header and code kept"
+    );
+}

@@ -164,6 +164,23 @@ pub fn display_rows(state: &AppState) -> Vec<DisplayRow> {
 /// a later mutation such as a new draft or thread update.
 pub fn refresh_display_rows(state: &mut AppState) {
     state.display_rows = display_rows(state);
+    // File headers and metadata (diff --git, index, ---/+++) are noise in a
+    // panel that already names the file; keep only hunk headers and code.
+    if let Some(parsed) = state.parsed_diff.as_ref() {
+        let hidden: Vec<bool> = parsed
+            .rows
+            .iter()
+            .map(|row| {
+                matches!(
+                    row.kind,
+                    crate::diff::DiffRowKind::Header | crate::diff::DiffRowKind::Metadata
+                )
+            })
+            .collect();
+        state
+            .display_rows
+            .retain(|row| !matches!(row, DisplayRow::Diff { row } if hidden.get(*row).copied().unwrap_or(false)));
+    }
     let target = state.session.cursor_row;
     state.display_cursor = state
         .display_rows
