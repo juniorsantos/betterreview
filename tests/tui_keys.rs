@@ -325,7 +325,7 @@ fn r_replies_when_cursor_is_on_a_thread_comment() {
             thread: thread.clone(),
             comment_index: 0,
         },
-        block_start: true,
+        kind: betterreview::app::CommentRowKind::Header,
         text: "please explain".into(),
         author: Some("alice".into()),
     }];
@@ -370,7 +370,7 @@ fn e_edits_when_cursor_is_on_a_draft_comment() {
         entry: CommentEntry::Draft {
             id: draft_id.clone(),
         },
-        block_start: true,
+        kind: betterreview::app::CommentRowKind::Header,
         text: "please fix".into(),
         author: None,
     }];
@@ -398,7 +398,7 @@ fn x_deletes_when_cursor_is_on_a_draft_comment() {
         entry: CommentEntry::Draft {
             id: draft_id.clone(),
         },
-        block_start: true,
+        kind: betterreview::app::CommentRowKind::Header,
         text: "please fix".into(),
         author: None,
     }];

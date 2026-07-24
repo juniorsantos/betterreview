@@ -16,6 +16,16 @@ pub enum CommentEntry {
     },
 }
 
+/// Which terminal line of a comment card a row renders: the top border with
+/// the author/state meta, a body line, or the bottom border with the key
+/// hints. Navigation stops only on `Header`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CommentRowKind {
+    Header,
+    Body,
+    Footer,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DisplayRow {
     Diff {
@@ -23,7 +33,7 @@ pub enum DisplayRow {
     },
     Comment {
         entry: CommentEntry,
-        block_start: bool,
+        kind: CommentRowKind,
         text: String,
         author: Option<String>,
     },
@@ -247,20 +257,35 @@ fn find_anchor_row(rendered: &RenderedDiff, target: &DiffPosition) -> Option<usi
 }
 
 fn push_block(rows: &mut Vec<DisplayRow>, block: PendingBlock) {
-    let mut lines = block.body.lines();
-    let first = lines.next().unwrap_or("");
+    // A card is a bordered box: top border (meta), one body row per line,
+    // bottom border (key hints). Every row is one terminal line.
     rows.push(DisplayRow::Comment {
         entry: block.entry.clone(),
-        block_start: true,
-        text: first.to_owned(),
+        kind: CommentRowKind::Header,
+        text: String::new(),
         author: block.author,
     });
-    for line in lines {
+    let mut body_lines = block.body.lines().peekable();
+    if body_lines.peek().is_none() {
         rows.push(DisplayRow::Comment {
             entry: block.entry.clone(),
-            block_start: false,
+            kind: CommentRowKind::Body,
+            text: String::new(),
+            author: None,
+        });
+    }
+    for line in body_lines {
+        rows.push(DisplayRow::Comment {
+            entry: block.entry.clone(),
+            kind: CommentRowKind::Body,
             text: line.to_owned(),
             author: None,
         });
     }
+    rows.push(DisplayRow::Comment {
+        entry: block.entry.clone(),
+        kind: CommentRowKind::Footer,
+        text: String::new(),
+        author: None,
+    });
 }

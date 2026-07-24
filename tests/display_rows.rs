@@ -1,5 +1,5 @@
 use betterreview::{
-    app::{CommentEntry, DisplayRow, build_display_rows},
+    app::{CommentEntry, CommentRowKind, DisplayRow, build_display_rows},
     diff::{RenderedDiff, RenderedRow, RowBinding},
     domain::{
         DiffPosition, DiffSelection, DiffSide, DraftComment, DraftId, RepoPath, ReviewComment,
@@ -132,8 +132,24 @@ fn draft_block_appears_under_its_anchor() {
                 entry: CommentEntry::Draft {
                     id: DraftId("d1".into())
                 },
-                block_start: true,
+                kind: CommentRowKind::Header,
+                text: String::new(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Draft {
+                    id: DraftId("d1".into())
+                },
+                kind: CommentRowKind::Body,
                 text: "please fix".into(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Draft {
+                    id: DraftId("d1".into())
+                },
+                kind: CommentRowKind::Footer,
+                text: String::new(),
                 author: None,
             },
             DisplayRow::Diff { row: 2 },
@@ -142,7 +158,7 @@ fn draft_block_appears_under_its_anchor() {
 }
 
 #[test]
-fn multiline_body_marks_only_the_first_row_as_block_start() {
+fn multiline_body_expands_between_header_and_footer() {
     let path = active_path();
     let diff = rendered(&path);
     let thread = ReviewThread {
@@ -169,8 +185,8 @@ fn multiline_body_marks_only_the_first_row_as_block_start() {
                     thread: ThreadId("t1".into()),
                     comment_index: 0,
                 },
-                block_start: true,
-                text: "line1".into(),
+                kind: CommentRowKind::Header,
+                text: String::new(),
                 author: Some("alice".into()),
             },
             DisplayRow::Comment {
@@ -178,7 +194,16 @@ fn multiline_body_marks_only_the_first_row_as_block_start() {
                     thread: ThreadId("t1".into()),
                     comment_index: 0,
                 },
-                block_start: false,
+                kind: CommentRowKind::Body,
+                text: "line1".into(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 0,
+                },
+                kind: CommentRowKind::Body,
                 text: "line2".into(),
                 author: None,
             },
@@ -187,8 +212,17 @@ fn multiline_body_marks_only_the_first_row_as_block_start() {
                     thread: ThreadId("t1".into()),
                     comment_index: 0,
                 },
-                block_start: false,
+                kind: CommentRowKind::Body,
                 text: "line3".into(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 0,
+                },
+                kind: CommentRowKind::Footer,
+                text: String::new(),
                 author: None,
             },
             DisplayRow::Diff { row: 1 },
@@ -225,18 +259,54 @@ fn thread_with_two_comments_produces_two_blocks() {
                     thread: ThreadId("t1".into()),
                     comment_index: 0,
                 },
-                block_start: true,
-                text: "first".into(),
+                kind: CommentRowKind::Header,
+                text: String::new(),
                 author: Some("alice".into()),
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 0,
+                },
+                kind: CommentRowKind::Body,
+                text: "first".into(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 0,
+                },
+                kind: CommentRowKind::Footer,
+                text: String::new(),
+                author: None,
             },
             DisplayRow::Comment {
                 entry: CommentEntry::Thread {
                     thread: ThreadId("t1".into()),
                     comment_index: 1,
                 },
-                block_start: true,
-                text: "second".into(),
+                kind: CommentRowKind::Header,
+                text: String::new(),
                 author: Some("bob".into()),
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 1,
+                },
+                kind: CommentRowKind::Body,
+                text: "second".into(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 1,
+                },
+                kind: CommentRowKind::Footer,
+                text: String::new(),
+                author: None,
             },
             DisplayRow::Diff { row: 1 },
             DisplayRow::Diff { row: 2 },
@@ -287,16 +357,50 @@ fn unanchored_comments_group_after_an_orphan_header() {
                     thread: ThreadId("t1".into()),
                     comment_index: 0,
                 },
-                block_start: true,
-                text: "stale".into(),
+                kind: CommentRowKind::Header,
+                text: String::new(),
                 author: Some("alice".into()),
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 0,
+                },
+                kind: CommentRowKind::Body,
+                text: "stale".into(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 0,
+                },
+                kind: CommentRowKind::Footer,
+                text: String::new(),
+                author: None,
             },
             DisplayRow::Comment {
                 entry: CommentEntry::Draft {
                     id: DraftId("d1".into())
                 },
-                block_start: true,
+                kind: CommentRowKind::Header,
+                text: String::new(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Draft {
+                    id: DraftId("d1".into())
+                },
+                kind: CommentRowKind::Body,
                 text: "no selection".into(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Draft {
+                    id: DraftId("d1".into())
+                },
+                kind: CommentRowKind::Footer,
+                text: String::new(),
                 author: None,
             },
         ]

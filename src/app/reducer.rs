@@ -8,8 +8,9 @@ use crate::{
 };
 
 use super::{
-    AppAction, AppEffect, AppEvent, AppFocus, AppState, DisplayRow, EffectEnvelope, EffectOutcome,
-    EffectResult, QuitChoice, SubmissionModal, generated::is_generated, refresh_display_rows,
+    AppAction, AppEffect, AppEvent, AppFocus, AppState, CommentRowKind, DisplayRow, EffectEnvelope,
+    EffectOutcome, EffectResult, QuitChoice, SubmissionModal, generated::is_generated,
+    refresh_display_rows,
 };
 
 /// Pushes a user-facing notice and arms its on-screen lifetime. Every refusal
@@ -385,7 +386,7 @@ fn is_display_stop(row: &DisplayRow) -> bool {
         row,
         DisplayRow::Diff { .. }
             | DisplayRow::Comment {
-                block_start: true,
+                kind: CommentRowKind::Header,
                 ..
             }
     )
@@ -449,7 +450,7 @@ fn jump_comment(state: &mut AppState, step: i32) -> Vec<EffectEnvelope> {
         matches!(
             row,
             DisplayRow::Comment {
-                block_start: true,
+                kind: CommentRowKind::Header,
                 ..
             }
         )

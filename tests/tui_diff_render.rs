@@ -209,9 +209,10 @@ fn comment_box_renders_under_its_line() {
         .iter()
         .position(|line| line.contains("+added"))
         .expect("anchored diff row rendered");
-    let comment_line = lines[anchor + 1];
-    assert!(comment_line.contains("draft"));
-    assert!(comment_line.contains("Please double-check this line"));
+    // Card: top border with the meta, body line, bottom border with hints.
+    assert!(lines[anchor + 1].contains("╭─ @você · draft"));
+    assert!(lines[anchor + 2].contains("│ Please double-check this line"));
+    assert!(lines[anchor + 3].contains("╰─"));
 }
 
 #[test]
@@ -302,9 +303,10 @@ fn comment_block_renders_as_a_card_with_action_hints() {
     let terminal = draw_wide(&state);
     let screen = screen_wide(&terminal);
 
-    assert!(screen.contains("╭ corpo do comentário"));
-    assert!(screen.contains("@você · draft · e editar / x excluir"));
+    assert!(screen.contains("╭─ @você · draft"));
+    assert!(screen.contains("│ corpo do comentário"));
     assert!(screen.contains("│ segunda linha"));
+    assert!(screen.contains("╰─ e editar · x excluir"));
 }
 
 #[test]

@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use crate::{
-    app::{AppFocus, AppState, CommentEntry, DisplayRow},
+    app::{AppFocus, AppState, CommentEntry, CommentRowKind, DisplayRow},
     diff::{RenderedDiff, RenderedRow},
     domain::PatchAvailability,
     tui::{theme, viewport},
@@ -61,17 +61,10 @@ fn render_display_row(
         DisplayRow::Diff { row } => diff_line(diff, *row),
         DisplayRow::Comment {
             entry,
-            block_start,
+            kind,
             text,
             author,
-        } => comment_line(
-            state,
-            entry,
-            *block_start,
-            text,
-            author.as_deref(),
-            inner_width,
-        ),
+        } => comment_line(state, entry, *kind, text, author.as_deref(), inner_width),
         DisplayRow::OrphanHeader => Line::styled(
             "— comentários desatualizados —",
             Style::default().fg(theme::MUTED),
@@ -140,55 +133,79 @@ fn diff_line(diff: &RenderedDiff, row: usize) -> Line<'static> {
 fn comment_line(
     state: &AppState,
     entry: &CommentEntry,
-    block_start: bool,
+    kind: CommentRowKind,
     text: &str,
     author: Option<&str>,
     inner_width: usize,
 ) -> Line<'static> {
-    let border = if block_start { "╭ " } else { "│ " };
-    let mut spans = vec![
-        Span::raw(GUTTER),
-        Span::styled(border, Style::default().fg(theme::BORDER)),
-        Span::styled(text.to_owned(), Style::default().fg(theme::FG)),
-    ];
-    if block_start {
-        // Right-aligned meta: author, state marker, and the keys that act on
-        // this block — the card itself teaches the shortcuts.
-        let author_label = author.map_or_else(|| "você".to_owned(), str::to_owned);
-        let (marker_text, marker_color) =
-            marker(state, entry).unwrap_or(("comentário", theme::MUTED));
-        let hints = match entry {
-            CommentEntry::Draft { .. } => "e editar / x excluir",
-            CommentEntry::Thread { .. } => "r responder",
-        };
-        let meta_width =
-            1 + author_label.len() + 3 + marker_text.chars().count() + 3 + hints.len() + 1;
-        let used = GUTTER.len() + 2 + text.chars().count();
-        if used + meta_width < inner_width {
-            spans.push(Span::raw(" ".repeat(inner_width - used - meta_width)));
+    let card_width = inner_width.saturating_sub(GUTTER.len()).max(4);
+    let border_style = Style::default().fg(theme::BORDER);
+    let mut spans = vec![Span::raw(GUTTER)];
+    match kind {
+        CommentRowKind::Header => {
+            // ╭─ @autor · marcador ─────╮
+            let author_label = author.map_or_else(|| "você".to_owned(), str::to_owned);
+            let (marker_text, marker_color) =
+                marker(state, entry).unwrap_or(("comentário", theme::MUTED));
+            spans.push(Span::styled("╭─ ", border_style));
             spans.push(Span::styled(
                 format!("@{author_label}"),
                 Style::default().fg(theme::ACCENT),
             ));
-            spans.push(Span::styled(" · ", Style::default().fg(theme::BORDER)));
+            spans.push(Span::styled(" · ", border_style));
             spans.push(Span::styled(
                 marker_text.to_owned(),
                 Style::default().fg(marker_color),
-            ));
-            spans.push(Span::styled(" · ", Style::default().fg(theme::BORDER)));
-            spans.push(Span::styled(
-                hints.to_owned(),
-                Style::default().fg(theme::MUTED),
             ));
             spans.push(Span::raw(" "));
-        } else {
-            // Panel too narrow for the meta column: keep only the state
-            // marker so the row still identifies itself.
-            spans.push(Span::raw("  "));
+            let used = 3 + 1 + author_label.chars().count() + 3 + marker_text.chars().count() + 1;
+            let dashes = card_width.saturating_sub(used + 1);
+            spans.push(Span::styled("─".repeat(dashes), border_style));
+            spans.push(Span::styled("╮", border_style));
+        }
+        CommentRowKind::Body => {
+            // │ texto ──────────────────│
+            spans.push(Span::styled("│ ", border_style));
             spans.push(Span::styled(
-                marker_text.to_owned(),
-                Style::default().fg(marker_color),
+                text.to_owned(),
+                Style::default().fg(theme::FG),
             ));
+            let used = 2 + text.chars().count();
+            let pad = card_width.saturating_sub(used + 1);
+            spans.push(Span::raw(" ".repeat(pad)));
+            spans.push(Span::styled("│", border_style));
+        }
+        CommentRowKind::Footer => {
+            // ╰─ e editar · x excluir ──╯  (teclas em accent bold)
+            let hints: &[(&str, &str)] = match entry {
+                CommentEntry::Draft { .. } => &[("e", "editar"), ("x", "excluir")],
+                CommentEntry::Thread { .. } => &[("r", "responder")],
+            };
+            spans.push(Span::styled("╰─ ", border_style));
+            let mut used = 3;
+            for (index, (key, label)) in hints.iter().enumerate() {
+                if index > 0 {
+                    spans.push(Span::styled(" · ", border_style));
+                    used += 3;
+                }
+                spans.push(Span::styled(
+                    (*key).to_owned(),
+                    Style::default()
+                        .fg(theme::ACCENT)
+                        .add_modifier(Modifier::BOLD),
+                ));
+                spans.push(Span::raw(" "));
+                spans.push(Span::styled(
+                    (*label).to_owned(),
+                    Style::default().fg(theme::MUTED),
+                ));
+                used += key.chars().count() + 1 + label.chars().count();
+            }
+            spans.push(Span::raw(" "));
+            used += 1;
+            let dashes = card_width.saturating_sub(used + 1);
+            spans.push(Span::styled("─".repeat(dashes), border_style));
+            spans.push(Span::styled("╯", border_style));
         }
     }
     Line::from(spans)
