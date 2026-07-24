@@ -36,6 +36,14 @@ Run `betterreview doctor` to check that everything is ready.
 
 ## Installation
 
+### Homebrew (macOS and Linux)
+
+```sh
+brew install juniorsantos/tap/betterreview
+```
+
+Installs `gh` and `delta` automatically as dependencies. For GitLab, also run `brew install glab`.
+
 ### Release binary
 
 Download the binary for your platform from the [releases page](https://github.com/juniorsantos/betterreview/releases):
