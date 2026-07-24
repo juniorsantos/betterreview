@@ -120,11 +120,8 @@ fn status_right_side_shows_key_accent_hints() {
     let lines = screen(&state, 100, 24);
     let row = status_row(&lines);
 
-    assert!(row.contains("hunk"), "expected hunk hint, got: {row:?}");
-    assert!(
-        row.contains("comentário"),
-        "expected comentário hint, got: {row:?}"
-    );
+    assert!(row.contains("enviar"), "expected enviar hint, got: {row:?}");
+    assert!(row.contains("sair"), "expected sair hint, got: {row:?}");
     assert!(row.contains("buscar"), "expected buscar hint, got: {row:?}");
     assert!(row.contains("ajuda"), "expected ajuda hint, got: {row:?}");
 }
@@ -141,12 +138,12 @@ fn status_hint_keys_render_in_accent_bold() {
         .map(|x| buffer.cell((x, row)).unwrap().symbol())
         .collect();
 
-    let key_offset = char_offset(&line, "]h").expect("]h hint present");
+    let key_offset = char_offset(&line, "R").expect("R hint present");
     let cell = buffer.cell((key_offset as u16, row)).unwrap();
     assert_eq!(cell.style().fg, Some(theme::ACCENT));
     assert!(cell.style().add_modifier.contains(Modifier::BOLD));
 
-    let label_offset = char_offset(&line, "hunk").expect("hunk label present");
+    let label_offset = char_offset(&line, "enviar").expect("enviar label present");
     let label_cell = buffer.cell((label_offset as u16, row)).unwrap();
     assert_eq!(label_cell.style().fg, Some(theme::MUTED));
 }
