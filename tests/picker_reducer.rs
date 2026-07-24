@@ -61,7 +61,7 @@ fn key_event(code: KeyCode) -> KeyEvent {
 fn new_pins_the_current_branch_item_first() {
     let items = vec![item(1, false), item(2, true), item(3, false)];
 
-    let state = PickerState::new(items);
+    let state = PickerState::new(items, "owner/repo".into());
 
     assert_eq!(state.items[0].summary.number, 2);
     assert_eq!(state.items[1].summary.number, 1);
@@ -71,7 +71,7 @@ fn new_pins_the_current_branch_item_first() {
 
 #[test]
 fn tick_prefetches_the_highlighted_item_once() {
-    let mut state = PickerState::new(vec![item(1, true), item(2, false)]);
+    let mut state = PickerState::new(vec![item(1, true), item(2, false)], "owner/repo".into());
 
     let commands = update(&mut state, PickerEvent::Tick);
     assert_eq!(commands, vec![PickerCommand::StartPrefetch(1)]);
@@ -83,7 +83,7 @@ fn tick_prefetches_the_highlighted_item_once() {
 
 #[test]
 fn moving_highlight_prefetches_the_new_item_on_next_tick() {
-    let mut state = PickerState::new(vec![item(1, true), item(2, false)]);
+    let mut state = PickerState::new(vec![item(1, true), item(2, false)], "owner/repo".into());
 
     update(&mut state, PickerEvent::Tick);
     assert_eq!(state.loading, Some(1));
@@ -98,7 +98,7 @@ fn moving_highlight_prefetches_the_new_item_on_next_tick() {
 
 #[test]
 fn enter_with_cache_hit_chooses_immediately() {
-    let mut state = PickerState::new(vec![item(1, true)]);
+    let mut state = PickerState::new(vec![item(1, true)], "owner/repo".into());
     state.cache.insert(1, provider_snapshot(1));
 
     let commands = update(&mut state, PickerEvent::Key(key_event(KeyCode::Enter)));
@@ -109,7 +109,7 @@ fn enter_with_cache_hit_chooses_immediately() {
 
 #[test]
 fn enter_without_cache_waits_for_the_inflight_load() {
-    let mut state = PickerState::new(vec![item(1, true)]);
+    let mut state = PickerState::new(vec![item(1, true)], "owner/repo".into());
 
     let commands = update(&mut state, PickerEvent::Key(key_event(KeyCode::Enter)));
     assert_eq!(commands, vec![PickerCommand::StartPrefetch(1)]);
@@ -130,7 +130,7 @@ fn enter_without_cache_waits_for_the_inflight_load() {
 
 #[test]
 fn moving_the_highlight_cancels_a_pending_enter() {
-    let mut state = PickerState::new(vec![item(1, true), item(2, false)]);
+    let mut state = PickerState::new(vec![item(1, true), item(2, false)], "owner/repo".into());
 
     let commands = update(&mut state, PickerEvent::Key(key_event(KeyCode::Enter)));
     assert_eq!(commands, vec![PickerCommand::StartPrefetch(1)]);
@@ -155,7 +155,7 @@ fn moving_the_highlight_cancels_a_pending_enter() {
 
 #[test]
 fn load_error_surfaces_only_when_entering_the_item() {
-    let mut state = PickerState::new(vec![item(1, true)]);
+    let mut state = PickerState::new(vec![item(1, true)], "owner/repo".into());
 
     update(&mut state, PickerEvent::Tick);
     assert_eq!(state.loading, Some(1));
@@ -189,16 +189,16 @@ fn load_error_surfaces_only_when_entering_the_item() {
 
 #[test]
 fn q_quits_and_r_reloads() {
-    let mut state = PickerState::new(vec![item(1, true)]);
+    let mut state = PickerState::new(vec![item(1, true)], "owner/repo".into());
 
     update(&mut state, PickerEvent::Key(key_event(KeyCode::Char('q'))));
     assert!(state.quit);
 
-    let mut esc_state = PickerState::new(vec![item(1, true)]);
+    let mut esc_state = PickerState::new(vec![item(1, true)], "owner/repo".into());
     update(&mut esc_state, PickerEvent::Key(key_event(KeyCode::Esc)));
     assert!(esc_state.quit);
 
-    let mut reload_state = PickerState::new(vec![item(1, true)]);
+    let mut reload_state = PickerState::new(vec![item(1, true)], "owner/repo".into());
     let commands = update(
         &mut reload_state,
         PickerEvent::Key(key_event(KeyCode::Char('r'))),
@@ -240,7 +240,7 @@ fn mark_items_marks_nothing_when_branch_is_none() {
 
 #[test]
 fn reload_clears_stale_errors_so_the_item_can_reprefetch() {
-    let mut state = PickerState::new(vec![item(1, true)]);
+    let mut state = PickerState::new(vec![item(1, true)], "owner/repo".into());
 
     update(&mut state, PickerEvent::Tick);
     update(
@@ -265,7 +265,10 @@ fn reload_clears_stale_errors_so_the_item_can_reprefetch() {
 
 #[test]
 fn reload_keeps_the_highlight_on_the_same_review_by_number() {
-    let mut state = PickerState::new(vec![item(5, false), item(6, false), item(7, false)]);
+    let mut state = PickerState::new(
+        vec![item(5, false), item(6, false), item(7, false)],
+        "owner/repo".into(),
+    );
     state.highlight = 2;
     assert_eq!(state.items[state.highlight].summary.number, 7);
 
@@ -282,7 +285,10 @@ fn reload_keeps_the_highlight_on_the_same_review_by_number() {
 
 #[test]
 fn reload_falls_back_to_the_first_item_when_the_highlighted_review_is_gone() {
-    let mut state = PickerState::new(vec![item(5, false), item(6, false), item(7, false)]);
+    let mut state = PickerState::new(
+        vec![item(5, false), item(6, false), item(7, false)],
+        "owner/repo".into(),
+    );
     state.highlight = 2;
     assert_eq!(state.items[state.highlight].summary.number, 7);
 
@@ -298,7 +304,7 @@ fn reload_falls_back_to_the_first_item_when_the_highlighted_review_is_gone() {
 
 #[test]
 fn list_failed_sets_the_error_banner() {
-    let mut state = PickerState::new(vec![item(1, true)]);
+    let mut state = PickerState::new(vec![item(1, true)], "owner/repo".into());
 
     let commands = update(&mut state, PickerEvent::ListFailed("network down".into()));
 

@@ -41,6 +41,7 @@ fn state(items: Vec<PickerItem>, highlight: usize) -> PickerState {
         error_banner: None,
         quit: false,
         chosen: None,
+        repository: String::new(),
     }
 }
 
@@ -101,6 +102,16 @@ fn highlight_covers_the_full_line() {
         buffer.cell((97, 1)).unwrap().style().bg,
         Some(theme::CURSOR_LINE)
     );
+}
+
+#[test]
+fn header_shows_the_repository_verbatim() {
+    let mut picker = state(vec![item(1, "dev", "main", false, false)], 0);
+    picker.repository = "group/sub/api".into();
+
+    let screen = screen(&picker);
+
+    assert!(screen.contains("group/sub/api"));
 }
 
 #[test]

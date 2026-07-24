@@ -43,6 +43,7 @@ pub struct PickerState {
     pub error_banner: Option<String>,
     pub quit: bool,
     pub chosen: Option<(u64, Option<ProviderSnapshot>)>,
+    pub repository: String,
 }
 
 // The `Loaded` variant is intentionally not boxed: this is the public event
@@ -79,7 +80,7 @@ pub fn pin_current_branch(items: &mut Vec<PickerItem>) {
 }
 
 impl PickerState {
-    pub fn new(mut items: Vec<PickerItem>) -> Self {
+    pub fn new(mut items: Vec<PickerItem>, repository: String) -> Self {
         pin_current_branch(&mut items);
         Self {
             items,
@@ -91,6 +92,7 @@ impl PickerState {
             error_banner: None,
             quit: false,
             chosen: None,
+            repository,
         }
     }
 }
@@ -274,26 +276,12 @@ pub fn render(frame: &mut Frame, state: &PickerState) {
 }
 
 fn title_line(state: &PickerState) -> Line<'static> {
-    let text = match state
-        .items
-        .first()
-        .and_then(|item| repo_from_url(&item.summary.web_url))
-    {
-        Some(repo) => format!(" Reviews abertos — {repo}"),
-        None => " Reviews abertos".to_string(),
+    let text = if state.repository.is_empty() {
+        " Reviews abertos".to_string()
+    } else {
+        format!(" Reviews abertos — {}", state.repository)
     };
     Line::raw(text)
-}
-
-/// Best-effort `owner/repo` extraction from a change request's web URL.
-fn repo_from_url(url: &str) -> Option<String> {
-    let parsed = url::Url::parse(url).ok()?;
-    let mut segments = parsed
-        .path_segments()?
-        .filter(|segment| !segment.is_empty());
-    let owner = segments.next()?;
-    let repo = segments.next()?;
-    Some(format!("{owner}/{repo}"))
 }
 
 fn render_list(frame: &mut Frame, area: Rect, state: &PickerState) {

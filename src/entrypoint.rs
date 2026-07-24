@@ -181,7 +181,7 @@ impl LaunchBackend for InstalledRuntime {
                         let _restore = TerminalRestore;
                         let outcome = crate::tui::picker::run(
                             &mut terminal,
-                            crate::tui::picker::PickerState::new(items),
+                            crate::tui::picker::PickerState::new(items, repository.clone()),
                             crate::tui::picker::PickerSource {
                                 provider: review_provider.clone(),
                                 kind: provider,
