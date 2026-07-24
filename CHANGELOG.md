@@ -3,6 +3,15 @@
 All notable changes to this project are documented in this file, generated
 from conventional commits by [git-cliff](https://git-cliff.org).
 
+## [0.1.2] - 2026-07-24
+
+### Bug fixes
+
+- Redact the crate version in layout snapshots
+
+### CI
+
+- Move to the node 24 action releases
 ## [0.1.1] - 2026-07-24
 
 ### Documentation
