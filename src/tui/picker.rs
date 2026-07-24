@@ -11,7 +11,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Paragraph},
+    widgets::{Block, BorderType, Borders, Paragraph},
 };
 use time::OffsetDateTime;
 use tokio::sync::mpsc;
@@ -21,7 +21,10 @@ use crate::{
     providers::ReviewProvider,
 };
 
-use super::{TuiError, theme};
+use super::{
+    TuiError, theme,
+    widgets::{header, status},
+};
 
 /// One row of the review picker list.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -255,8 +258,16 @@ pub fn mark_items(
         .collect()
 }
 
-/// Renders the review picker screen: header, item list, prefetch status and
-/// key hints.
+/// Right-side hints for the picker's flat status bar (transversal rule 1).
+const PICKER_HINTS: [(&str, &str); 4] = [
+    ("j/k", "mover"),
+    ("Enter", "abrir"),
+    ("r", "recarregar"),
+    ("q", "sair"),
+];
+
+/// Renders the review picker screen: borderless chip header, a bordered
+/// rounded list panel, and a borderless flat status line.
 pub fn render(frame: &mut Frame, state: &PickerState) {
     let area = frame.area();
     frame.render_widget(
@@ -269,23 +280,68 @@ pub fn render(frame: &mut Frame, state: &PickerState) {
             Constraint::Length(1),
             Constraint::Min(1),
             Constraint::Length(1),
-            Constraint::Length(1),
         ])
         .split(area);
 
-    frame.render_widget(Paragraph::new(title_line(state)), rows[0]);
-    render_list(frame, rows[1], state);
-    frame.render_widget(Paragraph::new(status_line(state)), rows[2]);
-    frame.render_widget(Paragraph::new(footer_line(state)), rows[3]);
+    let middle = if state.repository.is_empty() {
+        " ".to_string()
+    } else {
+        format!(" {} ", state.repository)
+    };
+    frame.render_widget(
+        Paragraph::new(header::chip_line(&middle, area.width)),
+        rows[0],
+    );
+    render_panel(frame, rows[1], state);
+    frame.render_widget(Paragraph::new(status_line(state, rows[2].width)), rows[2]);
 }
 
-fn title_line(state: &PickerState) -> Line<'static> {
-    let text = if state.repository.is_empty() {
-        " Reviews abertos".to_string()
-    } else {
-        format!(" Reviews abertos — {}", state.repository)
+/// Draws the rounded, ACCENT-bordered list panel: the item rows on top and
+/// the reviews-open counter as the last inner row.
+fn render_panel(frame: &mut Frame, area: Rect, state: &PickerState) {
+    let block = Block::default()
+        .title(" Reviews abertos ")
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(theme::ACCENT));
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+
+    if inner.height == 0 {
+        return;
+    }
+    let items_area = Rect {
+        x: inner.x,
+        y: inner.y,
+        width: inner.width,
+        height: inner.height - 1,
     };
-    Line::raw(text)
+    let counter_area = Rect {
+        x: inner.x,
+        y: inner.y + inner.height - 1,
+        width: inner.width,
+        height: 1,
+    };
+
+    render_list(frame, items_area, state);
+    frame.render_widget(
+        Paragraph::new(counter_line(state, inner.width)),
+        counter_area,
+    );
+}
+
+fn counter_line(state: &PickerState, width: u16) -> Line<'static> {
+    let text = if state.items.len() == 50 {
+        "50 mais recentes".to_string()
+    } else {
+        format!("{} reviews abertos", state.items.len())
+    };
+    let used = text.chars().count() + 1;
+    let pad = (width as usize).saturating_sub(used);
+    Line::styled(
+        format!("{}{text} ", " ".repeat(pad)),
+        Style::default().fg(theme::MUTED),
+    )
 }
 
 fn render_list(frame: &mut Frame, area: Rect, state: &PickerState) {
@@ -300,40 +356,50 @@ fn render_list(frame: &mut Frame, area: Rect, state: &PickerState) {
     frame.render_widget(Paragraph::new(lines), area);
 }
 
+/// One row of the list: `▶ ` marker + selection background when
+/// highlighted (transversal rule 2), otherwise a plain two-space indent.
+/// Number BOLD, title FG (truncated with `…`), author/branch/age MUTED, and
+/// right-side badges: `●` ACCENT for the current-branch item, `[sessão]`
+/// WARNING, `[draft]` MUTED.
 fn item_line(
     item: &PickerItem,
     now: OffsetDateTime,
     width: usize,
     highlighted: bool,
 ) -> Line<'static> {
-    let marker = if item.current_branch { "●" } else { "▸" };
-    let marker_style = if item.current_branch {
-        Style::default().fg(theme::ACCENT)
+    let cursor = if highlighted { "▶ " } else { "  " };
+    let number = format!("#{} ", item.summary.number);
+    let author = if item.current_branch {
+        "você".to_string()
     } else {
-        Style::default()
+        format!("@{}", item.summary.author)
     };
-    let prefix = format!(" #{} ", item.summary.number);
     let suffix = format!(
-        "  @{}  {}  {}",
-        item.summary.author,
+        "  {}  {}  {}",
+        author,
         item.summary.source_branch,
         age(now, item.summary.updated_at)
     );
+    let suffix_span = Span::styled(suffix.clone(), Style::default().fg(theme::MUTED));
 
-    let mut tail_spans = vec![Span::raw(suffix)];
+    let mut badge_spans = Vec::new();
     if item.summary.draft {
-        tail_spans.push(Span::styled(" [draft]", Style::default().fg(theme::MUTED)));
+        badge_spans.push(Span::styled(" [draft]", Style::default().fg(theme::MUTED)));
     }
     if item.has_session {
-        tail_spans.push(Span::styled(
+        badge_spans.push(Span::styled(
             " [sessão]",
             Style::default().fg(theme::WARNING),
         ));
     }
+    if item.current_branch {
+        badge_spans.push(Span::styled(" ●", Style::default().fg(theme::ACCENT)));
+    }
 
-    let fixed_width = 1
-        + prefix.chars().count()
-        + tail_spans
+    let fixed_width = cursor.chars().count()
+        + number.chars().count()
+        + suffix.chars().count()
+        + badge_spans
             .iter()
             .map(|span| span.content.chars().count())
             .sum::<usize>();
@@ -341,22 +407,23 @@ fn item_line(
     let title = truncate_title(&item.summary.title, title_budget);
 
     let mut spans = vec![
-        Span::styled(marker, marker_style),
-        Span::raw(prefix),
-        Span::raw(title),
+        Span::raw(cursor),
+        Span::styled(number, Style::default().add_modifier(Modifier::BOLD)),
+        Span::styled(title, Style::default().fg(theme::FG)),
+        suffix_span,
     ];
-    spans.extend(tail_spans);
+    spans.extend(badge_spans);
     let mut line = Line::from(spans);
 
     if highlighted {
-        // Pad so the background reaches the panel's right edge.
+        // Pad so the background reaches the panel's inner right edge.
         let text_width = line.width();
         if text_width < width {
             line.spans.push(Span::raw(" ".repeat(width - text_width)));
         }
         line = line.style(
             Style::default()
-                .bg(theme::CURSOR_LINE)
+                .bg(theme::SELECTION)
                 .add_modifier(Modifier::BOLD),
         );
     }
@@ -372,33 +439,29 @@ fn truncate_title(title: &str, budget: usize) -> String {
     shown
 }
 
-fn status_line(state: &PickerState) -> Line<'static> {
+/// Left side keeps the prefetch/error precedence; right side is the flat,
+/// truncating hint list (transversal rule 1). An error replaces the whole
+/// line in DANGER, same as before.
+fn status_line(state: &PickerState, width: u16) -> Line<'static> {
     if let Some(message) = &state.error_banner {
         return Line::styled(format!(" {message}"), Style::default().fg(theme::DANGER));
     }
-    if let Some(number) = state.loading {
-        return Line::styled(
+    let left = if let Some(number) = state.loading {
+        Line::styled(
             format!(" baixando #{number}…"),
-            Style::default().fg(theme::MUTED),
-        );
-    }
-    if let Some(item) = state.items.get(state.highlight)
+            Style::default().fg(theme::ACCENT),
+        )
+    } else if let Some(item) = state.items.get(state.highlight)
         && state.cache.contains_key(&item.summary.number)
     {
-        return Line::styled(
+        Line::styled(
             format!(" #{} pronto", item.summary.number),
             Style::default().fg(theme::SUCCESS),
-        );
-    }
-    Line::raw("")
-}
-
-fn footer_line(state: &PickerState) -> Line<'static> {
-    let mut text = String::from(" j/k mover  Enter abrir  r recarregar  q sair");
-    if state.items.len() == 50 {
-        text.push_str("  (50 mais recentes)");
-    }
-    Line::styled(text, Style::default().fg(theme::MUTED))
+        )
+    } else {
+        Line::raw("")
+    };
+    status::flat_line(left, &PICKER_HINTS, width)
 }
 
 /// Formats the time elapsed between `updated` and `now` as a short,

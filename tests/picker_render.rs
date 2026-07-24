@@ -7,7 +7,7 @@ use betterreview::{
         theme,
     },
 };
-use ratatui::{Terminal, backend::TestBackend};
+use ratatui::{Terminal, backend::TestBackend, style::Modifier};
 use time::{Duration, OffsetDateTime};
 
 fn summary(number: u64, author: &str, branch: &str, draft: bool) -> ChangeRequestSummary {
@@ -45,9 +45,13 @@ fn state(items: Vec<PickerItem>, highlight: usize) -> PickerState {
     }
 }
 
-fn screen(picker: &PickerState) -> String {
+fn draw(picker: &PickerState) -> Terminal<TestBackend> {
     let mut terminal = Terminal::new(TestBackend::new(100, 30)).unwrap();
     terminal.draw(|frame| render(frame, picker)).unwrap();
+    terminal
+}
+
+fn screen(terminal: &Terminal<TestBackend>) -> String {
     let buffer = terminal.backend().buffer();
     (0..30)
         .map(|y| {
@@ -59,11 +63,21 @@ fn screen(picker: &PickerState) -> String {
         .join("\n")
 }
 
+fn lines(terminal: &Terminal<TestBackend>) -> Vec<String> {
+    screen(terminal).lines().map(str::to_owned).collect()
+}
+
+fn char_offset(haystack: &str, needle: &str) -> Option<usize> {
+    let byte_offset = haystack.find(needle)?;
+    Some(haystack[..byte_offset].chars().count())
+}
+
 #[test]
 fn renders_items_with_pin_and_metadata() {
     let picker = state(vec![item(42, "jsjunior", "feature/login", true, false)], 0);
 
-    let screen = screen(&picker);
+    let terminal = draw(&picker);
+    let screen = screen(&terminal);
 
     assert!(screen.contains("#42"));
     assert!(screen.contains("@jsjunior"));
@@ -72,7 +86,7 @@ fn renders_items_with_pin_and_metadata() {
 }
 
 #[test]
-fn renders_the_pin_marker_for_the_current_branch_item() {
+fn renders_the_current_branch_badge() {
     let picker = state(
         vec![
             item(42, "jsjunior", "feature/login", false, true),
@@ -81,7 +95,7 @@ fn renders_the_pin_marker_for_the_current_branch_item() {
         0,
     );
 
-    let screen = screen(&picker);
+    let screen = screen(&draw(&picker));
     let pinned_row = screen
         .lines()
         .find(|line| line.contains("#42"))
@@ -91,27 +105,150 @@ fn renders_the_pin_marker_for_the_current_branch_item() {
 }
 
 #[test]
-fn highlight_covers_the_full_line() {
-    let picker = state(vec![item(1, "dev", "main", false, false)], 0);
+fn header_shows_a_reverse_video_app_chip_and_the_repository() {
+    let mut picker = state(vec![item(1, "dev", "main", false, false)], 0);
+    picker.repository = "group/sub/api".into();
 
-    let mut terminal = Terminal::new(TestBackend::new(100, 30)).unwrap();
-    terminal.draw(|frame| render(frame, &picker)).unwrap();
+    let terminal = draw(&picker);
+    let screen = screen(&terminal);
     let buffer = terminal.backend().buffer();
 
-    assert_eq!(
-        buffer.cell((97, 1)).unwrap().style().bg,
-        Some(theme::CURSOR_LINE)
+    assert!(screen.contains("betterreview"));
+    assert!(screen.contains("group/sub/api"));
+
+    let header_row = screen.lines().next().unwrap();
+    let chip_start = char_offset(header_row, "betterreview").unwrap();
+    let cell = buffer.cell((chip_start as u16, 0)).unwrap();
+    assert_eq!(cell.style().fg, Some(theme::ACCENT));
+    assert!(cell.style().add_modifier.contains(Modifier::REVERSED));
+}
+
+#[test]
+fn header_shows_the_version_chip_reverse_video_on_the_right() {
+    let picker = state(vec![item(1, "dev", "main", false, false)], 0);
+
+    let terminal = draw(&picker);
+    let screen = screen(&terminal);
+    let buffer = terminal.backend().buffer();
+
+    let version = format!("v{}", env!("CARGO_PKG_VERSION"));
+    let header_row = screen.lines().next().unwrap();
+    let chip_start = char_offset(header_row, &version).expect("version chip present");
+    let cell = buffer.cell((chip_start as u16, 0)).unwrap();
+    assert_eq!(cell.style().fg, Some(theme::MUTED));
+    assert!(cell.style().add_modifier.contains(Modifier::REVERSED));
+}
+
+#[test]
+fn list_panel_has_a_rounded_border_and_a_title() {
+    let picker = state(vec![item(1, "dev", "main", false, false)], 0);
+
+    let screen = screen(&draw(&picker));
+
+    assert!(screen.contains('╭'), "expected a rounded top-left corner");
+    assert!(screen.contains("Reviews abertos"));
+}
+
+#[test]
+fn selected_row_gets_the_marker_and_the_selection_background() {
+    let picker = state(
+        vec![
+            item(1, "dev", "main", false, false),
+            item(2, "dev", "other", false, false),
+        ],
+        0,
+    );
+
+    let terminal = draw(&picker);
+    let screen = screen(&terminal);
+    let buffer = terminal.backend().buffer();
+
+    assert!(screen.contains("▶ #1"));
+    assert!(!screen.contains("▶ #2"));
+
+    let row_lines = lines(&terminal);
+    let selected_row = row_lines
+        .iter()
+        .position(|line| line.contains("▶ #1"))
+        .expect("selected row rendered");
+    let marker_col = char_offset(&row_lines[selected_row], "▶").unwrap();
+    // Somewhere past the marker, well inside the panel, the row's
+    // background must be the selection color, spanning to the inner edge.
+    let cell = buffer
+        .cell(((marker_col + 40) as u16, selected_row as u16))
+        .unwrap();
+    assert_eq!(cell.bg, theme::SELECTION);
+
+    // The unselected row carries a plain two-space indent, no marker.
+    let unselected_row = row_lines
+        .iter()
+        .position(|line| line.contains("#2"))
+        .expect("unselected row rendered");
+    assert!(
+        row_lines[unselected_row].starts_with("│   #2")
+            || row_lines[unselected_row]
+                .trim_start_matches('│')
+                .starts_with("  #2")
     );
 }
 
 #[test]
-fn header_shows_the_repository_verbatim() {
+fn panel_shows_the_open_review_counter() {
+    let picker = state(
+        vec![
+            item(1, "dev", "main", false, false),
+            item(2, "dev", "other", false, false),
+        ],
+        0,
+    );
+
+    let screen = screen(&draw(&picker));
+
+    assert!(screen.contains("2 reviews abertos"));
+}
+
+#[test]
+fn panel_shows_the_recent_cap_when_the_list_is_full() {
+    let items: Vec<PickerItem> = (0..50)
+        .map(|number| item(number, "dev", "main", false, false))
+        .collect();
+    let picker = state(items, 0);
+
+    let screen = screen(&draw(&picker));
+
+    assert!(screen.contains("50 mais recentes"));
+}
+
+#[test]
+fn status_line_shows_flat_hints_on_the_right_with_accent_keys() {
+    let picker = state(vec![item(1, "dev", "main", false, false)], 0);
+
+    let terminal = draw(&picker);
+    let screen = screen(&terminal);
+    let buffer = terminal.backend().buffer();
+
+    let status_row = screen.lines().last().unwrap();
+    assert!(status_row.contains("mover"));
+    assert!(status_row.contains("abrir"));
+    assert!(status_row.contains("recarregar"));
+    assert!(status_row.contains("sair"));
+
+    let key_col = char_offset(status_row, "j/k").expect("j/k hint present");
+    let cell = buffer.cell((key_col as u16, 29)).unwrap();
+    assert_eq!(cell.style().fg, Some(theme::ACCENT));
+    assert!(cell.style().add_modifier.contains(Modifier::BOLD));
+}
+
+#[test]
+fn status_error_replaces_the_whole_line_in_danger() {
     let mut picker = state(vec![item(1, "dev", "main", false, false)], 0);
-    picker.repository = "group/sub/api".into();
+    picker.error_banner = Some("falha ao listar reviews".into());
 
-    let screen = screen(&picker);
+    let terminal = draw(&picker);
+    let screen = screen(&terminal);
 
-    assert!(screen.contains("group/sub/api"));
+    let status_row = screen.lines().last().unwrap();
+    assert!(status_row.contains("falha ao listar reviews"));
 }
 
 #[test]
