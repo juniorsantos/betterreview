@@ -1,5 +1,5 @@
 use crate::{
-    diff::{DiffCursor, validate_selection},
+    diff::{DiffCursor, DiffRowKind, validate_selection},
     domain::{
         DiffPosition, DiffSelection, DiffSide, DraftId, ProviderKind, ReviewOutcome, SubmitMode,
         SubmitRequest, SubmitResult, Support, ThreadId,
@@ -69,6 +69,10 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
         AppAction::PreviousFile => navigate_by(state, -1),
         AppAction::NextUnreviewed => navigate_unreviewed(state, 1),
         AppAction::PreviousUnreviewed => navigate_unreviewed(state, -1),
+        AppAction::NextHunk => jump_hunk(state, 1),
+        AppAction::PreviousHunk => jump_hunk(state, -1),
+        AppAction::NextComment => jump_comment(state, 1),
+        AppAction::PreviousComment => jump_comment(state, -1),
         AppAction::MoveCursor(delta) => match state.focus {
             AppFocus::Files => navigate_by(state, delta.signum()),
             AppFocus::Diff => move_display_cursor(state, delta),
@@ -279,17 +283,26 @@ fn move_display_cursor(state: &mut AppState, delta: i32) -> Vec<EffectEnvelope> 
     let mut index = state.display_cursor.min(state.display_rows.len() - 1);
     let step = delta.signum();
     for _ in 0..delta.unsigned_abs() {
-        match next_stop(&state.display_rows, index, step) {
+        match find_display_row(&state.display_rows, index, step, is_display_stop) {
             Some(next) => index = next,
             None => break,
         }
     }
+    land_on_display_row(state, index);
+    Vec::new()
+}
+
+/// Lands the display cursor on `index`, keeping `session.cursor_row` in sync
+/// when that row is a `Diff` row (a comment row leaves it untouched — see
+/// `move_display_cursor`'s doc comment above for why). Every action that
+/// jumps the cursor around the diff — arrow movement, hunk/comment jumps,
+/// search — funnels through here so the landing semantics stay identical.
+fn land_on_display_row(state: &mut AppState, index: usize) {
     state.display_cursor = index;
     if let Some(DisplayRow::Diff { row }) = state.display_rows.get(index) {
         state.session.cursor_row = *row;
     }
     state.dirty = true;
-    Vec::new()
 }
 
 fn is_display_stop(row: &DisplayRow) -> bool {
@@ -303,19 +316,81 @@ fn is_display_stop(row: &DisplayRow) -> bool {
     )
 }
 
-fn next_stop(rows: &[DisplayRow], from: usize, step: i32) -> Option<usize> {
+/// Scans the display rows from `from` (exclusive) in `step`'s direction
+/// (`1` forward, `-1` backward) for the first row matching `predicate`, with
+/// no wraparound. Shared by cursor movement, hunk jumps and comment jumps.
+fn find_display_row(
+    rows: &[DisplayRow],
+    from: usize,
+    step: i32,
+    predicate: impl Fn(&DisplayRow) -> bool,
+) -> Option<usize> {
     if step == 0 {
         return None;
     }
     let mut cursor = from as i64 + step as i64;
     while cursor >= 0 && (cursor as usize) < rows.len() {
         let index = cursor as usize;
-        if is_display_stop(&rows[index]) {
+        if predicate(&rows[index]) {
             return Some(index);
         }
         cursor += step as i64;
     }
     None
+}
+
+/// Jumps to the next/previous hunk header (`]h`/`[h`). Clamps at the first or
+/// last hunk — no wraparound — and leaves a notice when there is nowhere
+/// left to go, or when the diff has not parsed yet.
+fn jump_hunk(state: &mut AppState, step: i32) -> Vec<EffectEnvelope> {
+    let Some(diff) = state.parsed_diff.as_ref() else {
+        push_notice(state, "diff ainda carregando");
+        return Vec::new();
+    };
+    let target = find_display_row(
+        &state.display_rows,
+        state.display_cursor,
+        step,
+        |row| matches!(row, DisplayRow::Diff { row } if diff.rows.get(*row).is_some_and(|row| row.kind == DiffRowKind::HunkHeader)),
+    );
+    match target {
+        Some(index) => land_on_display_row(state, index),
+        None => push_notice(
+            state,
+            if step > 0 {
+                "não há próximo hunk"
+            } else {
+                "não há hunk anterior"
+            },
+        ),
+    }
+    Vec::new()
+}
+
+/// Jumps to the next/previous comment block (`]c`/`[c`). Same clamp-and-notice
+/// semantics as [`jump_hunk`].
+fn jump_comment(state: &mut AppState, step: i32) -> Vec<EffectEnvelope> {
+    let target = find_display_row(&state.display_rows, state.display_cursor, step, |row| {
+        matches!(
+            row,
+            DisplayRow::Comment {
+                block_start: true,
+                ..
+            }
+        )
+    });
+    match target {
+        Some(index) => land_on_display_row(state, index),
+        None => push_notice(
+            state,
+            if step > 0 {
+                "não há próximo comentário"
+            } else {
+                "não há comentário anterior"
+            },
+        ),
+    }
+    Vec::new()
 }
 
 pub fn directory_of(path: &str) -> &str {

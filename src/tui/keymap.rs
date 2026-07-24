@@ -18,6 +18,10 @@ impl KeyMap {
                 ('[', KeyCode::Char('f')) => Some(AppAction::PreviousFile),
                 (']', KeyCode::Char('u')) => Some(AppAction::NextUnreviewed),
                 ('[', KeyCode::Char('u')) => Some(AppAction::PreviousUnreviewed),
+                (']', KeyCode::Char('h')) => Some(AppAction::NextHunk),
+                ('[', KeyCode::Char('h')) => Some(AppAction::PreviousHunk),
+                (']', KeyCode::Char('c')) => Some(AppAction::NextComment),
+                ('[', KeyCode::Char('c')) => Some(AppAction::PreviousComment),
                 _ => key_to_action(event),
             };
         }

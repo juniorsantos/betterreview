@@ -72,6 +72,9 @@ pub fn render(frame: &mut Frame, state: &AppState) {
                     Tab/h/l   focus     z    fold folder    c      comment\n\
                     ]f / [f   file      m    reviewed       s      suggestion\n\
                     ]u / [u   unreviewed                    t      threads\n\
+                    ]h / [h   hunk\n\
+                    ]c / [c   comment\n\
+                    /         search\n\
                     \n\
                     Comments: e edit  x delete  r reply  T hide/show\n\
                     Editor: Enter save   Alt+Enter newline   Esc close\n\

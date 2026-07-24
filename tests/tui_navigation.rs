@@ -306,3 +306,40 @@ fn maps_prefixed_file_and_unreviewed_navigation() {
         Some(AppAction::PreviousUnreviewed)
     );
 }
+
+#[test]
+fn maps_prefixed_hunk_and_comment_navigation() {
+    let mut keys = KeyMap::default();
+    assert_eq!(
+        keys.feed(KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE)),
+        None
+    );
+    assert_eq!(
+        keys.feed(KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE)),
+        Some(AppAction::NextHunk)
+    );
+    assert_eq!(
+        keys.feed(KeyEvent::new(KeyCode::Char('['), KeyModifiers::NONE)),
+        None
+    );
+    assert_eq!(
+        keys.feed(KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE)),
+        Some(AppAction::PreviousHunk)
+    );
+    assert_eq!(
+        keys.feed(KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE)),
+        None
+    );
+    assert_eq!(
+        keys.feed(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE)),
+        Some(AppAction::NextComment)
+    );
+    assert_eq!(
+        keys.feed(KeyEvent::new(KeyCode::Char('['), KeyModifiers::NONE)),
+        None
+    );
+    assert_eq!(
+        keys.feed(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE)),
+        Some(AppAction::PreviousComment)
+    );
+}

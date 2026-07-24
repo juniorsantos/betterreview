@@ -1271,3 +1271,165 @@ fn finished_effect_clears_its_label_and_tick_spins_while_busy() {
     );
     assert!(state.pending_labels.is_empty());
 }
+
+/// Two hunks of two rows each: `[HunkHeader, Context, HunkHeader, Context]`.
+/// Comments are absent, so display rows mirror the parsed/rendered rows
+/// one-to-one (`Diff{0}..Diff{3}`).
+fn state_with_two_hunks() -> AppState {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let path = RepoPath("src/file_0.rs".into());
+    state.parsed_diff = Some(ParsedFileDiff {
+        path: path.clone(),
+        head: CommitOid("new-head".into()),
+        rows: vec![
+            betterreview::diff::DiffRow {
+                raw: "@@ -1 +1 @@".into(),
+                kind: betterreview::diff::DiffRowKind::HunkHeader,
+                old_line: None,
+                new_line: None,
+                left: None,
+                right: None,
+            },
+            betterreview::diff::DiffRow {
+                raw: " context".into(),
+                kind: betterreview::diff::DiffRowKind::Context,
+                old_line: Some(1),
+                new_line: Some(1),
+                left: Some(comment_pos(&path, DiffSide::Left, 1)),
+                right: Some(comment_pos(&path, DiffSide::Right, 1)),
+            },
+            betterreview::diff::DiffRow {
+                raw: "@@ -5 +5 @@".into(),
+                kind: betterreview::diff::DiffRowKind::HunkHeader,
+                old_line: None,
+                new_line: None,
+                left: None,
+                right: None,
+            },
+            betterreview::diff::DiffRow {
+                raw: " context".into(),
+                kind: betterreview::diff::DiffRowKind::Context,
+                old_line: Some(5),
+                new_line: Some(5),
+                left: Some(comment_pos(&path, DiffSide::Left, 5)),
+                right: Some(comment_pos(&path, DiffSide::Right, 5)),
+            },
+        ],
+        hunks: Vec::new(),
+    });
+    state.rendered_diff = Some(RenderedDiff {
+        rows: (0..4).map(|index| diff_row(index, None, None)).collect(),
+    });
+    betterreview::app::refresh_display_rows(&mut state);
+    state
+}
+
+#[test]
+fn bracket_h_jumps_to_the_next_hunk_header() {
+    let mut state = state_with_two_hunks();
+    assert_eq!(state.display_cursor, 0, "starts on the first hunk header");
+
+    update(&mut state, AppEvent::Action(AppAction::NextHunk));
+
+    assert_eq!(state.display_cursor, 2, "lands on the second hunk header");
+    assert_eq!(state.session.cursor_row, 2);
+}
+
+#[test]
+fn hunk_jump_clamps_at_the_last_hunk() {
+    let mut state = state_with_two_hunks();
+    state.display_cursor = 2;
+    state.session.cursor_row = 2;
+
+    update(&mut state, AppEvent::Action(AppAction::NextHunk));
+
+    assert_eq!(
+        state.display_cursor, 2,
+        "clamped, no wrap past the last hunk"
+    );
+    assert!(
+        state
+            .notices
+            .iter()
+            .any(|notice| notice.contains("não há próximo hunk"))
+    );
+}
+
+/// Two single-line comment threads anchored on rows 0 and 2. With comments
+/// shown the display rows are:
+/// `[Diff{0}, Comment(t1), Diff{1}, Diff{2}, Comment(t2)]`.
+fn state_with_two_comment_blocks() -> AppState {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let path = RepoPath("src/file_0.rs".into());
+    state.rendered_diff = Some(RenderedDiff {
+        rows: vec![
+            diff_row(
+                0,
+                Some(comment_pos(&path, DiffSide::Left, 1)),
+                Some(comment_pos(&path, DiffSide::Right, 1)),
+            ),
+            diff_row(
+                1,
+                Some(comment_pos(&path, DiffSide::Left, 2)),
+                Some(comment_pos(&path, DiffSide::Right, 2)),
+            ),
+            diff_row(2, None, Some(comment_pos(&path, DiffSide::Right, 3))),
+        ],
+    });
+    state.provider.threads.push(ReviewThread {
+        id: ThreadId("t1".into()),
+        path: path.clone(),
+        resolved: false,
+        outdated: false,
+        comments: vec![ReviewComment {
+            id: "c1".into(),
+            author: "alice".into(),
+            body: "first".into(),
+            position: Some(comment_pos(&path, DiffSide::Right, 1)),
+            pending: false,
+        }],
+    });
+    state.provider.threads.push(ReviewThread {
+        id: ThreadId("t2".into()),
+        path: path.clone(),
+        resolved: false,
+        outdated: false,
+        comments: vec![ReviewComment {
+            id: "c2".into(),
+            author: "bob".into(),
+            body: "second".into(),
+            position: Some(comment_pos(&path, DiffSide::Right, 3)),
+            pending: false,
+        }],
+    });
+    betterreview::app::refresh_display_rows(&mut state);
+    state
+}
+
+#[test]
+fn bracket_c_jumps_between_comment_blocks() {
+    let mut state = state_with_two_comment_blocks();
+    assert_eq!(state.display_cursor, 0);
+
+    update(&mut state, AppEvent::Action(AppAction::NextComment));
+    assert_eq!(state.display_cursor, 1, "lands on the first comment block");
+
+    update(&mut state, AppEvent::Action(AppAction::NextComment));
+    assert_eq!(state.display_cursor, 4, "lands on the second comment block");
+
+    let effects = update(&mut state, AppEvent::Action(AppAction::NextComment));
+    assert!(effects.is_empty());
+    assert_eq!(
+        state.display_cursor, 4,
+        "clamped, no wrap past the last comment"
+    );
+    assert!(
+        state
+            .notices
+            .iter()
+            .any(|notice| notice.contains("não há próximo comentário"))
+    );
+
+    update(&mut state, AppEvent::Action(AppAction::PreviousComment));
+    assert_eq!(state.display_cursor, 1, "back to the first comment block");
+}
