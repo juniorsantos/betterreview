@@ -211,8 +211,19 @@ fn loaded_update(
 
 fn reload_update(state: &mut PickerState, mut items: Vec<PickerItem>) {
     pin_current_branch(&mut items);
+    let highlighted_number = state
+        .items
+        .get(state.highlight)
+        .map(|item| item.summary.number);
     state.items = items;
-    state.highlight = state.highlight.min(state.items.len().saturating_sub(1));
+    state.highlight = highlighted_number
+        .and_then(|number| {
+            state
+                .items
+                .iter()
+                .position(|item| item.summary.number == number)
+        })
+        .unwrap_or(0);
     state.errors.clear();
 }
 

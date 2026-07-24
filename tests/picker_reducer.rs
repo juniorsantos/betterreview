@@ -264,6 +264,39 @@ fn reload_clears_stale_errors_so_the_item_can_reprefetch() {
 }
 
 #[test]
+fn reload_keeps_the_highlight_on_the_same_review_by_number() {
+    let mut state = PickerState::new(vec![item(5, false), item(6, false), item(7, false)]);
+    state.highlight = 2;
+    assert_eq!(state.items[state.highlight].summary.number, 7);
+
+    update(
+        &mut state,
+        PickerEvent::ListReloaded {
+            items: vec![item(5, false), item(7, false), item(6, false)],
+        },
+    );
+
+    assert_eq!(state.items[state.highlight].summary.number, 7);
+    assert_eq!(state.highlight, 1);
+}
+
+#[test]
+fn reload_falls_back_to_the_first_item_when_the_highlighted_review_is_gone() {
+    let mut state = PickerState::new(vec![item(5, false), item(6, false), item(7, false)]);
+    state.highlight = 2;
+    assert_eq!(state.items[state.highlight].summary.number, 7);
+
+    update(
+        &mut state,
+        PickerEvent::ListReloaded {
+            items: vec![item(8, false), item(9, false)],
+        },
+    );
+
+    assert_eq!(state.highlight, 0);
+}
+
+#[test]
 fn list_failed_sets_the_error_banner() {
     let mut state = PickerState::new(vec![item(1, true)]);
 
