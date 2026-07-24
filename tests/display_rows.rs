@@ -1,0 +1,349 @@
+use betterreview::{
+    app::{CommentEntry, DisplayRow, build_display_rows},
+    diff::{RenderedDiff, RenderedRow, RowBinding},
+    domain::{
+        DiffPosition, DiffSelection, DiffSide, DraftComment, DraftId, RepoPath, ReviewComment,
+        ReviewThread, ThreadId,
+    },
+};
+use ratatui::text::Line;
+
+fn pos(path: &RepoPath, side: DiffSide, line: u32) -> DiffPosition {
+    DiffPosition {
+        path: path.clone(),
+        side,
+        line,
+        hunk: 0,
+    }
+}
+
+fn row(row_index: usize, left: Option<DiffPosition>, right: Option<DiffPosition>) -> RenderedRow {
+    RenderedRow {
+        text: Line::raw(format!("row-{row_index}")),
+        binding: RowBinding {
+            row_index,
+            left,
+            right,
+        },
+    }
+}
+
+/// Three rows:
+/// - row 0: left line 1 / right line 1
+/// - row 1: left line 2 / no right
+/// - row 2: no left / right line 3
+fn rendered(path: &RepoPath) -> RenderedDiff {
+    RenderedDiff {
+        rows: vec![
+            row(
+                0,
+                Some(pos(path, DiffSide::Left, 1)),
+                Some(pos(path, DiffSide::Right, 1)),
+            ),
+            row(1, Some(pos(path, DiffSide::Left, 2)), None),
+            row(2, None, Some(pos(path, DiffSide::Right, 3))),
+        ],
+    }
+}
+
+fn active_path() -> RepoPath {
+    RepoPath("src/app.rs".into())
+}
+
+fn other_path() -> RepoPath {
+    RepoPath("src/other.rs".into())
+}
+
+fn thread_comment(
+    id: &str,
+    author: &str,
+    body: &str,
+    position: Option<DiffPosition>,
+) -> ReviewComment {
+    ReviewComment {
+        id: id.into(),
+        author: author.into(),
+        body: body.into(),
+        position,
+        pending: false,
+    }
+}
+
+#[test]
+fn hidden_returns_only_diff_rows() {
+    let path = active_path();
+    let diff = rendered(&path);
+    let thread = ReviewThread {
+        id: ThreadId("t1".into()),
+        path: path.clone(),
+        resolved: false,
+        outdated: false,
+        comments: vec![thread_comment(
+            "c1",
+            "alice",
+            "hello",
+            Some(pos(&path, DiffSide::Right, 1)),
+        )],
+    };
+    let draft = DraftComment {
+        id: DraftId("d1".into()),
+        body: "wip".into(),
+        selection: Some(DiffSelection {
+            start: pos(&path, DiffSide::Right, 1),
+            end: pos(&path, DiffSide::Right, 1),
+        }),
+        thread_id: None,
+    };
+
+    let rows = build_display_rows(&diff, &[thread], &[draft], &path, true);
+
+    assert_eq!(
+        rows,
+        vec![
+            DisplayRow::Diff { row: 0 },
+            DisplayRow::Diff { row: 1 },
+            DisplayRow::Diff { row: 2 },
+        ]
+    );
+}
+
+#[test]
+fn draft_block_appears_under_its_anchor() {
+    let path = active_path();
+    let diff = rendered(&path);
+    let draft = DraftComment {
+        id: DraftId("d1".into()),
+        body: "please fix".into(),
+        selection: Some(DiffSelection {
+            start: pos(&path, DiffSide::Left, 2),
+            end: pos(&path, DiffSide::Left, 2),
+        }),
+        thread_id: None,
+    };
+
+    let rows = build_display_rows(&diff, &[], std::slice::from_ref(&draft), &path, false);
+
+    assert_eq!(
+        rows,
+        vec![
+            DisplayRow::Diff { row: 0 },
+            DisplayRow::Diff { row: 1 },
+            DisplayRow::Comment {
+                entry: CommentEntry::Draft {
+                    id: DraftId("d1".into())
+                },
+                block_start: true,
+                text: "please fix".into(),
+                author: None,
+            },
+            DisplayRow::Diff { row: 2 },
+        ]
+    );
+}
+
+#[test]
+fn multiline_body_marks_only_the_first_row_as_block_start() {
+    let path = active_path();
+    let diff = rendered(&path);
+    let thread = ReviewThread {
+        id: ThreadId("t1".into()),
+        path: path.clone(),
+        resolved: false,
+        outdated: false,
+        comments: vec![thread_comment(
+            "c1",
+            "alice",
+            "line1\nline2\nline3",
+            Some(pos(&path, DiffSide::Right, 1)),
+        )],
+    };
+
+    let rows = build_display_rows(&diff, std::slice::from_ref(&thread), &[], &path, false);
+
+    assert_eq!(
+        rows,
+        vec![
+            DisplayRow::Diff { row: 0 },
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 0,
+                },
+                block_start: true,
+                text: "line1".into(),
+                author: Some("alice".into()),
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 0,
+                },
+                block_start: false,
+                text: "line2".into(),
+                author: None,
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 0,
+                },
+                block_start: false,
+                text: "line3".into(),
+                author: None,
+            },
+            DisplayRow::Diff { row: 1 },
+            DisplayRow::Diff { row: 2 },
+        ]
+    );
+}
+
+#[test]
+fn thread_with_two_comments_produces_two_blocks() {
+    let path = active_path();
+    let diff = rendered(&path);
+    // Second comment has no position of its own, so it falls back to the
+    // thread's first comment with a position (also row 0).
+    let thread = ReviewThread {
+        id: ThreadId("t1".into()),
+        path: path.clone(),
+        resolved: false,
+        outdated: false,
+        comments: vec![
+            thread_comment("c1", "alice", "first", Some(pos(&path, DiffSide::Right, 1))),
+            thread_comment("c2", "bob", "second", None),
+        ],
+    };
+
+    let rows = build_display_rows(&diff, std::slice::from_ref(&thread), &[], &path, false);
+
+    assert_eq!(
+        rows,
+        vec![
+            DisplayRow::Diff { row: 0 },
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 0,
+                },
+                block_start: true,
+                text: "first".into(),
+                author: Some("alice".into()),
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 1,
+                },
+                block_start: true,
+                text: "second".into(),
+                author: Some("bob".into()),
+            },
+            DisplayRow::Diff { row: 1 },
+            DisplayRow::Diff { row: 2 },
+        ]
+    );
+}
+
+#[test]
+fn unanchored_comments_group_after_an_orphan_header() {
+    let path = active_path();
+    let diff = rendered(&path);
+    let thread = ReviewThread {
+        id: ThreadId("t1".into()),
+        path: path.clone(),
+        resolved: false,
+        outdated: false,
+        comments: vec![thread_comment(
+            "c1",
+            "alice",
+            "stale",
+            Some(pos(&path, DiffSide::Right, 999)),
+        )],
+    };
+    let draft = DraftComment {
+        id: DraftId("d1".into()),
+        body: "no selection".into(),
+        selection: None,
+        thread_id: None,
+    };
+
+    let rows = build_display_rows(
+        &diff,
+        std::slice::from_ref(&thread),
+        std::slice::from_ref(&draft),
+        &path,
+        false,
+    );
+
+    assert_eq!(
+        rows,
+        vec![
+            DisplayRow::Diff { row: 0 },
+            DisplayRow::Diff { row: 1 },
+            DisplayRow::Diff { row: 2 },
+            DisplayRow::OrphanHeader,
+            DisplayRow::Comment {
+                entry: CommentEntry::Thread {
+                    thread: ThreadId("t1".into()),
+                    comment_index: 0,
+                },
+                block_start: true,
+                text: "stale".into(),
+                author: Some("alice".into()),
+            },
+            DisplayRow::Comment {
+                entry: CommentEntry::Draft {
+                    id: DraftId("d1".into())
+                },
+                block_start: true,
+                text: "no selection".into(),
+                author: None,
+            },
+        ]
+    );
+}
+
+#[test]
+fn other_files_comments_are_ignored() {
+    let path = active_path();
+    let elsewhere = other_path();
+    let diff = rendered(&path);
+    let thread = ReviewThread {
+        id: ThreadId("t1".into()),
+        path: elsewhere.clone(),
+        resolved: false,
+        outdated: false,
+        comments: vec![thread_comment(
+            "c1",
+            "alice",
+            "wrong file",
+            Some(pos(&elsewhere, DiffSide::Right, 1)),
+        )],
+    };
+    let draft = DraftComment {
+        id: DraftId("d1".into()),
+        body: "wrong file draft".into(),
+        selection: Some(DiffSelection {
+            start: pos(&elsewhere, DiffSide::Right, 1),
+            end: pos(&elsewhere, DiffSide::Right, 1),
+        }),
+        thread_id: None,
+    };
+
+    let rows = build_display_rows(
+        &diff,
+        std::slice::from_ref(&thread),
+        std::slice::from_ref(&draft),
+        &path,
+        false,
+    );
+
+    assert_eq!(
+        rows,
+        vec![
+            DisplayRow::Diff { row: 0 },
+            DisplayRow::Diff { row: 1 },
+            DisplayRow::Diff { row: 2 },
+        ]
+    );
+}
