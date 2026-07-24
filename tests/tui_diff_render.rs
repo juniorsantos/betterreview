@@ -1,11 +1,12 @@
 use std::collections::BTreeMap;
 
 use betterreview::{
-    app::AppState,
+    app::{AppState, DisplayRow, refresh_display_rows},
     diff::{RenderedDiff, RenderedRow, RowBinding},
     domain::{
-        ChangeRequestKey, ChangedFile, CommitOid, DiffPosition, DiffSide, FileStatus,
-        PatchAvailability, ProviderCapabilities, ProviderKind, ProviderSnapshot, RepoPath,
+        ChangeRequestKey, ChangedFile, CommitOid, DiffPosition, DiffSelection, DiffSide,
+        DraftComment, DraftId, FileStatus, PatchAvailability, ProviderCapabilities, ProviderKind,
+        ProviderSnapshot, RepoPath,
     },
     state::{ContentIdentity, FileProgress, ReviewSync, SESSION_SCHEMA_VERSION, SessionSnapshot},
     tui::{render, theme},
@@ -106,6 +107,7 @@ fn app() -> AppState {
             },
         ],
     });
+    refresh_display_rows(&mut app);
     app
 }
 
@@ -144,6 +146,7 @@ fn diff_shows_a_single_line_number_column() {
 fn cursor_highlights_the_entire_line_width() {
     let mut state = app();
     state.session.cursor_row = 2;
+    refresh_display_rows(&mut state);
     let terminal = draw(&state);
     let buffer = terminal.backend().buffer();
 
@@ -160,4 +163,77 @@ fn cursor_highlights_the_entire_line_width() {
     // beyond the text itself.
     let cell = buffer.cell((77, row)).unwrap();
     assert_eq!(cell.style().bg, Some(theme::CURSOR_LINE));
+}
+
+fn draft_at_line_5() -> DraftComment {
+    DraftComment {
+        id: DraftId("d1".into()),
+        body: "Please double-check this line".into(),
+        selection: Some(DiffSelection {
+            start: position(DiffSide::Right, 5),
+            end: position(DiffSide::Right, 5),
+        }),
+        thread_id: None,
+    }
+}
+
+#[test]
+fn comment_box_renders_under_its_line() {
+    let mut state = app();
+    state.provider.drafts.push(draft_at_line_5());
+    refresh_display_rows(&mut state);
+
+    let terminal = draw(&state);
+    let screen = screen(&terminal);
+    let lines: Vec<&str> = screen.lines().collect();
+
+    let anchor = lines
+        .iter()
+        .position(|line| line.contains("+added"))
+        .expect("anchored diff row rendered");
+    let comment_line = lines[anchor + 1];
+    assert!(comment_line.contains("draft"));
+    assert!(comment_line.contains("Please double-check this line"));
+}
+
+#[test]
+fn cursor_highlights_a_comment_row_full_width() {
+    let mut state = app();
+    state.provider.drafts.push(draft_at_line_5());
+    refresh_display_rows(&mut state);
+    let comment_index = state
+        .display_rows
+        .iter()
+        .position(|row| matches!(row, DisplayRow::Comment { .. }))
+        .expect("comment row present in cache");
+    state.display_cursor = comment_index;
+
+    let terminal = draw(&state);
+    let buffer = terminal.backend().buffer();
+    let row = (0..24)
+        .find(|y| {
+            (0..80)
+                .map(|x| buffer.cell((x, *y)).unwrap().symbol())
+                .collect::<String>()
+                .contains("draft")
+        })
+        .expect("comment row rendered");
+    let cell = buffer.cell((77, row)).unwrap();
+    assert_eq!(cell.style().bg, Some(theme::CURSOR_LINE));
+}
+
+#[test]
+fn toggle_hides_comment_rows() {
+    let mut state = app();
+    state.provider.drafts.push(draft_at_line_5());
+    refresh_display_rows(&mut state);
+    let visible_screen = screen(&draw(&state));
+    assert!(visible_screen.contains("draft"));
+    assert!(visible_screen.contains("Please double-check this line"));
+
+    state.comments_hidden = true;
+    refresh_display_rows(&mut state);
+    let hidden_screen = screen(&draw(&state));
+    assert!(!hidden_screen.contains("Please double-check this line"));
+    assert!(hidden_screen.contains("+added"));
 }

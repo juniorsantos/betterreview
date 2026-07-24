@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use betterreview::{
-    app::{AppAction, AppFocus, AppState},
+    app::{AppAction, AppFocus, AppState, refresh_display_rows},
     diff::{RenderedDiff, RenderedRow, RowBinding},
     domain::{
         ChangeRequestKey, ChangedFile, CommitOid, DiffPosition, DiffSide, FileStatus,
@@ -127,6 +127,7 @@ fn app() -> AppState {
             },
         ],
     });
+    refresh_display_rows(&mut app);
     app
 }
 
@@ -157,6 +158,7 @@ fn app_with_long_content() -> AppState {
             })
             .collect(),
     });
+    refresh_display_rows(&mut state);
     state
 }
 
@@ -221,6 +223,7 @@ fn file_panel_scrolls_to_keep_the_active_file_visible() {
 fn diff_panel_scrolls_to_keep_the_cursor_visible() {
     let mut state = app_with_long_content();
     state.session.cursor_row = 15;
+    refresh_display_rows(&mut state);
 
     let rendered = screen(&state, 80, 12);
 

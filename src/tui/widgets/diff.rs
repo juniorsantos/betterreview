@@ -7,60 +7,26 @@ use ratatui::{
 };
 
 use crate::{
-    app::{AppFocus, AppState},
+    app::{AppFocus, AppState, CommentEntry, DisplayRow},
+    diff::{RenderedDiff, RenderedRow},
     domain::PatchAvailability,
     tui::{theme, viewport},
 };
 
+/// Width of the gutter carried by every row: a 5-wide line number column plus
+/// its trailing space (`{number:>5} `), or that many blank columns for
+/// comment/orphan rows so their `│` prefix lines up underneath it.
+const GUTTER: &str = "      ";
+
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let inner_width = area.width.saturating_sub(2) as usize;
     let lines = match &state.rendered_diff {
-        Some(diff) => diff
-            .rows
+        Some(diff) => state
+            .display_rows
             .iter()
             .enumerate()
-            .map(|(index, row)| {
-                // One gutter column: the line number on the side the row
-                // exists on (new side wins when both are present).
-                let number = row
-                    .binding
-                    .right
-                    .as_ref()
-                    .or(row.binding.left.as_ref())
-                    .map(|position| position.line.to_string())
-                    .unwrap_or_default();
-                let mut spans = vec![Span::styled(
-                    format!("{number:>5} "),
-                    Style::default().fg(theme::MUTED),
-                )];
-                spans.extend(row.text.spans.clone());
-                let selected = state.selection_anchor.is_some_and(|anchor| {
-                    let start = anchor.min(state.session.cursor_row);
-                    let end = anchor.max(state.session.cursor_row);
-                    (start..=end).contains(&index)
-                });
-                let mut line = Line::from(spans);
-                let style = if index == state.session.cursor_row {
-                    Some(
-                        Style::default()
-                            .bg(theme::CURSOR_LINE)
-                            .add_modifier(Modifier::BOLD),
-                    )
-                } else if selected {
-                    Some(Style::default().bg(theme::SELECTION))
-                } else {
-                    None
-                };
-                if let Some(style) = style {
-                    // Pad so the background reaches the panel's right edge.
-                    let text_width = line.width();
-                    if text_width < inner_width {
-                        line.spans
-                            .push(Span::raw(" ".repeat(inner_width - text_width)));
-                    }
-                    line = line.style(style);
-                }
-                line
+            .map(|(index, display_row)| {
+                render_display_row(state, diff, display_row, index, inner_width)
             })
             .collect(),
         None => vec![Line::raw(unavailable_reason(state))],
@@ -71,7 +37,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         theme::BORDER
     };
     let visible = area.height.saturating_sub(2) as usize;
-    let start = viewport::start(state.session.cursor_row, lines.len(), visible);
+    let start = viewport::start(state.display_cursor, lines.len(), visible);
     let scroll = u16::try_from(start).unwrap_or(u16::MAX);
     frame.render_widget(
         Paragraph::new(lines).scroll((scroll, 0)).block(
@@ -82,6 +48,124 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         ),
         area,
     );
+}
+
+fn render_display_row(
+    state: &AppState,
+    diff: &RenderedDiff,
+    display_row: &DisplayRow,
+    index: usize,
+    inner_width: usize,
+) -> Line<'static> {
+    let mut line = match display_row {
+        DisplayRow::Diff { row } => diff_line(diff, *row),
+        DisplayRow::Comment {
+            entry,
+            block_start,
+            text,
+            author,
+        } => comment_line(state, entry, *block_start, text, author.as_deref()),
+        DisplayRow::OrphanHeader => Line::styled(
+            "— comentários desatualizados —",
+            Style::default().fg(theme::MUTED),
+        ),
+    };
+
+    let selected = matches!(display_row, DisplayRow::Diff { row } if state.selection_anchor.is_some_and(|anchor| {
+        let start = anchor.min(state.session.cursor_row);
+        let end = anchor.max(state.session.cursor_row);
+        (start..=end).contains(row)
+    }));
+
+    let style = if index == state.display_cursor {
+        Some(
+            Style::default()
+                .bg(theme::CURSOR_LINE)
+                .add_modifier(Modifier::BOLD),
+        )
+    } else if selected {
+        Some(Style::default().bg(theme::SELECTION))
+    } else {
+        None
+    };
+    if let Some(style) = style {
+        // Pad so the background reaches the panel's right edge.
+        let text_width = line.width();
+        if text_width < inner_width {
+            line.spans
+                .push(Span::raw(" ".repeat(inner_width - text_width)));
+        }
+        line = line.style(style);
+    }
+    line
+}
+
+fn diff_line(diff: &RenderedDiff, row: usize) -> Line<'static> {
+    let Some(rendered_row): Option<&RenderedRow> = diff.rows.get(row) else {
+        return Line::default();
+    };
+    // One gutter column: the line number on the side the row exists on (new
+    // side wins when both are present).
+    let number = rendered_row
+        .binding
+        .right
+        .as_ref()
+        .or(rendered_row.binding.left.as_ref())
+        .map(|position| position.line.to_string())
+        .unwrap_or_default();
+    let mut spans = vec![Span::styled(
+        format!("{number:>5} "),
+        Style::default().fg(theme::MUTED),
+    )];
+    spans.extend(rendered_row.text.spans.clone());
+    Line::from(spans)
+}
+
+fn comment_line(
+    state: &AppState,
+    entry: &CommentEntry,
+    block_start: bool,
+    text: &str,
+    author: Option<&str>,
+) -> Line<'static> {
+    let mut spans = vec![
+        Span::raw(GUTTER),
+        Span::styled("│ ", Style::default().fg(theme::BORDER)),
+    ];
+    if block_start {
+        if let Some(author) = author {
+            spans.push(Span::styled(
+                format!("@{author}"),
+                Style::default().fg(theme::ACCENT),
+            ));
+            spans.push(Span::raw("  "));
+        }
+        if let Some((marker, color)) = marker(state, entry) {
+            spans.push(Span::styled(marker, Style::default().fg(color)));
+            spans.push(Span::raw("  "));
+        }
+    }
+    spans.push(Span::styled(
+        text.to_owned(),
+        Style::default().fg(theme::FG),
+    ));
+    Line::from(spans)
+}
+
+/// The badge shown next to a comment block's header: `draft` for local drafts
+/// awaiting submission, `✓` for threads that have been resolved on the
+/// provider. Unresolved threads carry no badge.
+fn marker(state: &AppState, entry: &CommentEntry) -> Option<(&'static str, ratatui::style::Color)> {
+    match entry {
+        CommentEntry::Draft { .. } => Some(("draft", theme::WARNING)),
+        CommentEntry::Thread { thread, .. } => state
+            .provider
+            .threads
+            .iter()
+            .find(|candidate| &candidate.id == thread)
+            .filter(|thread| thread.resolved)
+            .map(|_| ("✓", theme::SUCCESS)),
+    }
 }
 
 fn unavailable_reason(state: &AppState) -> String {
