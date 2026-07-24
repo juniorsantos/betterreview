@@ -70,6 +70,9 @@ impl InstalledRuntime {
         // The doctor check hits the network (auth status); overlap it with the
         // snapshot load instead of paying for it up front.
         let doctor = Doctor::new(runner);
+        let mut terminal = ratatui::init();
+        let _restore = TerminalRestore;
+        let _ = terminal.draw(tui::splash);
         let (report, loaded) = tokio::join!(
             doctor.check(Some(key.provider), Some(&key.host)),
             provider.load(&key),
@@ -78,8 +81,6 @@ impl InstalledRuntime {
             return Err(LaunchError::Dependencies(report.to_string()));
         }
         let fresh = loaded?;
-        let mut terminal = ratatui::init();
-        let _restore = TerminalRestore;
         self.run_loaded(key, fresh, &mut terminal).await
     }
 
@@ -153,6 +154,9 @@ impl LaunchBackend for InstalledRuntime {
                         let review_provider = self.providers.get(provider);
                         let runner: Arc<dyn CommandRunner> = self.runner.clone();
                         let doctor = Doctor::new(runner);
+                        let mut terminal = ratatui::init();
+                        let _restore = TerminalRestore;
+                        let _ = terminal.draw(tui::splash);
                         let (report, listed) = tokio::join!(
                             doctor.check(Some(provider), Some(&host)),
                             review_provider.list_open(&host, &repository),
@@ -177,8 +181,6 @@ impl LaunchBackend for InstalledRuntime {
                             .collect();
                         let items =
                             crate::tui::picker::mark_items(list, Some(branch.as_str()), &sessions);
-                        let mut terminal = ratatui::init();
-                        let _restore = TerminalRestore;
                         let outcome = crate::tui::picker::run(
                             &mut terminal,
                             crate::tui::picker::PickerState::new(items, repository.clone()),

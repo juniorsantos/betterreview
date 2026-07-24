@@ -104,7 +104,15 @@ fn render_display_row(
             line.spans
                 .push(Span::raw(" ".repeat(inner_width - text_width)));
         }
-        line = line.style(style);
+        if matches!(display_row, DisplayRow::Comment { .. }) {
+            // The card lives in the code body area: keep the line-number
+            // gutter unpainted so the box visually starts after it.
+            for span in line.spans.iter_mut().skip(1) {
+                span.style = span.style.patch(style);
+            }
+        } else {
+            line = line.style(style);
+        }
     }
     line
 }
