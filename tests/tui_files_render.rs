@@ -107,9 +107,9 @@ fn files_panel_groups_entries_by_directory() {
     assert!(screen.contains("src/app/"));
     assert!(screen.contains("docs/"));
     // Files show only their basename under the directory header.
-    assert!(screen.contains("M one.rs"));
-    assert!(screen.contains("A two.rs"));
-    assert!(screen.contains("D guide.md"));
+    assert!(screen.contains("[ ] M one.rs"));
+    assert!(screen.contains("[ ] A two.rs"));
+    assert!(screen.contains("[ ] D guide.md"));
     assert!(!screen.contains("M src/app/one.rs"));
 }
 
@@ -250,4 +250,19 @@ fn generated_files_show_muted_marker_instead_of_status_letter() {
         .expect("marker cell not found");
     let marker_cell = buffer.cell(marker_pos).unwrap();
     assert_eq!(marker_cell.fg, betterreview::tui::theme::MUTED);
+}
+
+#[test]
+fn reviewed_files_show_a_checked_checkbox() {
+    let mut state = app();
+    state
+        .session
+        .files
+        .get_mut(&RepoPath("src/app/one.rs".into()))
+        .unwrap()
+        .reviewed = true;
+    let screen = screen(&state);
+
+    assert!(screen.contains("[x] M one.rs"));
+    assert!(screen.contains("[ ] A two.rs"));
 }

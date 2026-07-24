@@ -1567,3 +1567,25 @@ fn updating_a_draft_keeps_its_anchor() {
         "anchor must survive an update whose response omits it"
     );
 }
+
+#[test]
+fn toggling_reviewed_from_the_diff_shows_a_notice() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    state.focus = betterreview::app::AppFocus::Diff;
+
+    update(&mut state, AppEvent::Action(AppAction::ToggleReviewed));
+    assert!(
+        state
+            .notices
+            .last()
+            .is_some_and(|notice| notice.contains("revisado"))
+    );
+
+    update(&mut state, AppEvent::Action(AppAction::ToggleReviewed));
+    assert!(
+        state
+            .notices
+            .last()
+            .is_some_and(|notice| notice.contains("desmarcado"))
+    );
+}

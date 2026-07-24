@@ -5,7 +5,7 @@ expression: "screen(&app_with_drafts(3), 80, 24)"
  GitHub owner/repo #42 — Review terminal — by dev                               
 ┌ Arquivos — e expandir / z r┐┌ Diff ──────────────────────────────────────────┐
 │src/                        ││Loading diff...                                 │
-│ M app.rs              +1 -1││                                                │
+│[ ] M app.rs           +1 -1││                                                │
 │                            ││                                                │
 │       ╭ Enviar revisão ──────────────────────────────────────────────╮       │
 │       │3 drafts will be published                                    │       │

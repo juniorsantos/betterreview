@@ -5,8 +5,8 @@ expression: "screen(&app(), 80, 24)"
  GitHub owner/repo #42 — Add terminal review — by developer
 ┌ Arquivos — e expandir / z r┐┌ Diff ──────────────────────────────────────────┐
 │src/                        ││    8 -old                                      │
-│✓M app.rs              +1 -1││    8 +new                                      │
-│~A new.rs                 +1││                                                │
+│[x] M app.rs           +1 -1││    8 +new                                      │
+│[~] A new.rs              +1││                                                │
 │                            ││                                                │
 │                            ││                                                │
 │                            ││                                                │

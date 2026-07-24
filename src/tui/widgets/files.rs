@@ -88,10 +88,10 @@ fn file_item<'a>(
                 ReviewSync::Pending { .. } | ReviewSync::Failed { .. }
             ) =>
         {
-            ("~", theme::WARNING)
+            ("[~]", theme::WARNING)
         }
-        Some(progress) if progress.reviewed => ("✓", theme::SUCCESS),
-        _ => (" ", theme::MUTED),
+        Some(progress) if progress.reviewed => ("[x]", theme::SUCCESS),
+        _ => ("[ ]", theme::MUTED),
     };
     let notes = state
         .provider
@@ -136,7 +136,7 @@ fn file_item<'a>(
         *last = Span::styled(last.content.trim_end().to_owned(), last.style);
     }
 
-    let left_prefix = format!("{marker}{} ", status_letter(file.status));
+    let left_prefix = format!("{marker} {} ", status_letter(file.status));
     let right_width: usize = right.iter().map(|span| span.content.chars().count()).sum();
     let name_budget = inner_width
         .saturating_sub(left_prefix.chars().count() + right_width + 1)
@@ -160,7 +160,7 @@ fn file_item<'a>(
     };
 
     let mut spans = vec![
-        Span::styled(marker.to_owned(), Style::default().fg(marker_color)),
+        Span::styled(format!("{marker} "), Style::default().fg(marker_color)),
         status_span,
         name_span,
         Span::raw(" ".repeat(padding)),

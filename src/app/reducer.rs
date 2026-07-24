@@ -577,6 +577,11 @@ fn toggle_reviewed(state: &mut AppState) -> Vec<EffectEnvelope> {
     };
     let reviewed = !progress.reviewed;
     progress.reviewed = reviewed;
+    let message = if reviewed {
+        "✓ arquivo marcado como revisado"
+    } else {
+        "arquivo desmarcado"
+    };
     let remote_supported = matches!(
         state.provider.capabilities.mark_file_reviewed,
         Support::Supported
@@ -604,6 +609,7 @@ fn toggle_reviewed(state: &mut AppState) -> Vec<EffectEnvelope> {
             snapshot: Box::new(state.session.clone()),
         },
     ));
+    push_notice(state, message);
     effects
 }
 
