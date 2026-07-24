@@ -73,6 +73,7 @@ pub fn render(frame: &mut Frame, state: &AppState) {
                     ]f / [f   file      m    reviewed       s      suggestion\n\
                     ]u / [u   unreviewed                    t      threads\n\
                     \n\
+                    Comments: e edit  x delete  r reply  T hide/show\n\
                     Editor: Enter save   Alt+Enter newline   Esc close\n\
                     R submit review      r refresh           q quit";
         // Comfortable, but never the full screen.
