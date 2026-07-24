@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.88"
 license-file = "LICENSE"
-description = "Terminal code review for GitHub and GitLab"
+description = "Terminal code review for GitHub and GitLab, right in your shell"
 
 [dependencies]
 ansi-to-tui = "8.0.1"

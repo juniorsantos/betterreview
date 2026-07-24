@@ -9,3 +9,15 @@ BetterReview uses the authenticated `gh` and `glab` command-line tools and rende
 ## License
 
 BetterReview is distributed under the MIT License. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+
+## Atalhos principais
+
+| Tecla | Ação |
+|-------|------|
+| `j/k` | mover |
+| `]h` / `[h` | pular entre hunks |
+| `]c` / `[c` | pular entre comentários |
+| `/` | buscar no diff |
+| `c` | comentar a linha/seleção |
+| `R` | enviar a revisão |
