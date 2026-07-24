@@ -3,6 +3,11 @@
 All notable changes to this project are documented in this file, generated
 from conventional commits by [git-cliff](https://git-cliff.org).
 
+## [0.1.3] - 2026-07-24
+
+### CI
+
+- Make the release publish step idempotent
 ## [0.1.2] - 2026-07-24
 
 ### Bug fixes
