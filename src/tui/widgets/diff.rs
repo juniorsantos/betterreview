@@ -19,7 +19,8 @@ use crate::{
 const GUTTER: &str = "      ";
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
-    let inner_width = area.width.saturating_sub(2) as usize;
+    // Borders (2) plus one column of breathing room on each side.
+    let inner_width = area.width.saturating_sub(4) as usize;
     let lines = match &state.rendered_diff {
         Some(diff) => state
             .display_rows
@@ -44,6 +45,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             Block::default()
                 .title(" Diff ")
                 .borders(Borders::ALL)
+                .padding(ratatui::widgets::Padding::horizontal(1))
                 .border_style(Style::default().fg(border)),
         ),
         area,

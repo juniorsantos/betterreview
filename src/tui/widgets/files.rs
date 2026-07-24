@@ -19,7 +19,7 @@ enum Row<'a> {
 }
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
-    let inner_width = area.width.saturating_sub(2) as usize;
+    let inner_width = area.width.saturating_sub(4) as usize;
     let mut rows = Vec::new();
     let mut current_dir: Option<&str> = None;
     let mut active_row = 0;
@@ -68,6 +68,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             Block::default()
                 .title(" Arquivos — e expandir / z recolher ")
                 .borders(Borders::ALL)
+                .padding(ratatui::widgets::Padding::horizontal(1))
                 .border_style(Style::default().fg(border)),
         ),
         area,

@@ -300,6 +300,7 @@ pub fn render(frame: &mut Frame, state: &PickerState) {
 /// the reviews-open counter as the last inner row.
 fn render_panel(frame: &mut Frame, area: Rect, state: &PickerState) {
     let block = Block::default()
+        .padding(ratatui::widgets::Padding::horizontal(1))
         .title(" Reviews abertos ")
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)

@@ -4,8 +4,8 @@ expression: "screen(&app(), 50, 16)"
 ---
  betterreview  owner/repo #42 · Add terminal revie
 ┌ Diff ──────────────────────────────────────────┐
-│    8 -old                                      │
-│    8 +new                                      │
+│     8 -old                                     │
+│     8 +new                                     │
 │                                                │
 │                                                │
 │                                                │

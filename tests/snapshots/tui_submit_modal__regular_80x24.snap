@@ -4,19 +4,19 @@ expression: "screen(&app_with_drafts(3), 80, 24)"
 ---
  betterreview  owner/repo #42 · Review terminal · @dev                   v0.1.0 
 ┌ Arquivos — e expandir / z r┐┌ Diff ──────────────────────────────────────────┐
-│src/                        ││Loading diff...                                 │
-│[ ] M app.rs           +1 -1││                                                │
+│ src/                       ││ Loading diff...                                │
+│ [ ] M app.rs         +1 -1 ││                                                │
 │                            ││                                                │
 │       ╭ Enviar revisão ──────────────────────────────────────────────╮       │
-│       │3 drafts will be published                                    │       │
+│       │ 3 drafts will be published                                   │       │
 │       │                                                              │       │
-│       │Summary                                                       │       │
-│       │Ready to merge                                                │       │
+│       │ Summary                                                      │       │
+│       │ Ready to merge                                               │       │
 │       │                                                              │       │
-│       │[COMMENT]  APPROVE  REQUEST_CHANGES                           │       │
+│       │ [COMMENT]  APPROVE  REQUEST_CHANGES                          │       │
 │       │                                                              │       │
 │       │                                                              │       │
-│       │Comment review                                                │       │
+│       │ Comment review                                               │       │
 │       │                                                              │       │
 │       │                                                              │       │
 │       │   Tab campo · ↑/↓ resultado · Enter enviar · Esc cancelar    │       │

@@ -67,6 +67,14 @@ pub(in crate::tui) fn render_dialog(frame: &mut Frame, area: Rect, dialog: Dialo
 
     let mut lines = dialog.body;
     lines.truncate(body_capacity);
+    // One column of breathing room against the left border; selected rows
+    // keep their background full-bleed because the prefix inherits the
+    // line's style.
+    for line in &mut lines {
+        if !line.spans.is_empty() {
+            line.spans.insert(0, Span::raw(" "));
+        }
+    }
     while lines.len() < body_capacity {
         lines.push(Line::raw(""));
     }
