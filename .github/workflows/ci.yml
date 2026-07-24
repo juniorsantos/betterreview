@@ -171,7 +171,11 @@ jobs:
           TAG: ${{ needs.release.outputs.tag }}
         run: |
           git-cliff --latest --strip header -o /tmp/notes.md
-          gh release create "${TAG}" --title "${TAG}" --notes-file /tmp/notes.md artifacts/*.tar.gz
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            gh release upload "${TAG}" artifacts/*.tar.gz --clobber
+          else
+            gh release create "${TAG}" --title "${TAG}" --notes-file /tmp/notes.md artifacts/*.tar.gz
+          fi
       - name: Atualizar formula no Homebrew tap
         if: env.TAP_TOKEN != ''
         env:
