@@ -1694,3 +1694,57 @@ fn file_header_and_metadata_rows_are_hidden_from_the_display() {
         "header/metadata hidden, hunk header and code kept"
     );
 }
+
+#[test]
+fn a_created_draft_appears_as_an_inline_card() {
+    use betterreview::domain::{DiffPosition, DiffSelection, DiffSide, DraftComment, DraftId};
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let anchor = DiffPosition {
+        path: RepoPath("src/file_0.rs".into()),
+        side: DiffSide::Right,
+        line: 1,
+        hunk: 0,
+    };
+    state.rendered_diff = Some(RenderedDiff {
+        rows: vec![RenderedRow {
+            text: Line::raw("+new"),
+            binding: RowBinding {
+                row_index: 0,
+                left: None,
+                right: Some(anchor.clone()),
+            },
+        }],
+    });
+    betterreview::app::refresh_display_rows(&mut state);
+    assert!(
+        !state
+            .display_rows
+            .iter()
+            .any(|row| matches!(row, betterreview::app::DisplayRow::Comment { .. }))
+    );
+
+    update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: 5,
+            generation: None,
+            outcome: EffectOutcome::DraftCreated(Ok(DraftComment {
+                id: DraftId("novo".into()),
+                body: "apareça".into(),
+                selection: Some(DiffSelection {
+                    start: anchor.clone(),
+                    end: anchor,
+                }),
+                thread_id: None,
+            })),
+        })),
+    );
+
+    assert!(
+        state
+            .display_rows
+            .iter()
+            .any(|row| matches!(row, betterreview::app::DisplayRow::Comment { text, .. } if text == "apareça")),
+        "the freshly created draft must appear anchored in the display"
+    );
+}
