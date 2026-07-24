@@ -2,41 +2,43 @@
 
 [![CI](https://github.com/juniorsantos/betterreview/actions/workflows/ci.yml/badge.svg)](https://github.com/juniorsantos/betterreview/actions/workflows/ci.yml)
 
-Revisão de código no terminal para pull requests do GitHub e merge requests do GitLab. Navegue o diff com teclas estilo vim/lazygit, comente inline como no GitHub, marque arquivos como revisados e envie a revisão — sem sair do terminal.
+🇧🇷 [Leia em Português](README_PT_BR.md)
 
-![Tela de revisão](assets/review.svg)
+Terminal code review for GitHub pull requests and GitLab merge requests. Navigate the diff with vim/lazygit-style keys, comment inline just like on GitHub, mark files as reviewed and submit your review — without leaving the terminal.
 
-Rodando dentro de um repositório, o seletor lista as revisões abertas e já faz o prefetch do PR destacado:
+![Review screen](assets/review.svg)
 
-![Seletor de PRs](assets/picker.svg)
+When launched inside a repository, the picker lists the open reviews and prefetches the highlighted PR:
 
-## Recursos
+![PR picker](assets/picker.svg)
 
-- Diff com paridade visual com o GitHub: fundo verde/vermelho fim a fim, uma única coluna de número de linha, nome do arquivo no topo e trechos ocultos expansíveis (`z`)
-- Comentários inline em cartões: criar (`c`), editar (`e`), excluir (`x`), responder (`r`) e sugestões de código (`s`)
-- Seleção de linha ou bloco (`v`) para comentar exatamente como no GitHub
-- Arquivos em árvore com checkbox de revisado (`m`), pastas recolhíveis e arquivos gerados de-emfatizados
-- Saltos rápidos: próximo hunk (`]h`), próximo comentário (`]c`), próximo arquivo (`]f`), próximo não revisado (`]u`)
-- Busca no diff (`/`, `n`/`N`), suporte a mouse (scroll e clique)
-- Sessão persistente: feche e retome a revisão de onde parou (`betterreview resume`)
-- Envio da revisão completa (`R`): aprovar, solicitar mudanças ou comentar
+## Features
 
-## Dependências
+- Diff with GitHub visual parity: edge-to-edge green/red backgrounds, a single line-number column, file name on top and expandable hidden context (`z`)
+- Inline comments as cards: create (`c`), edit (`e`), delete (`x`), reply (`r`) and code suggestions (`s`)
+- Line or block selection (`v`) to comment exactly like on GitHub
+- File tree with reviewed checkboxes (`m`), collapsible folders and de-emphasized generated files
+- Quick jumps: next hunk (`]h`), next comment (`]c`), next file (`]f`), next unreviewed (`]u`)
+- In-diff search (`/`, `n`/`N`), mouse support (scroll and click)
+- Persistent sessions: quit and resume the review where you left off (`betterreview resume`)
+- Full review submission (`R`): approve, request changes or comment
 
-| Ferramenta | Para quê | Instalação |
+## Dependencies
+
+| Tool | Purpose | Install |
 |---|---|---|
-| [git](https://git-scm.com) | contexto do repositório | já vem no macOS/Linux |
-| [gh](https://cli.github.com) | PRs do GitHub (`gh auth login`) | `brew install gh` |
-| [glab](https://gitlab.com/gitlab-org/cli) | MRs do GitLab (`glab auth login`) | `brew install glab` |
-| [delta](https://github.com/dandavison/delta) | renderização do diff | `brew install git-delta` |
+| [git](https://git-scm.com) | repository context | ships with macOS/Linux |
+| [gh](https://cli.github.com) | GitHub PRs (`gh auth login`) | `brew install gh` |
+| [glab](https://gitlab.com/gitlab-org/cli) | GitLab MRs (`glab auth login`) | `brew install glab` |
+| [delta](https://github.com/dandavison/delta) | diff rendering | `brew install git-delta` |
 
-Rode `betterreview doctor` para verificar se está tudo pronto.
+Run `betterreview doctor` to check that everything is ready.
 
-## Instalação
+## Installation
 
-### Binário do release
+### Release binary
 
-Baixe o binário da sua plataforma na [página de releases](https://github.com/juniorsantos/betterreview/releases):
+Download the binary for your platform from the [releases page](https://github.com/juniorsantos/betterreview/releases):
 
 ```sh
 # macOS Apple Silicon
@@ -44,7 +46,7 @@ curl -sSL https://github.com/juniorsantos/betterreview/releases/latest/download/
 sudo mv betterreview /usr/local/bin/
 ```
 
-Targets disponíveis: `aarch64-apple-darwin`, `x86_64-apple-darwin`, `x86_64-unknown-linux-gnu`.
+Available targets: `aarch64-apple-darwin`, `x86_64-apple-darwin`, `x86_64-unknown-linux-gnu`.
 
 ### Via cargo
 
@@ -52,54 +54,54 @@ Targets disponíveis: `aarch64-apple-darwin`, `x86_64-apple-darwin`, `x86_64-unk
 cargo install --git https://github.com/juniorsantos/betterreview
 ```
 
-## Uso
+## Usage
 
 ```sh
-# dentro de um repositório: abre o seletor de PRs/MRs abertos
+# inside a repository: opens the picker with the open PRs/MRs
 betterreview
 
-# direto por URL
+# directly by URL
 betterreview https://github.com/owner/repo/pull/42
 
-# retomar a última sessão de revisão
+# resume the last review session
 betterreview resume
 
-# listar sessões salvas
+# list saved sessions
 betterreview sessions
 
-# checar dependências e autenticação
+# check dependencies and authentication
 betterreview doctor
 ```
 
-### Atalhos principais
+### Main shortcuts
 
-| Tecla | Ação |
+| Key | Action |
 |---|---|
-| `j`/`k` | mover cursor |
-| `Tab`, `2`/`3` | alternar foco entre Arquivos e Diff |
-| `v` | iniciar/encerrar seleção de linhas |
-| `c` | comentar na linha ou seleção |
-| `s` | sugerir código na seleção |
-| `e` / `x` / `r` | editar / excluir / responder comentário sob o cursor |
-| `m` | marcar arquivo como revisado |
-| `z` | expandir trecho oculto do diff (ou recolher pasta no painel Arquivos) |
-| `]h` `[h` / `]c` `[c` | próximo/anterior hunk / comentário |
-| `]f` `[f` / `]u` `[u` | próximo/anterior arquivo / arquivo não revisado |
-| `/`, `n`/`N` | buscar no diff |
-| `R` | enviar revisão (aprovar / solicitar mudanças / comentar) |
-| `?` | ajuda com todos os atalhos |
-| `q` | sair |
+| `j`/`k` | move cursor |
+| `Tab`, `2`/`3` | switch focus between Files and Diff |
+| `v` | start/end line selection |
+| `c` | comment on the line or selection |
+| `s` | suggest code on the selection |
+| `e` / `x` / `r` | edit / delete / reply to the comment under the cursor |
+| `m` | mark file as reviewed |
+| `z` | expand hidden diff context (or collapse folder in the Files panel) |
+| `]h` `[h` / `]c` `[c` | next/previous hunk / comment |
+| `]f` `[f` / `]u` `[u` | next/previous file / unreviewed file |
+| `/`, `n`/`N` | search in the diff |
+| `R` | submit review (approve / request changes / comment) |
+| `?` | help with all shortcuts |
+| `q` | quit |
 
-## Desenvolvimento
+## Development
 
 ```sh
-cargo test          # suíte completa
+cargo test          # full suite
 cargo clippy --all-targets -- -D warnings
 cargo fmt --check
 ```
 
-Releases são automáticos: commits `feat:`/`fix:` na `main` geram bump de versão semântica, tag e release com binários via GitHub Actions.
+Releases are automated: `feat:`/`fix:` commits on `main` produce a semantic version bump, tag and release with binaries via GitHub Actions.
 
-## Licença
+## License
 
-Distribuído sob a licença MIT. Veja [LICENSE](LICENSE) e [NOTICE](NOTICE).
+Distributed under the MIT License. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
