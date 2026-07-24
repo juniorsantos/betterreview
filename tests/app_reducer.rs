@@ -10,7 +10,7 @@ use betterreview::{
         ChangeRequestKey, ChangedFile, CommitOid, DiffPosition, DiffSelection, DiffSide,
         DraftComment, DraftId, FileStatus, PatchAvailability, ProviderCapabilities, ProviderKind,
         ProviderSnapshot, RepoPath, ReviewComment, ReviewOutcome, ReviewThread, SubmitMode,
-        ThreadId,
+        SubmitResult, ThreadId,
     },
     providers::DraftBody,
     state::{ContentIdentity, FileProgress, ReviewSync, SESSION_SCHEMA_VERSION, SessionSnapshot},
@@ -444,6 +444,129 @@ fn quit_flow_can_cancel_or_discard_the_editor() {
     assert!(!state.editor_open);
 }
 
+#[test]
+fn keep_session_discards_mode_editors() {
+    use betterreview::domain::{DiffPosition, DiffSelection, DiffSide};
+    use betterreview::state::EditorSnapshot;
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let path = RepoPath("src/file_0.rs".into());
+    let position = DiffPosition {
+        path: path.clone(),
+        side: DiffSide::Right,
+        line: 1,
+        hunk: 0,
+    };
+    state.session.editor = Some(EditorSnapshot {
+        lines: vec!["being edited".into()],
+        cursor_row: 0,
+        grapheme_col: 0,
+        original_head: CommitOid("new-head".into()),
+        path,
+        selection: DiffSelection {
+            start: position.clone(),
+            end: position,
+        },
+        stale: false,
+    });
+    state.editor_open = true;
+    state.editing_draft = Some(DraftId("d1".into()));
+
+    update(&mut state, AppEvent::Action(AppAction::Quit));
+    update(
+        &mut state,
+        AppEvent::Action(AppAction::ConfirmQuit(QuitChoice::KeepSession)),
+    );
+
+    assert!(
+        state.session.editor.is_none(),
+        "a mode editor cannot be trusted after resume: it must be discarded, not persisted"
+    );
+    assert!(!state.editor_open);
+    assert!(state.editing_draft.is_none());
+    assert!(state.replying_thread.is_none());
+    assert!(state.quit_requested);
+    assert!(state.dirty);
+}
+
+#[test]
+fn notices_expire_after_a_few_ticks() {
+    use betterreview::domain::{DiffPosition, DiffSelection, DiffSide};
+    use betterreview::state::EditorSnapshot;
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let path = RepoPath("src/file_0.rs".into());
+    let position = DiffPosition {
+        path: path.clone(),
+        side: DiffSide::Right,
+        line: 1,
+        hunk: 0,
+    };
+    state.session.editor = Some(EditorSnapshot {
+        lines: vec!["parked text".into()],
+        cursor_row: 0,
+        grapheme_col: 0,
+        original_head: CommitOid("new-head".into()),
+        path: path.clone(),
+        selection: DiffSelection {
+            start: position.clone(),
+            end: position,
+        },
+        stale: false,
+    });
+    state.editor_open = false;
+    state.editing_draft = None;
+    state.replying_thread = None;
+
+    let draft = DraftComment {
+        id: DraftId("d1".into()),
+        body: "old body".into(),
+        selection: Some(DiffSelection {
+            start: comment_pos(&path, DiffSide::Right, 1),
+            end: comment_pos(&path, DiffSide::Right, 1),
+        }),
+        thread_id: None,
+    };
+    state.provider.drafts.push(draft.clone());
+
+    update(
+        &mut state,
+        AppEvent::Action(AppAction::EditComment(draft.id.clone())),
+    );
+
+    assert_eq!(state.notice_ttl, 12, "a refusal must arm the notice ttl");
+
+    for remaining in (0..12).rev() {
+        update(&mut state, AppEvent::Tick);
+        assert_eq!(state.notice_ttl, remaining);
+    }
+}
+
+#[test]
+fn submit_complete_schedules_a_snapshot_refresh() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    state.session.pending_submit = Some(betterreview::state::PendingSubmit {
+        summary: "ready".into(),
+        outcome: ReviewOutcome::Approve,
+        mode: SubmitMode::Full,
+    });
+
+    let effects = update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: 1,
+            generation: Some(CommitOid("new-head".into())),
+            outcome: EffectOutcome::ReviewSubmitted(Ok(SubmitResult::Complete)),
+        })),
+    );
+
+    assert!(state.session.pending_submit.is_none());
+    assert!(
+        effects
+            .iter()
+            .any(|envelope| matches!(envelope.effect, AppEffect::RefreshSnapshot)),
+        "a published draft must not remain interactive: schedule a refresh"
+    );
+}
+
 fn added_row(path: &str, line: u32) -> betterreview::diff::DiffRow {
     use betterreview::domain::{DiffPosition, DiffSide};
     betterreview::diff::DiffRow {
@@ -655,6 +778,21 @@ fn selection_refused_on_comment_rows() {
             .notices
             .iter()
             .any(|notice| notice.contains("mova para uma linha de código"))
+    );
+}
+
+#[test]
+fn selection_can_be_canceled_from_a_comment_row() {
+    let mut state = state_with_multiline_comment();
+    state.selection_anchor = Some(0);
+    state.display_cursor = 1;
+
+    let effects = update(&mut state, AppEvent::Action(AppAction::ToggleSelection));
+
+    assert!(effects.is_empty());
+    assert!(
+        state.selection_anchor.is_none(),
+        "an existing selection must be cancelable even from a comment row"
     );
 }
 

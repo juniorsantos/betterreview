@@ -12,6 +12,15 @@ use super::{
     EffectResult, QuitChoice, SubmissionModal, refresh_display_rows,
 };
 
+/// Pushes a user-facing notice and arms its on-screen lifetime. Every refusal
+/// or informational message the reducer surfaces must go through this so the
+/// status bar has something to read (see `widgets::status::render`) — a bare
+/// `state.notices.push(..)` is invisible, ~3s at the 250ms tick rate.
+pub(crate) fn push_notice(state: &mut AppState, message: impl Into<String>) {
+    state.notices.push(message.into());
+    state.notice_ttl = 12;
+}
+
 pub fn update(state: &mut AppState, event: AppEvent) -> Vec<EffectEnvelope> {
     match event {
         AppEvent::Action(action) => action_update(state, action),
@@ -20,6 +29,7 @@ pub fn update(state: &mut AppState, event: AppEvent) -> Vec<EffectEnvelope> {
             if !state.pending_labels.is_empty() {
                 state.spinner_frame = state.spinner_frame.wrapping_add(1);
             }
+            state.notice_ttl = state.notice_ttl.saturating_sub(1);
             if state.dirty {
                 state.dirty = false;
                 vec![envelope(
@@ -70,8 +80,8 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
                 state.display_rows.get(state.display_cursor),
                 Some(DisplayRow::Diff { .. })
             );
-            if !on_diff_row {
-                state.notices.push("mova para uma linha de código".into());
+            if !on_diff_row && state.selection_anchor.is_none() {
+                push_notice(state, "mova para uma linha de código");
                 return Vec::new();
             }
             state.selection_anchor = match state.selection_anchor {
@@ -201,7 +211,23 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
         }
         AppAction::ConfirmQuit(choice) => {
             match choice {
-                QuitChoice::KeepSession => state.quit_requested = true,
+                QuitChoice::KeepSession => {
+                    // `editing_draft`/`replying_thread` are in-memory only;
+                    // the persisted `session.editor` cannot carry that
+                    // identity across resume. Reopening it there would let
+                    // Enter re-create the draft (duplicating an edit) or
+                    // flatten a reply into a top-level comment. Mode editors
+                    // are trivially recreatable, so discard rather than risk
+                    // that.
+                    if state.editing_draft.is_some() || state.replying_thread.is_some() {
+                        state.session.editor = None;
+                        state.editor_open = false;
+                        state.editing_draft = None;
+                        state.replying_thread = None;
+                        state.dirty = true;
+                    }
+                    state.quit_requested = true;
+                }
                 QuitChoice::DiscardEditor => {
                     state.session.editor = None;
                     state.editing_draft = None;
@@ -438,9 +464,7 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
         .as_ref()
         .is_some_and(|generation| generation != &state.provider.head)
     {
-        state
-            .notices
-            .push("ignored stale operation from an older head".into());
+        push_notice(state, "ignored stale operation from an older head");
         return Vec::new();
     }
     match result.outcome {
@@ -512,7 +536,17 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
             Err(message) => state.error_banner = Some(message),
         },
         EffectOutcome::ReviewSubmitted(result) => match result {
-            Ok(SubmitResult::Complete) => state.session.pending_submit = None,
+            Ok(SubmitResult::Complete) => {
+                state.session.pending_submit = None;
+                // Published drafts are still sitting in provider.drafts as
+                // interactive blocks; refresh the snapshot so they turn into
+                // read-only submitted comments.
+                return vec![envelope(
+                    state,
+                    Some(state.provider.head.clone()),
+                    AppEffect::RefreshSnapshot,
+                )];
+            }
             Ok(SubmitResult::Partial { retry, reason, .. }) => {
                 if let Some(pending) = &mut state.session.pending_submit {
                     pending.mode = retry;
@@ -538,7 +572,7 @@ fn open_editor(state: &mut AppState, suggestion: bool) {
         Some(DisplayRow::Comment { .. })
     );
     if on_comment_row {
-        state.notices.push("mova para uma linha de código".into());
+        push_notice(state, "mova para uma linha de código");
         return;
     }
     if let Some(editor) = &state.session.editor {
@@ -552,9 +586,7 @@ fn open_editor(state: &mut AppState, suggestion: bool) {
         state.session.editor = None;
         state.editor_open = false;
         state.dirty = true;
-        state
-            .notices
-            .push("discarded stale draft from a previous session".into());
+        push_notice(state, "discarded stale draft from a previous session");
     }
     let Some(diff) = state.parsed_diff.as_ref() else {
         state.error_banner = Some("diff is still loading".into());
@@ -610,9 +642,9 @@ fn edit_comment(state: &mut AppState, id: DraftId) {
         && state.editing_draft.is_none()
         && state.replying_thread.is_none()
     {
-        state.notices.push(
-            "você tem um comentário não salvo; salve (c → Enter) ou descarte antes de editar"
-                .into(),
+        push_notice(
+            state,
+            "você tem um comentário não salvo; salve (c → Enter) ou descarte antes de editar",
         );
         return;
     }
@@ -654,9 +686,9 @@ fn reply_comment(state: &mut AppState, thread: ThreadId) {
         && state.editing_draft.is_none()
         && state.replying_thread.is_none()
     {
-        state.notices.push(
-            "você tem um comentário não salvo; salve (c → Enter) ou descarte antes de editar"
-                .into(),
+        push_notice(
+            state,
+            "você tem um comentário não salvo; salve (c → Enter) ou descarte antes de responder",
         );
         return;
     }

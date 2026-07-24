@@ -248,3 +248,21 @@ fn status_shows_spinner_while_saving() {
 
     assert!(screen.contains("salvando comentário…"));
 }
+
+#[test]
+fn status_shows_the_latest_notice() {
+    let mut state = app();
+    state.notices.push("primeiro aviso".into());
+    state.notices.push("mova para uma linha de código".into());
+    state.notice_ttl = 5;
+    let notice_screen = screen(&draw(&state));
+
+    assert!(notice_screen.contains("mova para uma linha de código"));
+    assert!(!notice_screen.contains("primeiro aviso"));
+
+    // A notice loses to an active error banner.
+    state.error_banner = Some("falha ao salvar".into());
+    let banner_screen = screen(&draw(&state));
+    assert!(banner_screen.contains("falha ao salvar"));
+    assert!(!banner_screen.contains("mova para uma linha de código"));
+}

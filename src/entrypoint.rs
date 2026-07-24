@@ -109,7 +109,7 @@ impl InstalledRuntime {
         let runtime = Arc::new(crate::app::Runtime::new(key, provider, renderer, handle));
         let mut app = crate::app::AppState::new(fresh, snapshot);
         if read_only {
-            app.notices.push("session is open read-only".into());
+            crate::app::push_notice(&mut app, "session is open read-only");
         }
         if let Some(file) = app.provider.files.get(app.active_file_index).cloned() {
             let result = runtime

@@ -10,6 +10,7 @@ pub use display::{
 };
 pub use effect::{AppEffect, EffectEnvelope, EffectOutcome, EffectResult, RenderedFile};
 pub use event::{AppAction, AppEvent, QuitChoice};
+pub(crate) use reducer::push_notice;
 pub use reducer::update;
 pub use runtime::Runtime;
 pub use state::{AppFocus, AppState, SubmissionModal};

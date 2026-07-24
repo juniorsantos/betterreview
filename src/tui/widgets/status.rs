@@ -10,11 +10,17 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         .filter(|progress| progress.reviewed)
         .count();
     const SPINNER: [&str; 8] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"];
-    // Errors first, then in-flight operation feedback, then the idle summary.
+    // Errors first, then a live notice (refusal feedback etc.), then
+    // in-flight operation feedback, then the idle summary.
     let (message, style) = if let Some(error) = &state.error_banner {
         (
             error.clone(),
             ratatui::style::Style::default().fg(crate::tui::theme::DANGER),
+        )
+    } else if state.notice_ttl > 0 && state.notices.last().is_some() {
+        (
+            state.notices.last().cloned().unwrap_or_default(),
+            ratatui::style::Style::default().fg(crate::tui::theme::WARNING),
         )
     } else if let Some((_, label)) = state.pending_labels.iter().next_back() {
         (
