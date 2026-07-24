@@ -14,7 +14,7 @@ pub enum SelectionError {
     NotCommentable,
     #[error("a range must stay on one diff side")]
     DifferentSides,
-    #[error("a range must stay inside one hunk")]
+    #[error("a seleção precisa ficar dentro de um único hunk")]
     DifferentHunks,
     #[error("the selected range contains a row with no position on this side")]
     MissingSidePosition,
@@ -28,11 +28,30 @@ pub fn validate_selection(
     if start.side != end.side {
         return Err(SelectionError::DifferentSides);
     }
-    let (first_index, last_index) = if start.row <= end.row {
+    let (mut first_index, mut last_index) = if start.row <= end.row {
         (start.row, end.row)
     } else {
         (end.row, start.row)
     };
+    // Trim edges that carry no position on the selected side (hunk headers
+    // and metadata): landing the cursor on an `@@` boundary must shrink the
+    // range, not reject the whole selection.
+    while first_index < last_index
+        && diff
+            .rows
+            .get(first_index)
+            .is_some_and(|row| position(row, start.side).is_none())
+    {
+        first_index += 1;
+    }
+    while last_index > first_index
+        && diff
+            .rows
+            .get(last_index)
+            .is_some_and(|row| position(row, start.side).is_none())
+    {
+        last_index -= 1;
+    }
     let first_row = diff
         .rows
         .get(first_index)

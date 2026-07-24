@@ -212,3 +212,25 @@ fn parsed_fixture(name: &str, status: FileStatus) -> ParsedFileDiff {
     };
     parse_file_patch(&file, &CommitOid("head".into())).unwrap()
 }
+
+#[test]
+fn selection_edges_on_hunk_headers_are_trimmed_inward() {
+    let diff = parsed_fixture("multiple-hunks.diff", FileStatus::Modified);
+    // Start on code of the first hunk, end ON the second hunk's @@ header
+    // row: the header edge is trimmed inward instead of rejecting.
+    let last_code_of_first = diff.hunks[0].row_range.end - 1;
+    let second_header = diff.hunks[1].row_range.start - 1;
+    let selection = validate_selection(
+        &diff,
+        DiffCursor {
+            row: last_code_of_first,
+            side: DiffSide::Right,
+        },
+        DiffCursor {
+            row: second_header,
+            side: DiffSide::Right,
+        },
+    )
+    .expect("edge on a hunk header must be trimmed, not rejected");
+    assert!(selection.end.line >= selection.start.line);
+}
