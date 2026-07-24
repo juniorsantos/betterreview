@@ -16,6 +16,7 @@ struct RoutingRunner {
     calls: Mutex<Vec<CommandSpec>>,
     delay: Option<Duration>,
     fail_all: bool,
+    diff_too_large: bool,
 }
 
 impl RoutingRunner {
@@ -24,7 +25,13 @@ impl RoutingRunner {
             calls: Mutex::new(Vec::new()),
             delay: None,
             fail_all: false,
+            diff_too_large: false,
         }
+    }
+
+    fn with_oversized_diff(mut self) -> Self {
+        self.diff_too_large = true;
+        self
     }
 
     fn with_delay(mut self, delay: Duration) -> Self {
@@ -37,6 +44,7 @@ impl RoutingRunner {
             calls: Mutex::new(Vec::new()),
             delay: None,
             fail_all: true,
+            diff_too_large: false,
         }
     }
 
@@ -61,6 +69,14 @@ impl RoutingRunner {
         } else if args.iter().any(|arg| arg.contains("/files")) {
             ok(fixture("files-page-1.json"))
         } else if args.iter().any(|arg| arg.starts_with("Accept:")) {
+            if self.diff_too_large {
+                return CommandOutput {
+                    status: 1,
+                    stdout: Vec::new(),
+                    stderr: b"gh: Sorry, the diff exceeded the maximum number of lines (20000) (HTTP 406)"
+                        .to_vec(),
+                };
+            }
             ok(std::fs::read("tests/fixtures/github/pull.diff").unwrap())
         } else {
             ok(b"{}".to_vec())
@@ -250,4 +266,19 @@ fn args(spec: &CommandSpec) -> Vec<String> {
         .iter()
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect()
+}
+
+#[tokio::test]
+async fn falls_back_to_rest_patches_when_the_raw_diff_is_too_large() {
+    let runner = Arc::new(RoutingRunner::new().with_oversized_diff());
+    let provider = GitHubProvider::new(runner);
+
+    let snapshot = provider.load(&github_key()).await.unwrap();
+
+    // The REST files fixture carries "available" as each file's patch body.
+    assert!(matches!(
+        &snapshot.files[0].patch,
+        PatchAvailability::Available(patch) if patch == "available"
+    ));
+    assert_eq!(snapshot.files.len(), 3);
 }

@@ -48,19 +48,28 @@ where
         key: &ChangeRequestKey,
     ) -> Result<ProviderSnapshot, ProviderError> {
         repository_parts(&key.repository)?;
+        // GitHub refuses the whole-PR raw diff above 20k lines (HTTP 406);
+        // fall back to the per-file patches the files endpoint already carries.
         let ((metadata, wire_threads, viewed), rest_files, raw_diff) = tokio::try_join!(
             self.load_graphql_snapshot(key),
             self.load_rest_files(key),
-            self.load_raw_diff(key),
+            async { Ok(self.load_raw_diff(key).await.ok()) },
         )?;
 
-        let patches = split_patches(&raw_diff)?;
+        let patches = match &raw_diff {
+            Some(raw) => split_patches(raw)?,
+            None => BTreeMap::new(),
+        };
         let mut files = Vec::with_capacity(rest_files.len());
         for rest in rest_files {
             let status = file_status(&rest.status)?;
-            let patch = patches
-                .get(&rest.filename)
-                .cloned()
+            let from_raw = patches.get(&rest.filename).cloned();
+            let candidate = match (from_raw, raw_diff.is_some()) {
+                (Some(patch), _) => Some(patch),
+                (None, false) => rest.patch.clone(),
+                (None, true) => None,
+            };
+            let patch = candidate
                 .map(|patch| {
                     if patch.len() > MAX_PATCH_BYTES {
                         PatchAvailability::TooLarge
