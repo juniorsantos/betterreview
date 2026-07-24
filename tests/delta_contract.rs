@@ -52,6 +52,7 @@ async fn invokes_delta_with_structure_preserving_arguments() {
             "--detect-dark-light=never",
             "--max-line-length=0",
             "--true-color=always",
+            "--no-gitconfig",
             "--plus-style=syntax #0e2919",
             "--minus-style=syntax #2f1a1d",
             "--plus-emph-style=syntax #1a4c2a",

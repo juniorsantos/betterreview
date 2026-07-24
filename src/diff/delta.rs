@@ -84,6 +84,10 @@ impl DiffRenderer for DeltaRenderer {
                     "--detect-dark-light=never".to_owned(),
                     "--max-line-length=0".to_owned(),
                     "--true-color=always".to_owned(),
+                    // Ignore the user's global delta config entirely: options
+                    // like line-numbers or side-by-side would corrupt the 1:1
+                    // row mapping the app depends on.
+                    "--no-gitconfig".to_owned(),
                     format!("--plus-style=syntax {}", crate::tui::theme::DELTA_PLUS_BG),
                     format!("--minus-style=syntax {}", crate::tui::theme::DELTA_MINUS_BG),
                     format!(
