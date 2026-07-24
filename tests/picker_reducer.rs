@@ -303,6 +303,16 @@ fn reload_falls_back_to_the_first_item_when_the_highlighted_review_is_gone() {
 }
 
 #[test]
+fn reload_with_no_items_reports_a_banner_and_keeps_previous_items() {
+    let mut state = PickerState::new(vec![item(1, true), item(2, false)], "owner/repo".into());
+
+    update(&mut state, PickerEvent::ListReloaded { items: Vec::new() });
+
+    assert_eq!(state.error_banner, Some("nenhum review aberto".to_string()));
+    assert_eq!(state.items.len(), 2);
+}
+
+#[test]
 fn list_failed_sets_the_error_banner() {
     let mut state = PickerState::new(vec![item(1, true)], "owner/repo".into());
 

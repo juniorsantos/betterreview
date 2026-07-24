@@ -212,6 +212,10 @@ fn loaded_update(
 }
 
 fn reload_update(state: &mut PickerState, mut items: Vec<PickerItem>) {
+    if items.is_empty() {
+        state.error_banner = Some("nenhum review aberto".into());
+        return;
+    }
     pin_current_branch(&mut items);
     let highlighted_number = state
         .items
