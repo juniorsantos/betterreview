@@ -657,7 +657,22 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
             Err(message) => state.error_banner = Some(message),
         },
         EffectOutcome::DraftCreated(result) | EffectOutcome::DraftUpdated(result) => match result {
-            Ok(draft) => {
+            Ok(mut draft) => {
+                // Update responses omit position data; keep the previous
+                // anchor so the card stays attached to its line.
+                if let Some(previous) = state
+                    .provider
+                    .drafts
+                    .iter()
+                    .find(|item| item.id == draft.id)
+                {
+                    if draft.selection.is_none() {
+                        draft.selection = previous.selection.clone();
+                    }
+                    if draft.thread_id.is_none() {
+                        draft.thread_id = previous.thread_id.clone();
+                    }
+                }
                 state.provider.drafts.retain(|item| item.id != draft.id);
                 state.provider.drafts.push(draft);
                 state.session.editor = None;

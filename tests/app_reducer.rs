@@ -1524,3 +1524,46 @@ fn search_with_no_matches_leaves_a_notice() {
             .any(|notice| notice.contains("sem resultados"))
     );
 }
+
+#[test]
+fn updating_a_draft_keeps_its_anchor() {
+    use betterreview::domain::{DiffPosition, DiffSelection, DiffSide, DraftComment, DraftId};
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let anchor = DiffPosition {
+        path: RepoPath("src/file_0.rs".into()),
+        side: DiffSide::Right,
+        line: 1,
+        hunk: 0,
+    };
+    state.provider.drafts.push(DraftComment {
+        id: DraftId("d1".into()),
+        body: "antes".into(),
+        selection: Some(DiffSelection {
+            start: anchor.clone(),
+            end: anchor,
+        }),
+        thread_id: None,
+    });
+
+    // The provider's update response carries no position information.
+    update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: 9,
+            generation: None,
+            outcome: EffectOutcome::DraftUpdated(Ok(DraftComment {
+                id: DraftId("d1".into()),
+                body: "depois".into(),
+                selection: None,
+                thread_id: None,
+            })),
+        })),
+    );
+
+    let draft = &state.provider.drafts[0];
+    assert_eq!(draft.body, "depois");
+    assert!(
+        draft.selection.is_some(),
+        "anchor must survive an update whose response omits it"
+    );
+}
