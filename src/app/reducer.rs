@@ -6,8 +6,8 @@ use crate::{
 };
 
 use super::{
-    AppAction, AppEffect, AppEvent, AppFocus, AppState, EffectEnvelope, EffectOutcome,
-    EffectResult, QuitChoice, SubmissionModal,
+    AppAction, AppEffect, AppEvent, AppFocus, AppState, DisplayRow, EffectEnvelope, EffectOutcome,
+    EffectResult, QuitChoice, SubmissionModal, display_rows,
 };
 
 pub fn update(state: &mut AppState, event: AppEvent) -> Vec<EffectEnvelope> {
@@ -56,20 +56,20 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
         AppAction::PreviousUnreviewed => navigate_unreviewed(state, -1),
         AppAction::MoveCursor(delta) => match state.focus {
             AppFocus::Files => navigate_by(state, delta.signum()),
-            AppFocus::Diff => {
-                let row_count = state
-                    .rendered_diff
-                    .as_ref()
-                    .map(|diff| diff.rows.len())
-                    .unwrap_or(0);
-                state.session.cursor_row = move_index(state.session.cursor_row, delta, row_count);
-                state.dirty = true;
-                Vec::new()
-            }
+            AppFocus::Diff => move_display_cursor(state, delta),
             AppFocus::Threads => Vec::new(),
         },
         AppAction::ToggleReviewed => toggle_reviewed(state),
         AppAction::ToggleSelection => {
+            let rows = display_rows(state);
+            let on_diff_row = matches!(
+                rows.get(state.display_cursor),
+                Some(DisplayRow::Diff { .. })
+            );
+            if !on_diff_row {
+                state.notices.push("mova para uma linha de código".into());
+                return Vec::new();
+            }
             state.selection_anchor = match state.selection_anchor {
                 Some(_) => None,
                 None => Some(state.session.cursor_row),
@@ -200,7 +200,77 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             }
             Vec::new()
         }
+        AppAction::ToggleComments => {
+            state.comments_hidden = !state.comments_hidden;
+            resync_display_cursor(state);
+            Vec::new()
+        }
     }
+}
+
+/// Moves `display_cursor` through the display rows, stopping only on rows
+/// where a comment could be opened or a code line selected: `Diff` rows and
+/// the first row of a `Comment` block. Continuation rows and the orphan
+/// header are skipped over. Landing on a `Diff` row keeps `session.cursor_row`
+/// in sync with it (the diff widget still scrolls by that value); landing on
+/// a comment leaves `session.cursor_row` at whatever it last was.
+fn move_display_cursor(state: &mut AppState, delta: i32) -> Vec<EffectEnvelope> {
+    let rows = display_rows(state);
+    if rows.is_empty() {
+        return Vec::new();
+    }
+    let mut index = state.display_cursor.min(rows.len() - 1);
+    let step = delta.signum();
+    for _ in 0..delta.unsigned_abs() {
+        match next_stop(&rows, index, step) {
+            Some(next) => index = next,
+            None => break,
+        }
+    }
+    state.display_cursor = index;
+    if let Some(DisplayRow::Diff { row }) = rows.get(index) {
+        state.session.cursor_row = *row;
+    }
+    state.dirty = true;
+    Vec::new()
+}
+
+fn is_display_stop(row: &DisplayRow) -> bool {
+    matches!(
+        row,
+        DisplayRow::Diff { .. }
+            | DisplayRow::Comment {
+                block_start: true,
+                ..
+            }
+    )
+}
+
+fn next_stop(rows: &[DisplayRow], from: usize, step: i32) -> Option<usize> {
+    if step == 0 {
+        return None;
+    }
+    let mut cursor = from as i64 + step as i64;
+    while cursor >= 0 && (cursor as usize) < rows.len() {
+        let index = cursor as usize;
+        if is_display_stop(&rows[index]) {
+            return Some(index);
+        }
+        cursor += step as i64;
+    }
+    None
+}
+
+/// Re-syncs `display_cursor` to the display row that carries the current
+/// `session.cursor_row` (used after toggling comment visibility, which
+/// changes what rows exist). Falls back to 0 when no row matches.
+fn resync_display_cursor(state: &mut AppState) {
+    let rows = display_rows(state);
+    let target = state.session.cursor_row;
+    state.display_cursor = rows
+        .iter()
+        .position(|row| matches!(row, DisplayRow::Diff { row } if *row == target))
+        .unwrap_or(0);
 }
 
 pub fn directory_of(path: &str) -> &str {
@@ -269,6 +339,7 @@ fn activate_file(state: &mut AppState, index: usize) -> Vec<EffectEnvelope> {
         .map(|file| file.path.clone());
     state.session.cursor_row = 0;
     state.session.scroll_row = 0;
+    state.display_cursor = 0;
     state.parsed_diff = None;
     state.rendered_diff = None;
     state.selection_anchor = None;
@@ -358,6 +429,12 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
                 state.parsed_diff = Some(result.parsed);
                 state.rendered_diff = Some(result.rendered);
                 state.error_banner = None;
+                let row_count = display_rows(state).len();
+                state.display_cursor = if row_count == 0 {
+                    0
+                } else {
+                    state.display_cursor.min(row_count - 1)
+                };
             }
             Err(message) => state.error_banner = Some(message),
         },

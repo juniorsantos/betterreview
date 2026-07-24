@@ -47,6 +47,7 @@ pub enum AppAction {
     ToggleHelp,
     ToggleFilesPanel,
     ToggleFold,
+    ToggleComments,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

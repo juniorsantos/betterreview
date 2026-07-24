@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use crate::diff::RenderedDiff;
 use crate::domain::{DiffPosition, DraftComment, DraftId, RepoPath, ReviewThread, ThreadId};
 
+use super::AppState;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommentEntry {
     Draft {
@@ -115,6 +117,32 @@ pub fn build_display_rows(
         }
     }
     rows
+}
+
+/// Convenience wrapper around [`build_display_rows`] that pulls its inputs
+/// straight from `AppState`: the currently rendered diff, the active
+/// change request's threads and drafts, the active file's path, and whether
+/// comments are currently hidden. Returns an empty vector when there is no
+/// rendered diff yet or no active file to anchor comments to.
+pub fn display_rows(state: &AppState) -> Vec<DisplayRow> {
+    let Some(rendered) = state.rendered_diff.as_ref() else {
+        return Vec::new();
+    };
+    let Some(active_path) = state
+        .provider
+        .files
+        .get(state.active_file_index)
+        .map(|file| &file.path)
+    else {
+        return Vec::new();
+    };
+    build_display_rows(
+        rendered,
+        &state.provider.threads,
+        &state.provider.drafts,
+        active_path,
+        state.comments_hidden,
+    )
 }
 
 /// A draft belongs to `active_path` when its selection targets that file, or

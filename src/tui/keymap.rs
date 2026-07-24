@@ -50,6 +50,7 @@ pub fn key_to_action(event: KeyEvent) -> Option<AppAction> {
         (KeyCode::Char('e'), KeyModifiers::NONE) => Some(AppAction::ToggleFilesPanel),
         (KeyCode::Char('z'), KeyModifiers::NONE) => Some(AppAction::ToggleFold),
         (KeyCode::Char('R'), _) => Some(AppAction::OpenSubmit),
+        (KeyCode::Char('T'), _) => Some(AppAction::ToggleComments),
         (KeyCode::Char('r'), KeyModifiers::NONE) => Some(AppAction::Refresh),
         (KeyCode::Char('q'), KeyModifiers::NONE) => Some(AppAction::Quit),
         (KeyCode::Char('?'), _) => Some(AppAction::ToggleHelp),

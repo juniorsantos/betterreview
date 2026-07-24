@@ -5,7 +5,7 @@ mod reducer;
 mod runtime;
 mod state;
 
-pub use display::{CommentEntry, DisplayRow, build_display_rows};
+pub use display::{CommentEntry, DisplayRow, build_display_rows, display_rows};
 pub use effect::{AppEffect, EffectEnvelope, EffectOutcome, EffectResult, RenderedFile};
 pub use event::{AppAction, AppEvent, QuitChoice};
 pub use reducer::update;

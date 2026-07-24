@@ -7,8 +7,9 @@ use betterreview::{
     },
     diff::{ParsedFileDiff, RenderedDiff, RenderedRow, RowBinding},
     domain::{
-        ChangeRequestKey, ChangedFile, CommitOid, FileStatus, PatchAvailability,
-        ProviderCapabilities, ProviderKind, ProviderSnapshot, RepoPath, ReviewOutcome, SubmitMode,
+        ChangeRequestKey, ChangedFile, CommitOid, DiffPosition, DiffSide, FileStatus,
+        PatchAvailability, ProviderCapabilities, ProviderKind, ProviderSnapshot, RepoPath,
+        ReviewComment, ReviewOutcome, ReviewThread, SubmitMode, ThreadId,
     },
     state::{ContentIdentity, FileProgress, ReviewSync, SESSION_SCHEMA_VERSION, SessionSnapshot},
 };
@@ -401,6 +402,163 @@ fn app_with_two_directories() -> AppState {
     state.session.active_file = Some(RepoPath("a/one.rs".into()));
     state.active_file_index = 0;
     state
+}
+
+fn comment_pos(path: &RepoPath, side: DiffSide, line: u32) -> DiffPosition {
+    DiffPosition {
+        path: path.clone(),
+        side,
+        line,
+        hunk: 0,
+    }
+}
+
+fn diff_row(
+    row_index: usize,
+    left: Option<DiffPosition>,
+    right: Option<DiffPosition>,
+) -> RenderedRow {
+    RenderedRow {
+        text: Line::raw(format!("row-{row_index}")),
+        binding: RowBinding {
+            row_index,
+            left,
+            right,
+        },
+    }
+}
+
+/// Three diff rows with a multi-line thread comment anchored to row 0
+/// (right line 1). With comments shown the display rows are:
+/// `[Diff{0}, Comment(start), Comment, Comment, Diff{1}, Diff{2}]`.
+fn state_with_multiline_comment() -> AppState {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let path = RepoPath("src/file_0.rs".into());
+    state.rendered_diff = Some(RenderedDiff {
+        rows: vec![
+            diff_row(
+                0,
+                Some(comment_pos(&path, DiffSide::Left, 1)),
+                Some(comment_pos(&path, DiffSide::Right, 1)),
+            ),
+            diff_row(1, Some(comment_pos(&path, DiffSide::Left, 2)), None),
+            diff_row(2, None, Some(comment_pos(&path, DiffSide::Right, 3))),
+        ],
+    });
+    state.provider.threads.push(ReviewThread {
+        id: ThreadId("t1".into()),
+        path,
+        resolved: false,
+        outdated: false,
+        comments: vec![ReviewComment {
+            id: "c1".into(),
+            author: "alice".into(),
+            body: "line1\nline2\nline3".into(),
+            position: Some(comment_pos(
+                &RepoPath("src/file_0.rs".into()),
+                DiffSide::Right,
+                1,
+            )),
+            pending: false,
+        }],
+    });
+    state
+}
+
+#[test]
+fn cursor_walks_through_comment_blocks() {
+    let mut state = state_with_multiline_comment();
+    assert_eq!(state.display_cursor, 0);
+
+    update(&mut state, AppEvent::Action(AppAction::MoveCursor(1)));
+    assert_eq!(state.display_cursor, 1, "lands on the comment block start");
+    assert_eq!(state.session.cursor_row, 0);
+
+    update(&mut state, AppEvent::Action(AppAction::MoveCursor(1)));
+    assert_eq!(
+        state.display_cursor, 4,
+        "continuation rows are skipped, landing on Diff{{1}}"
+    );
+    assert_eq!(state.session.cursor_row, 1);
+
+    update(&mut state, AppEvent::Action(AppAction::MoveCursor(1)));
+    assert_eq!(state.display_cursor, 5);
+    assert_eq!(state.session.cursor_row, 2);
+
+    update(&mut state, AppEvent::Action(AppAction::MoveCursor(1)));
+    assert_eq!(state.display_cursor, 5, "clamped at the last row, no wrap");
+    assert_eq!(state.session.cursor_row, 2);
+
+    update(&mut state, AppEvent::Action(AppAction::MoveCursor(-1)));
+    assert_eq!(state.display_cursor, 4);
+    assert_eq!(state.session.cursor_row, 1);
+
+    update(&mut state, AppEvent::Action(AppAction::MoveCursor(-1)));
+    assert_eq!(state.display_cursor, 1);
+    assert_eq!(state.session.cursor_row, 1);
+
+    update(&mut state, AppEvent::Action(AppAction::MoveCursor(-1)));
+    assert_eq!(state.display_cursor, 0);
+    assert_eq!(state.session.cursor_row, 0);
+
+    update(&mut state, AppEvent::Action(AppAction::MoveCursor(-1)));
+    assert_eq!(state.display_cursor, 0, "clamped at the first row, no wrap");
+    assert_eq!(state.session.cursor_row, 0);
+}
+
+#[test]
+fn cursor_on_comment_keeps_session_row() {
+    let mut state = state_with_multiline_comment();
+    state.session.cursor_row = 5;
+    state.display_cursor = 0;
+
+    update(&mut state, AppEvent::Action(AppAction::MoveCursor(1)));
+
+    assert_eq!(state.display_cursor, 1);
+    assert_eq!(
+        state.session.cursor_row, 5,
+        "landing on a comment row must not touch session.cursor_row"
+    );
+}
+
+#[test]
+fn selection_refused_on_comment_rows() {
+    let mut state = state_with_multiline_comment();
+    state.display_cursor = 1;
+
+    let effects = update(&mut state, AppEvent::Action(AppAction::ToggleSelection));
+
+    assert!(effects.is_empty());
+    assert!(state.selection_anchor.is_none());
+    assert!(
+        state
+            .notices
+            .iter()
+            .any(|notice| notice.contains("mova para uma linha de código"))
+    );
+}
+
+#[test]
+fn toggle_comments_resyncs_cursor() {
+    let mut state = state_with_multiline_comment();
+    state.display_cursor = 4;
+    state.session.cursor_row = 1;
+
+    update(&mut state, AppEvent::Action(AppAction::ToggleComments));
+
+    assert!(state.comments_hidden);
+    assert_eq!(
+        state.display_cursor, 1,
+        "hidden display rows are just the diff rows: Diff{{1}} is index 1"
+    );
+
+    update(&mut state, AppEvent::Action(AppAction::ToggleComments));
+
+    assert!(!state.comments_hidden);
+    assert_eq!(
+        state.display_cursor, 4,
+        "re-synced back to Diff{{1}} once comments are shown again"
+    );
 }
 
 #[test]
