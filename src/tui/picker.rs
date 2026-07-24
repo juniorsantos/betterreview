@@ -213,6 +213,7 @@ fn reload_update(state: &mut PickerState, mut items: Vec<PickerItem>) {
     pin_current_branch(&mut items);
     state.items = items;
     state.highlight = state.highlight.min(state.items.len().saturating_sub(1));
+    state.errors.clear();
 }
 
 /// Maps freshly-listed change request summaries into `PickerItem`s, marking

@@ -239,6 +239,31 @@ fn mark_items_marks_nothing_when_branch_is_none() {
 }
 
 #[test]
+fn reload_clears_stale_errors_so_the_item_can_reprefetch() {
+    let mut state = PickerState::new(vec![item(1, true)]);
+
+    update(&mut state, PickerEvent::Tick);
+    update(
+        &mut state,
+        PickerEvent::Loaded {
+            number: 1,
+            result: Err("boom".into()),
+        },
+    );
+    assert_eq!(state.errors.get(&1), Some(&"boom".to_string()));
+
+    update(
+        &mut state,
+        PickerEvent::ListReloaded {
+            items: vec![item(1, true)],
+        },
+    );
+
+    let commands = update(&mut state, PickerEvent::Tick);
+    assert_eq!(commands, vec![PickerCommand::StartPrefetch(1)]);
+}
+
+#[test]
 fn list_failed_sets_the_error_banner() {
     let mut state = PickerState::new(vec![item(1, true)]);
 
