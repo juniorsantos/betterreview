@@ -28,6 +28,11 @@ pub enum CommentRowKind {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DisplayRow {
+    /// Single line at the top naming the file under review (replaces the
+    /// raw `diff --git`/`index` header block).
+    FileHeader {
+        path: String,
+    },
     Diff {
         row: usize,
     },
@@ -180,6 +185,12 @@ pub fn refresh_display_rows(state: &mut AppState) {
         state
             .display_rows
             .retain(|row| !matches!(row, DisplayRow::Diff { row } if hidden.get(*row).copied().unwrap_or(false)));
+        state.display_rows.insert(
+            0,
+            DisplayRow::FileHeader {
+                path: parsed.path.0.clone(),
+            },
+        );
     }
     let target = state.session.cursor_row;
     state.display_cursor = state
@@ -224,7 +235,7 @@ fn row_search_text(state: &AppState, row: &DisplayRow) -> Option<String> {
             .get(*row)
             .map(|rendered| line_text(&rendered.text)),
         DisplayRow::Comment { text, .. } => Some(text.clone()),
-        DisplayRow::OrphanHeader => None,
+        DisplayRow::FileHeader { .. } | DisplayRow::OrphanHeader => None,
     }
 }
 

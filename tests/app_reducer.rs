@@ -367,14 +367,14 @@ fn resume_keeps_the_cursor_position_after_first_render() {
     );
 
     assert_eq!(
-        state.display_cursor, 2,
+        state.display_cursor, 3,
         "resuming a session must land the cursor back on session.cursor_row, not on row 0"
     );
 
     update(&mut state, AppEvent::Action(AppAction::MoveCursor(1)));
 
     assert_eq!(
-        state.display_cursor, 3,
+        state.display_cursor, 4,
         "the first move must step from the restored position, not from 0"
     );
     assert_eq!(state.session.cursor_row, 3);
@@ -1315,24 +1315,24 @@ fn state_with_two_hunks() -> AppState {
 #[test]
 fn bracket_h_jumps_to_the_next_hunk_header() {
     let mut state = state_with_two_hunks();
-    assert_eq!(state.display_cursor, 0, "starts on the first hunk header");
+    assert_eq!(state.display_cursor, 1, "starts on the first hunk header");
 
     update(&mut state, AppEvent::Action(AppAction::NextHunk));
 
-    assert_eq!(state.display_cursor, 2, "lands on the second hunk header");
+    assert_eq!(state.display_cursor, 3, "lands on the second hunk header");
     assert_eq!(state.session.cursor_row, 2);
 }
 
 #[test]
 fn hunk_jump_clamps_at_the_last_hunk() {
     let mut state = state_with_two_hunks();
-    state.display_cursor = 2;
+    state.display_cursor = 3;
     state.session.cursor_row = 2;
 
     update(&mut state, AppEvent::Action(AppAction::NextHunk));
 
     assert_eq!(
-        state.display_cursor, 2,
+        state.display_cursor, 3,
         "clamped, no wrap past the last hunk"
     );
     assert!(

@@ -67,6 +67,12 @@ fn render_display_row(
             text,
             author,
         } => comment_line(state, entry, *kind, text, author.as_deref(), inner_width),
+        DisplayRow::FileHeader { path } => Line::styled(
+            path.clone(),
+            Style::default()
+                .fg(theme::ACCENT)
+                .add_modifier(Modifier::BOLD),
+        ),
         DisplayRow::OrphanHeader => Line::styled(
             "— comentários desatualizados —",
             Style::default().fg(theme::MUTED),

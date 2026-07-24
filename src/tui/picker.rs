@@ -317,6 +317,7 @@ pub fn render(frame: &mut Frame, state: &PickerState) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1),
+            Constraint::Length(1),
             Constraint::Min(1),
             Constraint::Length(1),
         ])
@@ -588,13 +589,12 @@ fn truncate_title(title: &str, budget: usize) -> String {
 /// and pads it with trailing spaces so it always occupies exactly `width`
 /// columns — the building block for aligned table columns.
 fn pad_cell(text: &str, width: usize) -> String {
-    let truncated = truncate_title(text, width);
+    // Always keep at least two trailing spaces as the column gap, so a
+    // full-width value never glues onto its neighbor.
+    let gap = 2usize.min(width.saturating_sub(1));
+    let truncated = truncate_title(text, width.saturating_sub(gap));
     let used = truncated.chars().count();
-    if used >= width {
-        truncated
-    } else {
-        format!("{truncated}{}", " ".repeat(width - used))
-    }
+    format!("{truncated}{}", " ".repeat(width.saturating_sub(used)))
 }
 
 /// Draws the rounded description panel: title + `#N · aberto`, the
