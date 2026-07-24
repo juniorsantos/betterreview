@@ -218,7 +218,7 @@ fn narrow_terminal_hides_the_branch_column() {
     let terminal = draw_sized(&picker, 60, 30);
     let list_lines: Vec<String> = screen_sized(&terminal, 60, 30)
         .lines()
-        .take_while(|line| !line.contains("[1] Descrição da revisão"))
+        .take_while(|line| !line.contains("[1] Descrição"))
         .map(str::to_owned)
         .collect();
     let list_screen = list_lines.join("\n");
@@ -309,7 +309,7 @@ fn detail_panel_shows_the_highlighted_items_description() {
 
     let screen = screen(&draw(&picker));
 
-    assert!(screen.contains("[1] Descrição da revisão"));
+    assert!(screen.contains("[1] Descrição"));
     assert!(screen.contains("Body of the second review."));
     assert!(!screen.contains("Body of the first review."));
 }
@@ -333,7 +333,7 @@ fn detail_panel_is_hidden_on_very_short_terminals() {
     let terminal = draw_sized(&picker, 100, 13);
     let screen = screen_sized(&terminal, 100, 13);
 
-    assert!(!screen.contains("[1] Descrição da revisão"));
+    assert!(!screen.contains("[1] Descrição"));
     assert!(!screen.contains("hidden body text"));
 }
 
@@ -358,7 +358,7 @@ fn tab_moves_the_accent_border_to_the_focused_panel() {
 
     let detail_border_row = screen
         .lines()
-        .position(|line| line.contains("[1] Descrição da revisão"))
+        .position(|line| line.contains("[1] Descrição"))
         .expect("detail panel title rendered");
     let detail_border_col =
         char_offset(screen.lines().nth(detail_border_row).unwrap(), "╭").unwrap();

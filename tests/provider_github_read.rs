@@ -314,3 +314,28 @@ async fn falls_back_to_rest_patches_when_the_raw_diff_is_too_large() {
     ));
     assert_eq!(snapshot.files.len(), 3);
 }
+
+#[tokio::test]
+async fn own_pull_request_disables_approve_and_request_changes() {
+    use betterreview::domain::{ReviewOutcome, Support};
+    // The fixture's viewer login matches the PR author (alice).
+    let runner = Arc::new(RoutingRunner::new());
+    let provider = GitHubProvider::new(runner);
+
+    let snapshot = provider.load(&github_key()).await.unwrap();
+
+    assert!(matches!(
+        snapshot.capabilities.for_outcome(ReviewOutcome::Approve),
+        Support::Unsupported { .. }
+    ));
+    assert!(matches!(
+        snapshot
+            .capabilities
+            .for_outcome(ReviewOutcome::RequestChanges),
+        Support::Unsupported { .. }
+    ));
+    assert!(matches!(
+        snapshot.capabilities.for_outcome(ReviewOutcome::Comment),
+        Support::Supported
+    ));
+}

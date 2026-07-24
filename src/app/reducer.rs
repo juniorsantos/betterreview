@@ -176,6 +176,12 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             AppEffect::ResolveThread { thread, resolved },
         )],
         AppAction::SubmitReview { summary, outcome } => {
+            if let Support::Unsupported { reason } =
+                state.provider.capabilities.for_outcome(outcome)
+            {
+                push_notice(state, format!("indisponível: {reason}"));
+                return Vec::new();
+            }
             let request = SubmitRequest {
                 expected_head: state.provider.head.clone(),
                 summary: summary.clone(),

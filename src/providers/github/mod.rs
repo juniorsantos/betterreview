@@ -51,7 +51,7 @@ where
         repository_parts(&key.repository)?;
         // GitHub refuses the whole-PR raw diff above 20k lines (HTTP 406);
         // fall back to the per-file patches the files endpoint already carries.
-        let ((metadata, wire_threads, viewed), rest_files, raw_diff) = tokio::try_join!(
+        let ((metadata, wire_threads, viewed, viewer_login), rest_files, raw_diff) = tokio::try_join!(
             self.load_graphql_snapshot(key),
             self.load_rest_files(key),
             async { Ok(self.load_raw_diff(key).await.ok()) },
@@ -111,31 +111,51 @@ where
         }
 
         let (threads, drafts) = map_threads(wire_threads);
+        let author = metadata
+            .author
+            .map_or_else(|| "unknown".into(), |author| author.login);
+        let mut capabilities = ProviderCapabilities::all_supported();
+        // GitHub refuses approving or requesting changes on your own PR;
+        // surface that in the submit modal instead of failing at submit.
+        if viewer_login.as_deref() == Some(author.as_str()) {
+            let own = crate::domain::Support::Unsupported {
+                reason: "o GitHub não permite no próprio pull request".into(),
+            };
+            capabilities.approve = own.clone();
+            capabilities.request_changes = own;
+        }
         Ok(ProviderSnapshot {
             key: key.clone(),
             title: metadata.title,
-            author: metadata
-                .author
-                .map_or_else(|| "unknown".into(), |author| author.login),
+            author,
             web_url: metadata.url,
             base: CommitOid(metadata.base_ref_oid),
             head: CommitOid(metadata.head_ref_oid),
             files,
             threads,
             drafts,
-            capabilities: ProviderCapabilities::all_supported(),
+            capabilities,
         })
     }
 
     async fn load_graphql_snapshot(
         &self,
         key: &ChangeRequestKey,
-    ) -> Result<(PullRequest, Vec<WireThread>, BTreeMap<String, Option<bool>>), ProviderError> {
+    ) -> Result<
+        (
+            PullRequest,
+            Vec<WireThread>,
+            BTreeMap<String, Option<bool>>,
+            Option<String>,
+        ),
+        ProviderError,
+    > {
         let (owner, name) = repository_parts(&key.repository)?;
         let mut cursor: Option<String> = None;
         let mut metadata: Option<PullRequest> = None;
         let mut wire_threads = Vec::new();
         let mut viewed = BTreeMap::new();
+        let mut viewer_login: Option<String> = None;
 
         loop {
             let bytes = self
@@ -154,8 +174,14 @@ where
                 .await?;
             let envelope: GraphQlEnvelope<SnapshotData> = parse_json(&bytes, "load pull request")?;
             ensure_graphql(&envelope, "load pull request")?;
-            let pull_request = envelope
-                .data
+            let data = envelope.data;
+            if viewer_login.is_none() {
+                viewer_login = data
+                    .as_ref()
+                    .and_then(|data| data.viewer.as_ref())
+                    .map(|viewer| viewer.login.clone());
+            }
+            let pull_request = data
                 .and_then(|data| data.repository)
                 .and_then(|repository| repository.pull_request)
                 .ok_or_else(|| ProviderError::NotFound {
@@ -196,7 +222,7 @@ where
                 "response number did not match the requested pull request",
             ));
         }
-        Ok((metadata, wire_threads, viewed))
+        Ok((metadata, wire_threads, viewed, viewer_login))
     }
 
     async fn load_rest_files(

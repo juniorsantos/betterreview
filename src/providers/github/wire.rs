@@ -14,6 +14,7 @@ pub struct GraphQlError {
 
 #[derive(Deserialize)]
 pub struct SnapshotData {
+    pub viewer: Option<Author>,
     pub repository: Option<SnapshotRepository>,
 }
 

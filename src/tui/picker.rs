@@ -423,12 +423,12 @@ struct Columns {
 }
 
 const CURSOR_WIDTH: usize = 2;
-const PR_WIDTH: usize = 6;
+const PR_WIDTH: usize = 7;
 const AUTHOR_DOT_WIDTH: usize = 2;
-const AUTHOR_TEXT_WIDTH: usize = 10;
+const AUTHOR_TEXT_WIDTH: usize = 14;
 const AUTHOR_WIDTH: usize = AUTHOR_DOT_WIDTH + AUTHOR_TEXT_WIDTH;
-const BRANCH_WIDTH: usize = 16;
-const QUANDO_WIDTH: usize = 6;
+const BRANCH_WIDTH: usize = 20;
+const QUANDO_WIDTH: usize = 8;
 /// Room reserved after QUANDO for the ragged " draft"/" sessão" badges, so
 /// they never get clipped by the panel's right edge.
 const BADGE_RESERVE: usize = 14;
@@ -607,7 +607,7 @@ fn pad_cell(text: &str, width: usize) -> String {
 fn render_detail(frame: &mut Frame, area: Rect, state: &PickerState, focused: bool) {
     let block = Block::default()
         .padding(ratatui::widgets::Padding::horizontal(1))
-        .title(" [1] Descrição da revisão ")
+        .title(" [1] Descrição — Tab/1 foco · j/k rolar ")
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(panel_border_style(focused));

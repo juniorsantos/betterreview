@@ -1,5 +1,6 @@
 pub const SNAPSHOT_QUERY: &str = r#"
 query ReviewSnapshot($owner: String!, $name: String!, $number: Int!, $cursor: String) {
+  viewer { login }
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
       number title url baseRefOid headRefOid

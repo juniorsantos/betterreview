@@ -5,14 +5,25 @@
         "number": 42,
         "title": "Improve review flow",
         "url": "https://ghe.acme.test/acme/api/pull/42",
-        "author": { "login": "alice" },
+        "author": {
+          "login": "alice"
+        },
         "baseRefOid": "base-oid",
         "headRefOid": "head-oid",
         "files": {
           "nodes": [
-            { "path": "src/one.rs", "viewerViewedState": "VIEWED" },
-            { "path": "src/two.rs", "viewerViewedState": "UNVIEWED" },
-            { "path": "src/old.rs", "viewerViewedState": null }
+            {
+              "path": "src/one.rs",
+              "viewerViewedState": "VIEWED"
+            },
+            {
+              "path": "src/two.rs",
+              "viewerViewedState": "UNVIEWED"
+            },
+            {
+              "path": "src/old.rs",
+              "viewerViewedState": null
+            }
           ]
         },
         "reviewThreads": {
@@ -28,28 +39,42 @@
                   {
                     "id": "comment-1",
                     "body": "published",
-                    "author": { "login": "bob" },
+                    "author": {
+                      "login": "bob"
+                    },
                     "line": 2,
                     "originalLine": null,
                     "viewerDidAuthor": false,
-                    "pullRequestReview": { "state": "COMMENTED" }
+                    "pullRequestReview": {
+                      "state": "COMMENTED"
+                    }
                   },
                   {
                     "id": "draft-1",
                     "body": "pending draft",
-                    "author": { "login": "viewer" },
+                    "author": {
+                      "login": "viewer"
+                    },
                     "line": 3,
                     "originalLine": null,
                     "viewerDidAuthor": true,
-                    "pullRequestReview": { "state": "PENDING" }
+                    "pullRequestReview": {
+                      "state": "PENDING"
+                    }
                   }
                 ]
               }
             }
           ],
-          "pageInfo": { "hasNextPage": true, "endCursor": "cursor-1" }
+          "pageInfo": {
+            "hasNextPage": true,
+            "endCursor": "cursor-1"
+          }
         }
       }
+    },
+    "viewer": {
+      "login": "alice"
     }
   }
 }

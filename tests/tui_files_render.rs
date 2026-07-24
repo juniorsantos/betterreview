@@ -167,7 +167,7 @@ fn e_toggles_the_expanded_files_panel() {
     });
     let corner = |text: &str| {
         text.lines()
-            .nth(1)
+            .nth(2)
             .map(|line| line.find('┐').unwrap_or(0))
             .unwrap_or(0)
     };

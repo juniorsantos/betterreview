@@ -22,6 +22,7 @@ pub fn render(frame: &mut Frame, state: &AppState) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1),
+            Constraint::Length(1),
             Constraint::Min(1),
             Constraint::Length(1),
         ])
@@ -44,19 +45,19 @@ pub fn render(frame: &mut Frame, state: &AppState) {
         let columns = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Length(files_width), Constraint::Min(1)])
-            .split(rows[1]);
+            .split(rows[2]);
         files::render(frame, columns[0], state);
         diff::render(frame, columns[1], state);
     } else {
-        diff::render(frame, rows[1], state);
+        diff::render(frame, rows[2], state);
         if state.focus == AppFocus::Files {
-            let overlay = inset(rows[1], 2, 1);
+            let overlay = inset(rows[2], 2, 1);
             frame.render_widget(Clear, overlay);
             files::render(frame, overlay, state);
         }
     }
 
-    status::render(frame, rows[2], state);
+    status::render(frame, rows[3], state);
 
     help::render(frame, area, state);
     threads::render(frame, area, state);

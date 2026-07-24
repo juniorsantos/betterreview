@@ -3,10 +3,10 @@ source: tests/tui_navigation.rs
 expression: "screen(&app(), 50, 16)"
 ---
  betterreview  owner/repo #42 · Add terminal revie
+
 ┌ [3] Diff ──────────────────────────────────────┐
 │     8 -old                                     │
 │     8 +new                                     │
-│                                                │
 │                                                │
 │                                                │
 │                                                │

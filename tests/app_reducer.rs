@@ -10,7 +10,7 @@ use betterreview::{
         ChangeRequestKey, ChangedFile, CommitOid, DiffPosition, DiffSelection, DiffSide,
         DraftComment, DraftId, FileStatus, PatchAvailability, ProviderCapabilities, ProviderKind,
         ProviderSnapshot, RepoPath, ReviewComment, ReviewOutcome, ReviewThread, SubmitMode,
-        SubmitResult, ThreadId,
+        SubmitResult, Support, ThreadId,
     },
     providers::DraftBody,
     state::{ContentIdentity, FileProgress, ReviewSync, SESSION_SCHEMA_VERSION, SessionSnapshot},
@@ -1746,5 +1746,35 @@ fn a_created_draft_appears_as_an_inline_card() {
             .iter()
             .any(|row| matches!(row, betterreview::app::DisplayRow::Comment { text, .. } if text == "apareça")),
         "the freshly created draft must appear anchored in the display"
+    );
+}
+
+#[test]
+fn submitting_an_unsupported_outcome_is_refused_with_a_notice() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    state.provider.capabilities.approve = Support::Unsupported {
+        reason: "o GitHub não permite no próprio pull request".into(),
+    };
+    state.submission_modal = Some(betterreview::app::SubmissionModal {
+        summary: "ok".into(),
+        outcome: ReviewOutcome::Approve,
+        selected_field: 0,
+    });
+
+    let effects = update(
+        &mut state,
+        AppEvent::Action(AppAction::SubmitReview {
+            summary: "ok".into(),
+            outcome: ReviewOutcome::Approve,
+        }),
+    );
+
+    assert!(effects.is_empty(), "no submit effect may be scheduled");
+    assert!(state.session.pending_submit.is_none());
+    assert!(
+        state
+            .notices
+            .last()
+            .is_some_and(|notice| notice.contains("não permite"))
     );
 }
