@@ -185,6 +185,9 @@ pub fn handle_key(app: &mut AppState, keymap: &mut KeyMap, key: KeyEvent) -> Opt
         app.search_input = Some(String::new());
         return None;
     }
+    if app.focus == AppFocus::Files && key.code == KeyCode::Enter {
+        return action(AppAction::ToggleFold);
+    }
     if app.focus == AppFocus::Diff {
         if let Some(event) = gap_row_key(app, key) {
             return Some(event);

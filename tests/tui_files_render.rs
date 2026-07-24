@@ -268,3 +268,47 @@ fn reviewed_files_show_a_checked_checkbox() {
     assert!(screen.contains("[x] M one.rs"));
     assert!(screen.contains("[ ] A two.rs"));
 }
+
+#[test]
+fn folded_directory_with_the_active_file_shows_the_highlight() {
+    let mut state = app();
+    state.collapsed_dirs.insert("src/app".into());
+    // active file is src/app/one.rs (inside the folded dir)
+    let mut terminal = Terminal::new(TestBackend::new(100, 30)).unwrap();
+    terminal
+        .draw(|frame| betterreview::tui::render(frame, &state))
+        .unwrap();
+    let buffer = terminal.backend().buffer().clone();
+    let row = (0..30)
+        .find(|y| {
+            (0..100)
+                .map(|x| buffer.cell((x, *y)).unwrap().symbol())
+                .collect::<String>()
+                .contains("▸ src/app/")
+        })
+        .expect("folded header rendered");
+    let cell = buffer.cell((3, row)).unwrap();
+    assert_eq!(
+        cell.style().bg,
+        Some(betterreview::tui::theme::CURSOR_LINE),
+        "the folded folder holding the active file must be highlighted"
+    );
+}
+
+#[test]
+fn enter_toggles_the_fold_when_files_panel_is_focused() {
+    let mut app = app();
+    app.focus = betterreview::app::AppFocus::Files;
+    let mut keymap = KeyMap::default();
+
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+    );
+
+    assert!(matches!(
+        event,
+        Some(AppEvent::Action(AppAction::ToggleFold))
+    ));
+}

@@ -48,13 +48,34 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             Row::Directory { dir, folded } => {
                 let (reviewed, total) = directory_progress(state, dir);
                 // Chevron orientation signals the fold state: ▸ collapsed,
-                // ▾ expanded (toggled with z).
+                // ▾ expanded (toggled with z/Enter).
                 let text = if *folded {
                     format!("\u{25b8} {dir}/ ({reviewed}/{total})")
                 } else {
                     format!("\u{25be} {dir}/")
                 };
-                ListItem::new(Line::styled(text, Style::default().fg(theme::ACCENT)))
+                // A folded folder holding the active file carries the
+                // highlight so the current position never disappears.
+                let holds_active = *folded
+                    && state
+                        .provider
+                        .files
+                        .get(state.active_file_index)
+                        .is_some_and(|file| split_path(&file.path.0).0 == *dir);
+                let mut line = Line::styled(text, Style::default().fg(theme::ACCENT));
+                if holds_active {
+                    let text_width = line.width();
+                    if text_width < inner_width {
+                        line.spans
+                            .push(Span::raw(" ".repeat(inner_width - text_width)));
+                    }
+                    line = line.style(
+                        Style::default()
+                            .bg(theme::CURSOR_LINE)
+                            .add_modifier(Modifier::BOLD),
+                    );
+                }
+                ListItem::new(line)
             }
             Row::File { index, file } => file_item(state, *index, file, inner_width),
         })

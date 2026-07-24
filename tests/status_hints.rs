@@ -117,10 +117,12 @@ fn footer_row_is_gone_and_the_layout_is_three_rows() {
 #[test]
 fn status_right_side_shows_key_accent_hints() {
     let state = app();
-    let lines = screen(&state, 100, 24);
+    let lines = screen(&state, 150, 24);
     let row = status_row(&lines);
 
+    assert!(row.contains("hunk"), "expected hunk hint, got: {row:?}");
     assert!(row.contains("enviar"), "expected enviar hint, got: {row:?}");
+    assert!(row.contains("comentário"));
     assert!(row.contains("sair"), "expected sair hint, got: {row:?}");
     assert!(row.contains("buscar"), "expected buscar hint, got: {row:?}");
     assert!(row.contains("ajuda"), "expected ajuda hint, got: {row:?}");
@@ -129,12 +131,12 @@ fn status_right_side_shows_key_accent_hints() {
 #[test]
 fn status_hint_keys_render_in_accent_bold() {
     let state = app();
-    let backend = TestBackend::new(100, 24);
+    let backend = TestBackend::new(140, 24);
     let mut terminal = Terminal::new(backend).unwrap();
     terminal.draw(|frame| render(frame, &state)).unwrap();
     let buffer = terminal.backend().buffer();
     let row = 23u16;
-    let line: String = (0..100)
+    let line: String = (0..140)
         .map(|x| buffer.cell((x, row)).unwrap().symbol())
         .collect();
 

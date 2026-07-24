@@ -80,7 +80,11 @@ fn render_display_row(
         DisplayRow::Gap { hidden, .. } => Line::from(vec![
             Span::raw(GUTTER),
             Span::styled(
-                format!("· · · {hidden} linhas ocultas · · · — z expandir"),
+                if *hidden == 0 {
+                    "· · · z carrega o restante do arquivo · · ·".to_owned()
+                } else {
+                    format!("· · · {hidden} linhas ocultas · · · — z expandir")
+                },
                 Style::default().fg(theme::MUTED),
             ),
         ]),

@@ -267,12 +267,19 @@ fn insert_gap_rows(state: &mut AppState) {
         last_new_line = Some(new_line);
     }
 
-    if let (Some(total), Some(prev), Some(last_index)) =
-        (total_lines, last_new_line, last_diff_display_index)
-    {
-        if total > prev {
-            insert_before.insert(last_index + 1, (prev, (total - prev) as usize));
+    match (total_lines, last_new_line, last_diff_display_index) {
+        (Some(total), Some(prev), Some(last_index)) => {
+            if total > prev {
+                insert_before.insert(last_index + 1, (prev, (total - prev) as usize));
+            }
         }
+        // File length still unknown: offer a speculative trailing gap
+        // (hidden == 0 is the "unknown" sentinel) so `z` can bootstrap the
+        // first load even in single-hunk diffs.
+        (None, Some(prev), Some(last_index)) => {
+            insert_before.insert(last_index + 1, (prev, 0));
+        }
+        _ => {}
     }
 
     if insert_before.is_empty() {

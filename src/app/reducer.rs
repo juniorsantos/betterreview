@@ -278,6 +278,10 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             // `z` is contextual: folders only from the Files panel (in the
             // diff it expands hidden-context gaps via the key dispatch).
             if state.focus != AppFocus::Files {
+                push_notice(
+                    state,
+                    "z expande as lacunas `· · ·` do diff; para pastas, foque o painel [2]",
+                );
                 return Vec::new();
             }
             if let Some(file) = state.provider.files.get(state.active_file_index) {

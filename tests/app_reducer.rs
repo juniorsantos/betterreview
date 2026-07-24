@@ -1833,6 +1833,10 @@ fn gap_row_sits_between_the_two_hunks_with_the_right_hidden_count() {
                 hidden: 3
             },
             DisplayRow::Diff { row: 3 },
+            DisplayRow::Gap {
+                after_new_line: 5,
+                hidden: 0
+            },
         ],
         "lines 2-4 sit between the hunk covering line 1 and the one covering line 5"
     );
@@ -1887,6 +1891,10 @@ fn leading_gap_appears_when_the_first_hunk_starts_past_line_one() {
                 hidden: 4
             },
             DisplayRow::Diff { row: 1 },
+            DisplayRow::Gap {
+                after_new_line: 5,
+                hidden: 0
+            },
         ]
     );
 }
