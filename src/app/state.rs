@@ -6,6 +6,8 @@ use crate::{
     state::SessionSnapshot,
 };
 
+use super::DisplayRow;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AppFocus {
     Files,
@@ -46,6 +48,7 @@ pub struct AppState {
     pub collapsed_dirs: BTreeSet<String>,
     pub display_cursor: usize,
     pub comments_hidden: bool,
+    pub display_rows: Vec<DisplayRow>,
 }
 
 impl AppState {
@@ -82,6 +85,7 @@ impl AppState {
             collapsed_dirs: BTreeSet::new(),
             display_cursor: 0,
             comments_hidden: false,
+            display_rows: Vec::new(),
         }
     }
 }

@@ -2,14 +2,15 @@ use std::collections::BTreeMap;
 
 use betterreview::{
     app::{
-        AppAction, AppEffect, AppEvent, AppState, EffectOutcome, EffectResult, QuitChoice,
-        RenderedFile, SubmissionModal, update,
+        AppAction, AppEffect, AppEvent, AppState, DisplayRow, EffectOutcome, EffectResult,
+        QuitChoice, RenderedFile, SubmissionModal, update,
     },
     diff::{ParsedFileDiff, RenderedDiff, RenderedRow, RowBinding},
     domain::{
-        ChangeRequestKey, ChangedFile, CommitOid, DiffPosition, DiffSide, FileStatus,
-        PatchAvailability, ProviderCapabilities, ProviderKind, ProviderSnapshot, RepoPath,
-        ReviewComment, ReviewOutcome, ReviewThread, SubmitMode, ThreadId,
+        ChangeRequestKey, ChangedFile, CommitOid, DiffPosition, DiffSelection, DiffSide,
+        DraftComment, DraftId, FileStatus, PatchAvailability, ProviderCapabilities, ProviderKind,
+        ProviderSnapshot, RepoPath, ReviewComment, ReviewOutcome, ReviewThread, SubmitMode,
+        ThreadId,
     },
     state::{ContentIdentity, FileProgress, ReviewSync, SESSION_SCHEMA_VERSION, SessionSnapshot},
 };
@@ -101,6 +102,29 @@ fn rendered_file(text: &str) -> RenderedFile {
                     right: None,
                 },
             }],
+        },
+    }
+}
+
+fn rendered_file_with_rows(count: usize) -> RenderedFile {
+    RenderedFile {
+        parsed: ParsedFileDiff {
+            path: RepoPath("src/file_0.rs".into()),
+            head: CommitOid("new-head".into()),
+            rows: Vec::new(),
+            hunks: Vec::new(),
+        },
+        rendered: RenderedDiff {
+            rows: (0..count)
+                .map(|index| RenderedRow {
+                    text: Line::raw(format!("row-{index}")),
+                    binding: RowBinding {
+                        row_index: index,
+                        left: None,
+                        right: None,
+                    },
+                })
+                .collect(),
         },
     }
 }
@@ -236,6 +260,97 @@ fn accepts_render_result_from_current_generation() {
         CommitOid("new-head".into())
     );
     assert!(state.error_banner.is_none());
+}
+
+#[test]
+fn resume_keeps_the_cursor_position_after_first_render() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    state.session.cursor_row = 2;
+    let rendered = rendered_file_with_rows(4);
+
+    update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: 1,
+            generation: Some(CommitOid("new-head".into())),
+            outcome: EffectOutcome::Rendered(Ok(rendered)),
+        })),
+    );
+
+    assert_eq!(
+        state.display_cursor, 2,
+        "resuming a session must land the cursor back on session.cursor_row, not on row 0"
+    );
+
+    update(&mut state, AppEvent::Action(AppAction::MoveCursor(1)));
+
+    assert_eq!(
+        state.display_cursor, 3,
+        "the first move must step from the restored position, not from 0"
+    );
+    assert_eq!(state.session.cursor_row, 3);
+}
+
+#[test]
+fn draft_creation_refreshes_display_rows() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let path = RepoPath("src/file_0.rs".into());
+    let rendered = RenderedFile {
+        parsed: ParsedFileDiff {
+            path: path.clone(),
+            head: CommitOid("new-head".into()),
+            rows: Vec::new(),
+            hunks: Vec::new(),
+        },
+        rendered: RenderedDiff {
+            rows: vec![diff_row(
+                0,
+                Some(comment_pos(&path, DiffSide::Left, 1)),
+                Some(comment_pos(&path, DiffSide::Right, 1)),
+            )],
+        },
+    };
+    update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: 1,
+            generation: Some(CommitOid("new-head".into())),
+            outcome: EffectOutcome::Rendered(Ok(rendered)),
+        })),
+    );
+    assert!(
+        state
+            .display_rows
+            .iter()
+            .all(|row| !matches!(row, DisplayRow::Comment { .. })),
+        "no drafts yet, so no comment rows should be cached"
+    );
+
+    let draft = DraftComment {
+        id: DraftId("d1".into()),
+        body: "please fix".into(),
+        selection: Some(DiffSelection {
+            start: comment_pos(&path, DiffSide::Right, 1),
+            end: comment_pos(&path, DiffSide::Right, 1),
+        }),
+        thread_id: None,
+    };
+    update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: 2,
+            generation: Some(CommitOid("new-head".into())),
+            outcome: EffectOutcome::DraftCreated(Ok(draft)),
+        })),
+    );
+
+    assert!(
+        state
+            .display_rows
+            .iter()
+            .any(|row| matches!(row, DisplayRow::Comment { .. })),
+        "creating a draft must refresh the cached display rows"
+    );
 }
 
 #[test]
@@ -462,6 +577,7 @@ fn state_with_multiline_comment() -> AppState {
             pending: false,
         }],
     });
+    betterreview::app::refresh_display_rows(&mut state);
     state
 }
 

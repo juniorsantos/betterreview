@@ -145,6 +145,23 @@ pub fn display_rows(state: &AppState) -> Vec<DisplayRow> {
     )
 }
 
+/// Rebuilds `state.display_rows` from the current diff/threads/drafts/active
+/// file/comments_hidden inputs and resyncs `display_cursor` to the display
+/// row carrying `session.cursor_row` (falling back to 0 when no row
+/// matches). Call this every time one of those inputs changes: it is the
+/// single place that keeps the cached rows and the cursor consistent with
+/// each other, whether that's the first render after resuming a session or
+/// a later mutation such as a new draft or thread update.
+pub fn refresh_display_rows(state: &mut AppState) {
+    state.display_rows = display_rows(state);
+    let target = state.session.cursor_row;
+    state.display_cursor = state
+        .display_rows
+        .iter()
+        .position(|row| matches!(row, DisplayRow::Diff { row } if *row == target))
+        .unwrap_or(0);
+}
+
 /// A draft belongs to `active_path` when its selection targets that file, or
 /// when it has no selection at all (its file cannot be determined, so it is
 /// kept and surfaced as an orphan rather than silently dropped).

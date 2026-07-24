@@ -7,7 +7,7 @@ use crate::{
 
 use super::{
     AppAction, AppEffect, AppEvent, AppFocus, AppState, DisplayRow, EffectEnvelope, EffectOutcome,
-    EffectResult, QuitChoice, SubmissionModal, display_rows,
+    EffectResult, QuitChoice, SubmissionModal, refresh_display_rows,
 };
 
 pub fn update(state: &mut AppState, event: AppEvent) -> Vec<EffectEnvelope> {
@@ -61,9 +61,8 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
         },
         AppAction::ToggleReviewed => toggle_reviewed(state),
         AppAction::ToggleSelection => {
-            let rows = display_rows(state);
             let on_diff_row = matches!(
-                rows.get(state.display_cursor),
+                state.display_rows.get(state.display_cursor),
                 Some(DisplayRow::Diff { .. })
             );
             if !on_diff_row {
@@ -202,7 +201,7 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
         }
         AppAction::ToggleComments => {
             state.comments_hidden = !state.comments_hidden;
-            resync_display_cursor(state);
+            refresh_display_rows(state);
             Vec::new()
         }
     }
@@ -215,20 +214,19 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
 /// in sync with it (the diff widget still scrolls by that value); landing on
 /// a comment leaves `session.cursor_row` at whatever it last was.
 fn move_display_cursor(state: &mut AppState, delta: i32) -> Vec<EffectEnvelope> {
-    let rows = display_rows(state);
-    if rows.is_empty() {
+    if state.display_rows.is_empty() {
         return Vec::new();
     }
-    let mut index = state.display_cursor.min(rows.len() - 1);
+    let mut index = state.display_cursor.min(state.display_rows.len() - 1);
     let step = delta.signum();
     for _ in 0..delta.unsigned_abs() {
-        match next_stop(&rows, index, step) {
+        match next_stop(&state.display_rows, index, step) {
             Some(next) => index = next,
             None => break,
         }
     }
     state.display_cursor = index;
-    if let Some(DisplayRow::Diff { row }) = rows.get(index) {
+    if let Some(DisplayRow::Diff { row }) = state.display_rows.get(index) {
         state.session.cursor_row = *row;
     }
     state.dirty = true;
@@ -259,18 +257,6 @@ fn next_stop(rows: &[DisplayRow], from: usize, step: i32) -> Option<usize> {
         cursor += step as i64;
     }
     None
-}
-
-/// Re-syncs `display_cursor` to the display row that carries the current
-/// `session.cursor_row` (used after toggling comment visibility, which
-/// changes what rows exist). Falls back to 0 when no row matches.
-fn resync_display_cursor(state: &mut AppState) {
-    let rows = display_rows(state);
-    let target = state.session.cursor_row;
-    state.display_cursor = rows
-        .iter()
-        .position(|row| matches!(row, DisplayRow::Diff { row } if *row == target))
-        .unwrap_or(0);
 }
 
 pub fn directory_of(path: &str) -> &str {
@@ -339,11 +325,11 @@ fn activate_file(state: &mut AppState, index: usize) -> Vec<EffectEnvelope> {
         .map(|file| file.path.clone());
     state.session.cursor_row = 0;
     state.session.scroll_row = 0;
-    state.display_cursor = 0;
     state.parsed_diff = None;
     state.rendered_diff = None;
     state.selection_anchor = None;
     state.dirty = false;
+    refresh_display_rows(state);
     let Some(file) = state.provider.files.get(index).cloned() else {
         return Vec::new();
     };
@@ -429,12 +415,7 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
                 state.parsed_diff = Some(result.parsed);
                 state.rendered_diff = Some(result.rendered);
                 state.error_banner = None;
-                let row_count = display_rows(state).len();
-                state.display_cursor = if row_count == 0 {
-                    0
-                } else {
-                    state.display_cursor.min(row_count - 1)
-                };
+                refresh_display_rows(state);
             }
             Err(message) => state.error_banner = Some(message),
         },
@@ -461,7 +442,10 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
             }
         },
         EffectOutcome::SnapshotRefreshed(result) => match *result {
-            Ok(snapshot) => state.provider = snapshot,
+            Ok(snapshot) => {
+                state.provider = snapshot;
+                refresh_display_rows(state);
+            }
             Err(message) => state.error_banner = Some(message),
         },
         EffectOutcome::DraftCreated(result) | EffectOutcome::DraftUpdated(result) => match result {
@@ -470,6 +454,7 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
                 state.provider.drafts.push(draft);
                 state.session.editor = None;
                 state.editor_open = false;
+                refresh_display_rows(state);
             }
             Err(message) => state.error_banner = Some(message),
         },
@@ -477,6 +462,7 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
             Ok(thread) => {
                 state.provider.threads.retain(|item| item.id != thread.id);
                 state.provider.threads.push(thread);
+                refresh_display_rows(state);
             }
             Err(message) => state.error_banner = Some(message),
         },
