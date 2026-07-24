@@ -64,7 +64,14 @@ fn render_display_row(
             block_start,
             text,
             author,
-        } => comment_line(state, entry, *block_start, text, author.as_deref()),
+        } => comment_line(
+            state,
+            entry,
+            *block_start,
+            text,
+            author.as_deref(),
+            inner_width,
+        ),
         DisplayRow::OrphanHeader => Line::styled(
             "— comentários desatualizados —",
             Style::default().fg(theme::MUTED),
@@ -77,7 +84,16 @@ fn render_display_row(
         (start..=end).contains(row)
     }));
 
-    let style = if index == state.display_cursor {
+    // The whole comment card lights up while the cursor sits on its block.
+    let cursor_on_block = match display_row {
+        DisplayRow::Comment { entry, .. } => matches!(
+            state.display_rows.get(state.display_cursor),
+            Some(DisplayRow::Comment { entry: current, .. }) if current == entry
+        ),
+        _ => false,
+    };
+
+    let style = if index == state.display_cursor || cursor_on_block {
         Some(
             Style::default()
                 .bg(theme::CURSOR_LINE)
@@ -127,28 +143,54 @@ fn comment_line(
     block_start: bool,
     text: &str,
     author: Option<&str>,
+    inner_width: usize,
 ) -> Line<'static> {
+    let border = if block_start { "╭ " } else { "│ " };
     let mut spans = vec![
         Span::raw(GUTTER),
-        Span::styled("│ ", Style::default().fg(theme::BORDER)),
+        Span::styled(border, Style::default().fg(theme::BORDER)),
+        Span::styled(text.to_owned(), Style::default().fg(theme::FG)),
     ];
     if block_start {
-        if let Some(author) = author {
+        // Right-aligned meta: author, state marker, and the keys that act on
+        // this block — the card itself teaches the shortcuts.
+        let author_label = author.map_or_else(|| "você".to_owned(), str::to_owned);
+        let (marker_text, marker_color) =
+            marker(state, entry).unwrap_or(("comentário", theme::MUTED));
+        let hints = match entry {
+            CommentEntry::Draft { .. } => "e editar / x excluir",
+            CommentEntry::Thread { .. } => "r responder",
+        };
+        let meta_width =
+            1 + author_label.len() + 3 + marker_text.chars().count() + 3 + hints.len() + 1;
+        let used = GUTTER.len() + 2 + text.chars().count();
+        if used + meta_width < inner_width {
+            spans.push(Span::raw(" ".repeat(inner_width - used - meta_width)));
             spans.push(Span::styled(
-                format!("@{author}"),
+                format!("@{author_label}"),
                 Style::default().fg(theme::ACCENT),
             ));
+            spans.push(Span::styled(" · ", Style::default().fg(theme::BORDER)));
+            spans.push(Span::styled(
+                marker_text.to_owned(),
+                Style::default().fg(marker_color),
+            ));
+            spans.push(Span::styled(" · ", Style::default().fg(theme::BORDER)));
+            spans.push(Span::styled(
+                hints.to_owned(),
+                Style::default().fg(theme::MUTED),
+            ));
+            spans.push(Span::raw(" "));
+        } else {
+            // Panel too narrow for the meta column: keep only the state
+            // marker so the row still identifies itself.
             spans.push(Span::raw("  "));
-        }
-        if let Some((marker, color)) = marker(state, entry) {
-            spans.push(Span::styled(marker, Style::default().fg(color)));
-            spans.push(Span::raw("  "));
+            spans.push(Span::styled(
+                marker_text.to_owned(),
+                Style::default().fg(marker_color),
+            ));
         }
     }
-    spans.push(Span::styled(
-        text.to_owned(),
-        Style::default().fg(theme::FG),
-    ));
     Line::from(spans)
 }
 

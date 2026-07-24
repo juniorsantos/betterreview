@@ -117,6 +117,24 @@ fn draw(state: &AppState) -> Terminal<TestBackend> {
     terminal
 }
 
+fn draw_wide(state: &AppState) -> Terminal<TestBackend> {
+    let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
+    terminal.draw(|frame| render(frame, state)).unwrap();
+    terminal
+}
+
+fn screen_wide(terminal: &Terminal<TestBackend>) -> String {
+    let buffer = terminal.backend().buffer();
+    (0..30)
+        .map(|y| {
+            (0..120)
+                .map(|x| buffer.cell((x, y)).unwrap().symbol())
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 fn screen(terminal: &Terminal<TestBackend>) -> String {
     let buffer = terminal.backend().buffer();
     (0..24)
@@ -265,4 +283,26 @@ fn status_shows_the_latest_notice() {
     let banner_screen = screen(&draw(&state));
     assert!(banner_screen.contains("falha ao salvar"));
     assert!(!banner_screen.contains("mova para uma linha de código"));
+}
+
+#[test]
+fn comment_block_renders_as_a_card_with_action_hints() {
+    let mut state = app();
+    state.provider.drafts.push(DraftComment {
+        id: DraftId("d2".into()),
+        body: "corpo do comentário\nsegunda linha".into(),
+        selection: Some(DiffSelection {
+            start: position(DiffSide::Right, 5),
+            end: position(DiffSide::Right, 5),
+        }),
+        thread_id: None,
+    });
+    refresh_display_rows(&mut state);
+
+    let terminal = draw_wide(&state);
+    let screen = screen_wide(&terminal);
+
+    assert!(screen.contains("╭ corpo do comentário"));
+    assert!(screen.contains("@você · draft · e editar / x excluir"));
+    assert!(screen.contains("│ segunda linha"));
 }
