@@ -131,6 +131,7 @@ from conventional commits by [git-cliff](https://git-cliff.org).
 ### CI
 
 - Add quality gate and automated release pipeline
+- Generate the changelog on release and cross-compile macos x64
 
 ### Chores
 
