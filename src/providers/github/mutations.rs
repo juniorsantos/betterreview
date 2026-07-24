@@ -178,10 +178,12 @@ where
         key: &ChangeRequestKey,
         id: &DraftId,
     ) -> Result<(), ProviderError> {
+        // DeletePullRequestReviewCommentInput takes `id`, unlike the update
+        // input's `pullRequestReviewCommentId` (verified by introspection).
         self.write_graphql(
             key,
             DELETE_DRAFT,
-            json!({ "input": { "pullRequestReviewCommentId": id.0 } }),
+            json!({ "input": { "id": id.0 } }),
             "delete draft",
         )
         .await

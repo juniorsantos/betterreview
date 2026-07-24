@@ -269,3 +269,29 @@ fn json_output(value: Value) -> CommandOutput {
 fn graphql_body(spec: &CommandSpec) -> Value {
     serde_json::from_slice(spec.stdin.as_ref().unwrap()).unwrap()
 }
+
+#[tokio::test]
+async fn delete_draft_sends_the_node_id_field() {
+    let runner = Arc::new(RecordingRunner::new(vec![Ok(json_output(json!({
+        "data": { "deletePullRequestReviewComment": { "clientMutationId": null } }
+    })))]));
+    let provider = GitHubProvider::new(runner.clone());
+
+    provider
+        .delete_draft(
+            &key(),
+            &betterreview::domain::DraftId("draft-node-id".into()),
+        )
+        .await
+        .unwrap();
+
+    let calls = runner.calls.lock().unwrap();
+    let body = graphql_body(calls.last().unwrap());
+    // DeletePullRequestReviewCommentInput takes `id` (verified by introspection).
+    assert_eq!(body["variables"]["input"]["id"], "draft-node-id");
+    assert!(
+        body["variables"]["input"]
+            .get("pullRequestReviewCommentId")
+            .is_none()
+    );
+}

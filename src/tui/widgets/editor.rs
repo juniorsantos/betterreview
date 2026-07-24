@@ -36,4 +36,17 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             .block(Block::default().title(title).borders(Borders::ALL)),
         popup,
     );
+    if !editor.stale {
+        // Show the real terminal cursor at the typing position so the user
+        // always knows where input lands.
+        let max_col = popup.width.saturating_sub(2).saturating_sub(1);
+        let max_row = popup.height.saturating_sub(2).saturating_sub(1);
+        let col = u16::try_from(editor.grapheme_col)
+            .unwrap_or(u16::MAX)
+            .min(max_col);
+        let row = u16::try_from(editor.cursor_row)
+            .unwrap_or(u16::MAX)
+            .min(max_row);
+        frame.set_cursor_position((popup.x + 1 + col, popup.y + 1 + row));
+    }
 }

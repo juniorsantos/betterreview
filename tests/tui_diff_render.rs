@@ -330,3 +330,38 @@ fn status_shows_query_and_match_count_for_an_active_search() {
     assert!(screen.contains("n/N navega"));
     assert!(screen.contains("Esc limpa"));
 }
+
+#[test]
+fn editor_shows_the_terminal_cursor_at_the_typing_position() {
+    use betterreview::state::EditorSnapshot;
+    let mut state = app();
+    let anchor = position(DiffSide::Right, 5);
+    state.session.editor = Some(EditorSnapshot {
+        lines: vec!["abc".into()],
+        cursor_row: 0,
+        grapheme_col: 3,
+        original_head: CommitOid("head".into()),
+        path: RepoPath("src/app.rs".into()),
+        selection: DiffSelection {
+            start: anchor.clone(),
+            end: anchor,
+        },
+        stale: false,
+    });
+    state.editor_open = true;
+
+    let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+    terminal.draw(|frame| render(frame, &state)).unwrap();
+    let at_col_3 = terminal.get_cursor_position().unwrap();
+
+    state.session.editor.as_mut().unwrap().grapheme_col = 0;
+    let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+    terminal.draw(|frame| render(frame, &state)).unwrap();
+    let at_col_0 = terminal.get_cursor_position().unwrap();
+
+    assert_eq!(
+        at_col_3.x,
+        at_col_0.x + 3,
+        "cursor tracks the typing column"
+    );
+}
