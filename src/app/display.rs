@@ -193,7 +193,9 @@ pub fn refresh_display_rows(state: &mut AppState) {
             .map(|row| {
                 matches!(
                     row.kind,
-                    crate::diff::DiffRowKind::Header | crate::diff::DiffRowKind::Metadata
+                    crate::diff::DiffRowKind::Header
+                        | crate::diff::DiffRowKind::Metadata
+                        | crate::diff::DiffRowKind::HunkHeader
                 )
             })
             .collect();

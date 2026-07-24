@@ -470,12 +470,12 @@ fn jump_hunk(state: &mut AppState, step: i32) -> Vec<EffectEnvelope> {
         push_notice(state, "diff ainda carregando");
         return Vec::new();
     };
-    let target = find_display_row(
-        &state.display_rows,
-        state.display_cursor,
-        step,
-        |row| matches!(row, DisplayRow::Diff { row } if diff.rows.get(*row).is_some_and(|row| row.kind == DiffRowKind::HunkHeader)),
-    );
+    // The raw `@@` rows are hidden from the display; a hunk's landing spot
+    // is its first code row (the one right after the parsed HunkHeader).
+    let target = find_display_row(&state.display_rows, state.display_cursor, step, |row| {
+        matches!(row, DisplayRow::Diff { row } if *row > 0
+                && diff.rows.get(*row - 1).is_some_and(|prev| prev.kind == DiffRowKind::HunkHeader))
+    });
     match target {
         Some(index) => land_on_display_row(state, index),
         None => push_notice(

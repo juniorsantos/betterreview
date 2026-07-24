@@ -1350,8 +1350,11 @@ fn bracket_h_jumps_to_the_next_hunk_header() {
 
     update(&mut state, AppEvent::Action(AppAction::NextHunk));
 
-    assert_eq!(state.display_cursor, 3, "lands on the second hunk header");
-    assert_eq!(state.session.cursor_row, 2);
+    assert_eq!(
+        state.display_cursor, 3,
+        "lands on the second hunk's first row"
+    );
+    assert_eq!(state.session.cursor_row, 3);
 }
 
 #[test]
@@ -1737,8 +1740,8 @@ fn file_header_and_metadata_rows_are_hidden_from_the_display() {
         .collect();
     assert_eq!(
         diff_rows,
-        vec![2, 3],
-        "header/metadata hidden, hunk header and code kept"
+        vec![3],
+        "header, metadata and the raw @@ line are hidden; code stays"
     );
 }
 
@@ -1786,11 +1789,11 @@ fn cursor_on_a_now_hidden_row_snaps_to_the_nearest_following_diff_row() {
 
     let landed = state.display_rows.get(state.display_cursor);
     assert!(
-        matches!(landed, Some(betterreview::app::DisplayRow::Diff { row: 2 })),
+        matches!(landed, Some(betterreview::app::DisplayRow::Diff { row: 3 })),
         "must snap to the nearest following Diff row instead of falling back to index 0, got {landed:?}"
     );
     assert_eq!(
-        state.session.cursor_row, 2,
+        state.session.cursor_row, 3,
         "session.cursor_row must be rewritten to the row actually landed on"
     );
     assert!(
@@ -1903,9 +1906,7 @@ fn gap_row_sits_between_the_two_hunks_with_the_right_hidden_count() {
             DisplayRow::FileHeader {
                 path: "src/file_0.rs".into()
             },
-            DisplayRow::Diff { row: 0 },
             DisplayRow::Diff { row: 1 },
-            DisplayRow::Diff { row: 2 },
             DisplayRow::Gap {
                 after_new_line: 1,
                 hidden: 3
@@ -1963,7 +1964,6 @@ fn leading_gap_appears_when_the_first_hunk_starts_past_line_one() {
             DisplayRow::FileHeader {
                 path: "src/file_0.rs".into()
             },
-            DisplayRow::Diff { row: 0 },
             DisplayRow::Gap {
                 after_new_line: 0,
                 hidden: 4
@@ -2045,9 +2045,7 @@ fn expanded_gap_emits_context_rows_from_the_cached_file() {
             DisplayRow::FileHeader {
                 path: "src/file_0.rs".into()
             },
-            DisplayRow::Diff { row: 0 },
             DisplayRow::Diff { row: 1 },
-            DisplayRow::Diff { row: 2 },
             DisplayRow::Context {
                 new_line: 2,
                 text: "two".into()
