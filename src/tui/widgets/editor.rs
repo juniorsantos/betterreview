@@ -23,6 +23,10 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     };
     let title = if editor.stale {
         " Stale draft (head changed) — c new comment / Esc close "
+    } else if state.editing_draft.is_some() {
+        " Editing draft — Enter save / Esc cancel "
+    } else if state.replying_thread.is_some() {
+        " Replying — Enter send / Esc cancel "
     } else {
         " Comment editor — Enter save / Alt+Enter newline / Esc close "
     };

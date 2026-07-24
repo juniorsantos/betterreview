@@ -1,3 +1,4 @@
+pub(super) mod delete;
 pub(super) mod diff;
 pub(super) mod editor;
 pub(super) mod files;

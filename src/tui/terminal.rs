@@ -5,7 +5,10 @@ use futures_util::StreamExt;
 use tokio::sync::mpsc;
 
 use crate::{
-    app::{AppAction, AppEvent, AppState, QuitChoice, Runtime, update},
+    app::{
+        AppAction, AppEvent, AppFocus, AppState, CommentEntry, DisplayRow, QuitChoice, Runtime,
+        update,
+    },
     domain::ReviewOutcome,
     providers::{DraftBody, NewDraftComment},
 };
@@ -101,6 +104,17 @@ pub fn handle_key(app: &mut AppState, keymap: &mut KeyMap, key: KeyEvent) -> Opt
             _ => None,
         };
     }
+    if app.delete_dialog.is_some() {
+        return match key.code {
+            KeyCode::Esc => action(AppAction::ConfirmDeleteChoice(false)),
+            KeyCode::Down | KeyCode::Up | KeyCode::Char('j') | KeyCode::Char('k') => {
+                app.delete_selected = (app.delete_selected + 1) % 2;
+                None
+            }
+            KeyCode::Enter => action(AppAction::ConfirmDeleteChoice(app.delete_selected == 0)),
+            _ => None,
+        };
+    }
     if app.editor_open {
         return editor_key(app, key);
     }
@@ -137,7 +151,38 @@ pub fn handle_key(app: &mut AppState, keymap: &mut KeyMap, key: KeyEvent) -> Opt
         }
         return None;
     }
+    if app.focus == AppFocus::Diff {
+        if let Some(event) = comment_row_key(app, key) {
+            return Some(event);
+        }
+    }
     keymap.feed(key).map(AppEvent::Action)
+}
+
+/// Resolves `e`/`x`/`r` against the comment entry under the cursor: editing
+/// and deleting only make sense on a draft, replying only on a thread. Any
+/// other row (or key) falls through so the caller can apply the regular
+/// keymap — `e` still expands the files panel and `r` still refreshes.
+fn comment_row_key(app: &AppState, key: KeyEvent) -> Option<AppEvent> {
+    if key.modifiers != KeyModifiers::NONE {
+        return None;
+    }
+    let entry = match app.display_rows.get(app.display_cursor) {
+        Some(DisplayRow::Comment { entry, .. }) => Some(entry),
+        _ => None,
+    };
+    match (key.code, entry) {
+        (KeyCode::Char('e'), Some(CommentEntry::Draft { id })) => {
+            action(AppAction::EditComment(id.clone()))
+        }
+        (KeyCode::Char('x'), Some(CommentEntry::Draft { id })) => {
+            action(AppAction::DeleteComment(id.clone()))
+        }
+        (KeyCode::Char('r'), Some(CommentEntry::Thread { thread, .. })) => {
+            action(AppAction::ReplyComment(thread.clone()))
+        }
+        _ => None,
+    }
 }
 
 fn editor_key(app: &mut AppState, key: KeyEvent) -> Option<AppEvent> {
@@ -147,6 +192,12 @@ fn editor_key(app: &mut AppState, key: KeyEvent) -> Option<AppEvent> {
     };
     if key.code == KeyCode::Esc {
         app.editor_open = false;
+        if app.editing_draft.take().is_some() || app.replying_thread.take().is_some() {
+            // Neither edit nor reply text belongs to a fresh comment draft;
+            // discard it so a later `c` doesn't resurrect it unexpectedly.
+            app.session.editor = None;
+            app.dirty = true;
+        }
         return None;
     }
     let saves = (key.code == KeyCode::Enter && !key.modifiers.contains(KeyModifiers::ALT))
@@ -157,6 +208,18 @@ fn editor_key(app: &mut AppState, key: KeyEvent) -> Option<AppEvent> {
             return None;
         }
         let body = snapshot.lines.join("\n");
+        if let Some(id) = app.editing_draft.clone() {
+            return action(AppAction::UpdateDraft {
+                id,
+                body: DraftBody(body),
+            });
+        }
+        if let Some(thread) = app.replying_thread.clone() {
+            return action(AppAction::Reply {
+                thread,
+                body: DraftBody(body),
+            });
+        }
         let input = NewDraftComment {
             body: DraftBody(if app.editor_suggestion {
                 "Suggested change".into()

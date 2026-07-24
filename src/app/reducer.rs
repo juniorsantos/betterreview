@@ -1,7 +1,9 @@
 use crate::{
     diff::{DiffCursor, validate_selection},
-    domain::DiffSide,
-    domain::{ProviderKind, ReviewOutcome, SubmitMode, SubmitRequest, SubmitResult, Support},
+    domain::{
+        DiffPosition, DiffSelection, DiffSide, DraftId, ProviderKind, ReviewOutcome, SubmitMode,
+        SubmitRequest, SubmitResult, Support, ThreadId,
+    },
     state::{EditorSnapshot, PendingSubmit, ReviewSync},
 };
 
@@ -117,6 +119,31 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             Some(state.provider.head.clone()),
             AppEffect::Reply { thread, body },
         )],
+        AppAction::EditComment(id) => {
+            edit_comment(state, id);
+            Vec::new()
+        }
+        AppAction::DeleteComment(id) => {
+            state.delete_dialog = Some(id);
+            state.delete_selected = 0;
+            Vec::new()
+        }
+        AppAction::ConfirmDeleteChoice(confirm) => {
+            let dialog_id = state.delete_dialog.take();
+            state.delete_selected = 0;
+            match (confirm, dialog_id) {
+                (true, Some(id)) => vec![envelope(
+                    state,
+                    Some(state.provider.head.clone()),
+                    AppEffect::DeleteDraft { id },
+                )],
+                _ => Vec::new(),
+            }
+        }
+        AppAction::ReplyComment(thread) => {
+            reply_comment(state, thread);
+            Vec::new()
+        }
         AppAction::ResolveThread { thread, resolved } => vec![envelope(
             state,
             Some(state.provider.head.clone()),
@@ -454,6 +481,7 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
                 state.provider.drafts.push(draft);
                 state.session.editor = None;
                 state.editor_open = false;
+                state.editing_draft = None;
                 refresh_display_rows(state);
             }
             Err(message) => state.error_banner = Some(message),
@@ -462,6 +490,16 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
             Ok(thread) => {
                 state.provider.threads.retain(|item| item.id != thread.id);
                 state.provider.threads.push(thread);
+                state.session.editor = None;
+                state.editor_open = false;
+                state.replying_thread = None;
+                refresh_display_rows(state);
+            }
+            Err(message) => state.error_banner = Some(message),
+        },
+        EffectOutcome::DraftDeleted { id, result } => match result {
+            Ok(()) => {
+                state.provider.drafts.retain(|draft| draft.id != id);
                 refresh_display_rows(state);
             }
             Err(message) => state.error_banner = Some(message),
@@ -488,6 +526,14 @@ fn set_error(state: &mut AppState, result: Result<(), String>) {
 }
 
 fn open_editor(state: &mut AppState, suggestion: bool) {
+    let on_comment_row = matches!(
+        state.display_rows.get(state.display_cursor),
+        Some(DisplayRow::Comment { .. })
+    );
+    if on_comment_row {
+        state.notices.push("mova para uma linha de código".into());
+        return;
+    }
     if let Some(editor) = &state.session.editor {
         if !editor.stale {
             state.editor_open = true;
@@ -543,6 +589,95 @@ fn open_editor(state: &mut AppState, suggestion: bool) {
             state.dirty = true;
         }
         Err(error) => state.error_banner = Some(error.to_string()),
+    }
+}
+
+/// Opens the editor pre-filled with an existing draft's body so it can be
+/// edited in place. `UpdateDraft` only ever sends `id` and the new `body` to
+/// the provider (see `AppEffect::UpdateDraft`), so the selection carried on
+/// the resulting `EditorSnapshot` is never transmitted — when the draft has
+/// none recorded, a placeholder anchored at the active file's first line is
+/// harmless.
+fn edit_comment(state: &mut AppState, id: DraftId) {
+    let Some(draft) = state.provider.drafts.iter().find(|draft| draft.id == id) else {
+        state.error_banner = Some("draft comment not found".into());
+        return;
+    };
+    let lines = if draft.body.is_empty() {
+        vec![String::new()]
+    } else {
+        draft.body.lines().map(str::to_owned).collect()
+    };
+    let selection = draft
+        .selection
+        .clone()
+        .unwrap_or_else(|| placeholder_selection(state));
+    let path = selection.end.path.clone();
+    state.session.editor = Some(EditorSnapshot {
+        lines,
+        cursor_row: 0,
+        grapheme_col: 0,
+        original_head: state.provider.head.clone(),
+        path,
+        selection,
+        stale: false,
+    });
+    state.editing_draft = Some(id);
+    state.editor_open = true;
+    state.editor_suggestion = false;
+    state.dirty = true;
+}
+
+/// Opens an empty editor in reply mode. `Reply` only ever sends `thread` and
+/// the new `body` to the provider (see `AppEffect::Reply`), so — exactly as
+/// in [`edit_comment`] — the selection on the resulting `EditorSnapshot` is
+/// never transmitted and a placeholder is harmless.
+fn reply_comment(state: &mut AppState, thread: ThreadId) {
+    let Some(thread_ref) = state.provider.threads.iter().find(|item| item.id == thread) else {
+        state.error_banner = Some("thread not found".into());
+        return;
+    };
+    let selection = thread_ref
+        .comments
+        .iter()
+        .find_map(|comment| comment.position.clone())
+        .map(|position| DiffSelection {
+            start: position.clone(),
+            end: position,
+        })
+        .unwrap_or_else(|| placeholder_selection(state));
+    let path = selection.end.path.clone();
+    state.session.editor = Some(EditorSnapshot {
+        lines: vec![String::new()],
+        cursor_row: 0,
+        grapheme_col: 0,
+        original_head: state.provider.head.clone(),
+        path,
+        selection,
+        stale: false,
+    });
+    state.replying_thread = Some(thread);
+    state.editor_open = true;
+    state.editor_suggestion = false;
+    state.dirty = true;
+}
+
+fn placeholder_selection(state: &AppState) -> DiffSelection {
+    let path = state
+        .provider
+        .files
+        .get(state.active_file_index)
+        .map(|file| file.path.clone())
+        .unwrap_or_else(|| crate::domain::RepoPath(String::new()));
+    let position = DiffPosition {
+        path,
+        side: DiffSide::Right,
+        line: 1,
+        hunk: 0,
+    };
+    DiffSelection {
+        start: position.clone(),
+        end: position,
     }
 }
 

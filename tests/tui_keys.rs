@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 
 use betterreview::{
-    app::{AppAction, AppEvent, AppState, SubmissionModal},
+    app::{AppAction, AppEvent, AppFocus, AppState, CommentEntry, DisplayRow, SubmissionModal},
     domain::{
         ChangeRequestKey, ChangedFile, CommitOid, DiffPosition, DiffSelection, DiffSide,
         FileStatus, PatchAvailability, ProviderCapabilities, ProviderKind, ProviderSnapshot,
-        RepoPath, ReviewOutcome,
+        RepoPath, ReviewOutcome, ThreadId,
     },
     state::{
         ContentIdentity, EditorSnapshot, FileProgress, ReviewSync, SESSION_SCHEMA_VERSION,
@@ -312,5 +312,107 @@ fn ctrl_s_remains_an_alias_to_submit_the_review() {
     assert!(matches!(
         event,
         Some(AppEvent::Action(AppAction::SubmitReview { .. }))
+    ));
+}
+
+#[test]
+fn r_replies_when_cursor_is_on_a_thread_comment() {
+    let mut app = base_app();
+    app.focus = AppFocus::Diff;
+    let thread = ThreadId("t1".into());
+    app.display_rows = vec![DisplayRow::Comment {
+        entry: CommentEntry::Thread {
+            thread: thread.clone(),
+            comment_index: 0,
+        },
+        block_start: true,
+        text: "please explain".into(),
+        author: Some("alice".into()),
+    }];
+    app.display_cursor = 0;
+    let mut keymap = KeyMap::default();
+
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('r'), KeyModifiers::NONE),
+    );
+
+    assert!(matches!(
+        event,
+        Some(AppEvent::Action(AppAction::ReplyComment(id))) if id == thread
+    ));
+}
+
+#[test]
+fn r_refreshes_elsewhere() {
+    let mut app = base_app();
+    app.focus = AppFocus::Diff;
+    app.display_rows = vec![DisplayRow::Diff { row: 0 }];
+    app.display_cursor = 0;
+    let mut keymap = KeyMap::default();
+
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('r'), KeyModifiers::NONE),
+    );
+
+    assert!(matches!(event, Some(AppEvent::Action(AppAction::Refresh))));
+}
+
+#[test]
+fn e_edits_when_cursor_is_on_a_draft_comment() {
+    let mut app = base_app();
+    app.focus = AppFocus::Diff;
+    let draft_id = betterreview::domain::DraftId("d1".into());
+    app.display_rows = vec![DisplayRow::Comment {
+        entry: CommentEntry::Draft {
+            id: draft_id.clone(),
+        },
+        block_start: true,
+        text: "please fix".into(),
+        author: None,
+    }];
+    app.display_cursor = 0;
+    let mut keymap = KeyMap::default();
+
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('e'), KeyModifiers::NONE),
+    );
+
+    assert!(matches!(
+        event,
+        Some(AppEvent::Action(AppAction::EditComment(id))) if id == draft_id
+    ));
+}
+
+#[test]
+fn x_deletes_when_cursor_is_on_a_draft_comment() {
+    let mut app = base_app();
+    app.focus = AppFocus::Diff;
+    let draft_id = betterreview::domain::DraftId("d1".into());
+    app.display_rows = vec![DisplayRow::Comment {
+        entry: CommentEntry::Draft {
+            id: draft_id.clone(),
+        },
+        block_start: true,
+        text: "please fix".into(),
+        author: None,
+    }];
+    app.display_cursor = 0;
+    let mut keymap = KeyMap::default();
+
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('x'), KeyModifiers::NONE),
+    );
+
+    assert!(matches!(
+        event,
+        Some(AppEvent::Action(AppAction::DeleteComment(id))) if id == draft_id
     ));
 }

@@ -57,5 +57,9 @@ pub enum EffectOutcome {
         reviewed: bool,
         result: Result<(), String>,
     },
+    DraftDeleted {
+        id: DraftId,
+        result: Result<(), String>,
+    },
     Completed(Result<(), String>),
 }

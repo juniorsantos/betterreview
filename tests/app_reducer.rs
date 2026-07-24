@@ -12,6 +12,7 @@ use betterreview::{
         ProviderSnapshot, RepoPath, ReviewComment, ReviewOutcome, ReviewThread, SubmitMode,
         ThreadId,
     },
+    providers::DraftBody,
     state::{ContentIdentity, FileProgress, ReviewSync, SESSION_SCHEMA_VERSION, SessionSnapshot},
 };
 use ratatui::text::Line;
@@ -693,4 +694,167 @@ fn folding_the_active_directory_makes_navigation_skip_its_files() {
     update(&mut state, AppEvent::Action(AppAction::ToggleFold));
     assert!(state.collapsed_dirs.contains("b"));
     assert_eq!(state.collapsed_dirs.len(), 2);
+}
+
+#[test]
+fn edit_opens_editor_with_draft_body_and_enter_updates() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let path = RepoPath("src/file_0.rs".into());
+    let draft = DraftComment {
+        id: DraftId("d1".into()),
+        body: "old body\nsecond line".into(),
+        selection: Some(DiffSelection {
+            start: comment_pos(&path, DiffSide::Right, 1),
+            end: comment_pos(&path, DiffSide::Right, 1),
+        }),
+        thread_id: None,
+    };
+    state.provider.drafts.push(draft.clone());
+
+    update(
+        &mut state,
+        AppEvent::Action(AppAction::EditComment(draft.id.clone())),
+    );
+
+    assert_eq!(state.editing_draft, Some(draft.id.clone()));
+    assert!(state.editor_open);
+    let editor = state.session.editor.as_ref().expect("editor opened");
+    assert_eq!(editor.lines, vec!["old body", "second line"]);
+
+    let effects = update(
+        &mut state,
+        AppEvent::Action(AppAction::UpdateDraft {
+            id: draft.id.clone(),
+            body: DraftBody("new body".into()),
+        }),
+    );
+    assert!(matches!(effects[0].effect, AppEffect::UpdateDraft { .. }));
+
+    let updated = DraftComment {
+        id: draft.id.clone(),
+        body: "new body".into(),
+        selection: draft.selection.clone(),
+        thread_id: None,
+    };
+    update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: effects[0].id,
+            generation: Some(CommitOid("new-head".into())),
+            outcome: EffectOutcome::DraftUpdated(Ok(updated)),
+        })),
+    );
+
+    assert!(state.editing_draft.is_none());
+    assert!(!state.editor_open);
+    assert!(state.session.editor.is_none());
+    assert_eq!(
+        state
+            .provider
+            .drafts
+            .iter()
+            .find(|d| d.id == draft.id)
+            .map(|d| d.body.as_str()),
+        Some("new body")
+    );
+}
+
+#[test]
+fn delete_dialog_confirms_and_removes_the_draft() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let draft = DraftComment {
+        id: DraftId("d1".into()),
+        body: "please fix".into(),
+        selection: None,
+        thread_id: None,
+    };
+    state.provider.drafts.push(draft.clone());
+
+    update(
+        &mut state,
+        AppEvent::Action(AppAction::DeleteComment(draft.id.clone())),
+    );
+    assert_eq!(state.delete_dialog, Some(draft.id.clone()));
+    assert_eq!(state.delete_selected, 0);
+
+    let effects = update(
+        &mut state,
+        AppEvent::Action(AppAction::ConfirmDeleteChoice(true)),
+    );
+    assert!(state.delete_dialog.is_none());
+    assert!(matches!(effects[0].effect, AppEffect::DeleteDraft { .. }));
+
+    update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: effects[0].id,
+            generation: Some(CommitOid("new-head".into())),
+            outcome: EffectOutcome::DraftDeleted {
+                id: draft.id.clone(),
+                result: Ok(()),
+            },
+        })),
+    );
+
+    assert!(!state.provider.drafts.iter().any(|d| d.id == draft.id));
+}
+
+#[test]
+fn reply_on_thread_dispatches_reply() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let path = RepoPath("src/file_0.rs".into());
+    let thread = ReviewThread {
+        id: ThreadId("t1".into()),
+        path: path.clone(),
+        resolved: false,
+        outdated: false,
+        comments: vec![ReviewComment {
+            id: "c1".into(),
+            author: "alice".into(),
+            body: "please explain".into(),
+            position: Some(comment_pos(&path, DiffSide::Right, 1)),
+            pending: false,
+        }],
+    };
+    state.provider.threads.push(thread.clone());
+
+    update(
+        &mut state,
+        AppEvent::Action(AppAction::ReplyComment(thread.id.clone())),
+    );
+
+    assert_eq!(state.replying_thread, Some(thread.id.clone()));
+    assert!(state.editor_open);
+    let editor = state.session.editor.as_ref().expect("editor opened");
+    assert_eq!(editor.lines, vec![String::new()]);
+
+    let effects = update(
+        &mut state,
+        AppEvent::Action(AppAction::Reply {
+            thread: thread.id.clone(),
+            body: DraftBody("thanks, fixed".into()),
+        }),
+    );
+    assert!(matches!(effects[0].effect, AppEffect::Reply { .. }));
+
+    let mut updated_thread = thread.clone();
+    updated_thread.comments.push(ReviewComment {
+        id: "c2".into(),
+        author: "dev".into(),
+        body: "thanks, fixed".into(),
+        position: Some(comment_pos(&path, DiffSide::Right, 1)),
+        pending: false,
+    });
+    update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: effects[0].id,
+            generation: Some(CommitOid("new-head".into())),
+            outcome: EffectOutcome::ThreadUpdated(Ok(updated_thread)),
+        })),
+    );
+
+    assert!(state.replying_thread.is_none());
+    assert!(!state.editor_open);
+    assert!(state.session.editor.is_none());
 }

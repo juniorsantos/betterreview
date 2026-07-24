@@ -31,6 +31,10 @@ pub enum AppAction {
         thread: crate::domain::ThreadId,
         body: crate::providers::DraftBody,
     },
+    EditComment(crate::domain::DraftId),
+    DeleteComment(crate::domain::DraftId),
+    ConfirmDeleteChoice(bool),
+    ReplyComment(crate::domain::ThreadId),
     ResolveThread {
         thread: crate::domain::ThreadId,
         resolved: bool,

@@ -9,7 +9,7 @@ use crate::app::{AppFocus, AppState};
 
 use super::{
     theme,
-    widgets::{diff, editor, files, quit, status, submit, threads},
+    widgets::{delete, diff, editor, files, quit, status, submit, threads},
 };
 
 pub fn render(frame: &mut Frame, state: &AppState) {
@@ -102,6 +102,9 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     submit::render(frame, area, state);
     if state.quit_dialog {
         quit::render(frame, area, state);
+    }
+    if state.delete_dialog.is_some() {
+        delete::render(frame, area, state);
     }
 }
 

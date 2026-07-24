@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use crate::{
     diff::{ParsedFileDiff, RenderedDiff},
-    domain::{ProviderSnapshot, ReviewOutcome},
+    domain::{DraftId, ProviderSnapshot, ReviewOutcome, ThreadId},
     state::SessionSnapshot,
 };
 
@@ -49,6 +49,10 @@ pub struct AppState {
     pub display_cursor: usize,
     pub comments_hidden: bool,
     pub display_rows: Vec<DisplayRow>,
+    pub editing_draft: Option<DraftId>,
+    pub replying_thread: Option<ThreadId>,
+    pub delete_dialog: Option<DraftId>,
+    pub delete_selected: usize,
 }
 
 impl AppState {
@@ -86,6 +90,10 @@ impl AppState {
             display_cursor: 0,
             comments_hidden: false,
             display_rows: Vec::new(),
+            editing_draft: None,
+            replying_thread: None,
+            delete_dialog: None,
+            delete_selected: 0,
         }
     }
 }

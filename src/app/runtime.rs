@@ -85,12 +85,14 @@ impl Runtime {
                     .await
                     .map_err(|error| error.to_string()),
             ),
-            AppEffect::DeleteDraft { id } => EffectOutcome::Completed(
-                self.provider
+            AppEffect::DeleteDraft { id } => {
+                let result = self
+                    .provider
                     .delete_draft(&self.key, &id)
                     .await
-                    .map_err(|error| error.to_string()),
-            ),
+                    .map_err(|error| error.to_string());
+                EffectOutcome::DraftDeleted { id, result }
+            }
             AppEffect::Reply { thread, body } => EffectOutcome::ThreadUpdated(
                 self.provider
                     .reply(&self.key, &thread, body)
