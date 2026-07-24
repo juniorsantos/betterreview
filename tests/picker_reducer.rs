@@ -322,3 +322,77 @@ fn list_failed_sets_the_error_banner() {
     assert!(commands.is_empty());
     assert_eq!(state.error_banner, Some("network down".to_string()));
 }
+
+#[test]
+fn tab_toggles_focus_between_the_list_and_the_description_panel() {
+    let mut state = PickerState::new(vec![item(1, true)], "owner/repo".into());
+    assert!(!state.focus_detail);
+
+    update(&mut state, PickerEvent::Key(key_event(KeyCode::Tab)));
+    assert!(state.focus_detail);
+
+    update(&mut state, PickerEvent::Key(key_event(KeyCode::Tab)));
+    assert!(!state.focus_detail);
+}
+
+#[test]
+fn number_keys_set_the_focused_panel_directly() {
+    let mut state = PickerState::new(vec![item(1, true)], "owner/repo".into());
+
+    update(&mut state, PickerEvent::Key(key_event(KeyCode::Char('1'))));
+    assert!(state.focus_detail);
+
+    update(&mut state, PickerEvent::Key(key_event(KeyCode::Char('0'))));
+    assert!(!state.focus_detail);
+}
+
+#[test]
+fn j_scrolls_the_description_panel_instead_of_moving_the_highlight_when_focused() {
+    let mut state = PickerState::new(vec![item(1, true), item(2, false)], "owner/repo".into());
+    state.focus_detail = true;
+
+    let commands = update(&mut state, PickerEvent::Key(key_event(KeyCode::Char('j'))));
+
+    assert!(commands.is_empty());
+    assert_eq!(state.detail_scroll, 1);
+    assert_eq!(state.highlight, 0);
+
+    update(&mut state, PickerEvent::Key(key_event(KeyCode::Char('j'))));
+    assert_eq!(state.detail_scroll, 2);
+
+    update(&mut state, PickerEvent::Key(key_event(KeyCode::Char('k'))));
+    assert_eq!(state.detail_scroll, 1);
+}
+
+#[test]
+fn detail_scroll_never_underflows_past_zero() {
+    let mut state = PickerState::new(vec![item(1, true)], "owner/repo".into());
+    state.focus_detail = true;
+
+    update(&mut state, PickerEvent::Key(key_event(KeyCode::Char('k'))));
+
+    assert_eq!(state.detail_scroll, 0);
+}
+
+#[test]
+fn moving_the_highlight_resets_the_description_scroll() {
+    let mut state = PickerState::new(vec![item(1, true), item(2, false)], "owner/repo".into());
+    state.detail_scroll = 4;
+
+    update(&mut state, PickerEvent::Key(key_event(KeyCode::Char('j'))));
+
+    assert_eq!(state.highlight, 1);
+    assert_eq!(state.detail_scroll, 0);
+}
+
+#[test]
+fn enter_still_opens_the_highlighted_item_while_the_detail_panel_is_focused() {
+    let mut state = PickerState::new(vec![item(1, true)], "owner/repo".into());
+    state.focus_detail = true;
+    state.cache.insert(1, provider_snapshot(1));
+
+    let commands = update(&mut state, PickerEvent::Key(key_event(KeyCode::Enter)));
+
+    assert!(commands.is_empty());
+    assert_eq!(state.chosen, Some((1, Some(provider_snapshot(1)))));
+}

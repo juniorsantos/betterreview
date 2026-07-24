@@ -372,6 +372,21 @@ fn move_display_cursor(state: &mut AppState, delta: i32) -> Vec<EffectEnvelope> 
             None => break,
         }
     }
+    if index == state.display_cursor {
+        // Hit the edge of the file: flow into the neighbor to keep the
+        // review moving — forward lands at its top, backward at its end
+        // (positioned once its diff renders).
+        if step > 0 {
+            return navigate_by(state, 1);
+        }
+        if step < 0 {
+            let effects = navigate_by(state, -1);
+            if !effects.is_empty() {
+                state.enter_file_at_end = true;
+            }
+            return effects;
+        }
+    }
     land_on_display_row(state, index);
     Vec::new()
 }
@@ -639,6 +654,12 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
                 state.rendered_diff = Some(result.rendered);
                 state.error_banner = None;
                 refresh_display_rows(state);
+                if state.enter_file_at_end {
+                    state.enter_file_at_end = false;
+                    if let Some(last) = state.display_rows.iter().rposition(is_display_stop) {
+                        land_on_display_row(state, last);
+                    }
+                }
             }
             Err(message) => state.error_banner = Some(message),
         },

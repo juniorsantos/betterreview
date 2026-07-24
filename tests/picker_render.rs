@@ -31,6 +31,12 @@ fn item(number: u64, author: &str, branch: &str, draft: bool, current_branch: bo
     }
 }
 
+fn item_with_description(number: u64, author: &str, branch: &str, description: &str) -> PickerItem {
+    let mut picker_item = item(number, author, branch, false, false);
+    picker_item.summary.description = description.into();
+    picker_item
+}
+
 fn state(items: Vec<PickerItem>, highlight: usize) -> PickerState {
     PickerState {
         items,
@@ -43,25 +49,35 @@ fn state(items: Vec<PickerItem>, highlight: usize) -> PickerState {
         quit: false,
         chosen: None,
         repository: String::new(),
+        detail_scroll: 0,
+        focus_detail: false,
     }
 }
 
 fn draw(picker: &PickerState) -> Terminal<TestBackend> {
-    let mut terminal = Terminal::new(TestBackend::new(100, 30)).unwrap();
+    draw_sized(picker, 100, 30)
+}
+
+fn draw_sized(picker: &PickerState, width: u16, height: u16) -> Terminal<TestBackend> {
+    let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
     terminal.draw(|frame| render(frame, picker)).unwrap();
     terminal
 }
 
-fn screen(terminal: &Terminal<TestBackend>) -> String {
+fn screen_sized(terminal: &Terminal<TestBackend>, width: u16, height: u16) -> String {
     let buffer = terminal.backend().buffer();
-    (0..30)
+    (0..height)
         .map(|y| {
-            (0..100)
+            (0..width)
                 .map(|x| buffer.cell((x, y)).unwrap().symbol())
                 .collect::<String>()
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+fn screen(terminal: &Terminal<TestBackend>) -> String {
+    screen_sized(terminal, 100, 30)
 }
 
 fn lines(terminal: &Terminal<TestBackend>) -> Vec<String> {
@@ -83,11 +99,11 @@ fn renders_items_with_pin_and_metadata() {
     assert!(screen.contains("#42"));
     assert!(screen.contains("@jsjunior"));
     assert!(screen.contains("feature/login"));
-    assert!(screen.contains("[draft]"));
+    assert!(screen.contains("draft"));
 }
 
 #[test]
-fn renders_the_current_branch_badge() {
+fn renders_the_current_branch_dot_before_the_author() {
     let picker = state(
         vec![
             item(42, "jsjunior", "feature/login", false, true),
@@ -103,6 +119,7 @@ fn renders_the_current_branch_badge() {
         .expect("pinned row rendered");
 
     assert!(pinned_row.contains('●'));
+    assert!(pinned_row.contains("você"));
 }
 
 #[test]
@@ -147,7 +164,59 @@ fn list_panel_has_a_rounded_border_and_a_title() {
     let screen = screen(&draw(&picker));
 
     assert!(screen.contains('╭'), "expected a rounded top-left corner");
-    assert!(screen.contains("Reviews abertos"));
+    assert!(screen.contains("[0] Revisões abertas"));
+}
+
+#[test]
+fn list_panel_shows_the_table_header() {
+    let picker = state(vec![item(1, "dev", "main", false, false)], 0);
+
+    let screen = screen(&draw(&picker));
+
+    assert!(screen.contains("PR"));
+    assert!(screen.contains("TÍTULO"));
+    assert!(screen.contains("AUTOR"));
+    assert!(screen.contains("BRANCH"));
+    assert!(screen.contains("QUANDO"));
+}
+
+#[test]
+fn item_rows_share_the_same_author_column_start() {
+    let picker = state(
+        vec![
+            item(1, "shortname", "main", false, false),
+            item(2, "muchlongerauthorname", "other", false, false),
+        ],
+        0,
+    );
+
+    let row_lines = lines(&draw(&picker));
+    let row_one = row_lines
+        .iter()
+        .find(|line| line.contains("#1"))
+        .expect("first row rendered");
+    let row_two = row_lines
+        .iter()
+        .find(|line| line.contains("#2"))
+        .expect("second row rendered");
+
+    let author_one = char_offset(row_one, "@shortname").expect("author one present");
+    let author_two = char_offset(row_two, "@muchlonger").expect("author two present");
+    assert_eq!(author_one, author_two);
+}
+
+#[test]
+fn narrow_terminal_hides_the_branch_column() {
+    let picker = state(
+        vec![item(1, "dev", "distinctive-branch-name", false, false)],
+        0,
+    );
+
+    let terminal = draw_sized(&picker, 60, 30);
+    let screen = screen_sized(&terminal, 60, 30);
+
+    assert!(!screen.contains("distinctive-branch-name"));
+    assert!(screen.contains("@dev"));
 }
 
 #[test]
@@ -221,6 +290,77 @@ fn panel_shows_the_recent_cap_when_the_list_is_full() {
 }
 
 #[test]
+fn detail_panel_shows_the_highlighted_items_description() {
+    let picker = state(
+        vec![
+            item_with_description(1, "dev", "main", "Body of the first review."),
+            item_with_description(2, "dev", "other", "Body of the second review."),
+        ],
+        1,
+    );
+
+    let screen = screen(&draw(&picker));
+
+    assert!(screen.contains("[1] Descrição da revisão"));
+    assert!(screen.contains("Body of the second review."));
+    assert!(!screen.contains("Body of the first review."));
+}
+
+#[test]
+fn detail_panel_shows_an_empty_description_placeholder() {
+    let picker = state(vec![item(1, "dev", "main", false, false)], 0);
+
+    let screen = screen(&draw(&picker));
+
+    assert!(screen.contains("sem descrição"));
+}
+
+#[test]
+fn detail_panel_is_hidden_on_very_short_terminals() {
+    let picker = state(
+        vec![item_with_description(1, "dev", "main", "hidden body text")],
+        0,
+    );
+
+    let terminal = draw_sized(&picker, 100, 13);
+    let screen = screen_sized(&terminal, 100, 13);
+
+    assert!(!screen.contains("[1] Descrição da revisão"));
+    assert!(!screen.contains("hidden body text"));
+}
+
+#[test]
+fn tab_moves_the_accent_border_to_the_focused_panel() {
+    let mut picker = state(vec![item(1, "dev", "main", false, false)], 0);
+    picker.focus_detail = true;
+
+    let terminal = draw(&picker);
+    let screen = screen(&terminal);
+    let buffer = terminal.backend().buffer();
+
+    let list_border_row = screen
+        .lines()
+        .position(|line| line.contains("[0] Revisões abertas"))
+        .expect("list panel title rendered");
+    let list_border_col = char_offset(screen.lines().nth(list_border_row).unwrap(), "╭").unwrap();
+    let list_cell = buffer
+        .cell((list_border_col as u16, list_border_row as u16))
+        .unwrap();
+    assert_eq!(list_cell.style().fg, Some(theme::BORDER));
+
+    let detail_border_row = screen
+        .lines()
+        .position(|line| line.contains("[1] Descrição da revisão"))
+        .expect("detail panel title rendered");
+    let detail_border_col =
+        char_offset(screen.lines().nth(detail_border_row).unwrap(), "╭").unwrap();
+    let detail_cell = buffer
+        .cell((detail_border_col as u16, detail_border_row as u16))
+        .unwrap();
+    assert_eq!(detail_cell.style().fg, Some(theme::ACCENT));
+}
+
+#[test]
 fn status_line_shows_flat_hints_on_the_right_with_accent_keys() {
     let picker = state(vec![item(1, "dev", "main", false, false)], 0);
 
@@ -230,6 +370,7 @@ fn status_line_shows_flat_hints_on_the_right_with_accent_keys() {
 
     let status_row = screen.lines().last().unwrap();
     assert!(status_row.contains("mover"));
+    assert!(status_row.contains("foco"));
     assert!(status_row.contains("abrir"));
     assert!(status_row.contains("recarregar"));
     assert!(status_row.contains("sair"));

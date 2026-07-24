@@ -817,24 +817,12 @@ fn cursor_walks_through_comment_blocks() {
     assert_eq!(state.session.cursor_row, 2);
 
     update(&mut state, AppEvent::Action(AppAction::MoveCursor(1)));
-    assert_eq!(state.display_cursor, 7, "clamped at the last row, no wrap");
-    assert_eq!(state.session.cursor_row, 2);
-
-    update(&mut state, AppEvent::Action(AppAction::MoveCursor(-1)));
-    assert_eq!(state.display_cursor, 6);
-    assert_eq!(state.session.cursor_row, 1);
-
-    update(&mut state, AppEvent::Action(AppAction::MoveCursor(-1)));
-    assert_eq!(state.display_cursor, 1);
-    assert_eq!(state.session.cursor_row, 1);
-
-    update(&mut state, AppEvent::Action(AppAction::MoveCursor(-1)));
-    assert_eq!(state.display_cursor, 0);
-    assert_eq!(state.session.cursor_row, 0);
-
-    update(&mut state, AppEvent::Action(AppAction::MoveCursor(-1)));
-    assert_eq!(state.display_cursor, 0, "clamped at the first row, no wrap");
-    assert_eq!(state.session.cursor_row, 0);
+    assert_eq!(
+        state.active_file_index, 1,
+        "past the last row the review flows into the next file"
+    );
+    update(&mut state, AppEvent::Action(AppAction::PreviousFile));
+    assert_eq!(state.active_file_index, 0);
 }
 
 #[test]
@@ -1587,5 +1575,70 @@ fn toggling_reviewed_from_the_diff_shows_a_notice() {
             .notices
             .last()
             .is_some_and(|notice| notice.contains("desmarcado"))
+    );
+}
+
+#[test]
+fn j_at_the_last_row_advances_to_the_next_file() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    state.focus = betterreview::app::AppFocus::Diff;
+    state.rendered_diff = Some(RenderedDiff {
+        rows: vec![RenderedRow {
+            text: Line::raw("only"),
+            binding: RowBinding {
+                row_index: 0,
+                left: None,
+                right: None,
+            },
+        }],
+    });
+    betterreview::app::refresh_display_rows(&mut state);
+    assert_eq!(state.active_file_index, 0);
+
+    update(&mut state, AppEvent::Action(AppAction::MoveCursor(1)));
+
+    assert_eq!(state.active_file_index, 1, "crossed into the next file");
+    assert_eq!(state.display_cursor, 0);
+}
+
+#[test]
+fn k_at_the_first_row_returns_to_the_previous_file_end() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    state.focus = betterreview::app::AppFocus::Diff;
+    update(&mut state, AppEvent::Action(AppAction::NextFile));
+    assert_eq!(state.active_file_index, 1);
+    state.rendered_diff = Some(RenderedDiff {
+        rows: vec![RenderedRow {
+            text: Line::raw("only"),
+            binding: RowBinding {
+                row_index: 0,
+                left: None,
+                right: None,
+            },
+        }],
+    });
+    betterreview::app::refresh_display_rows(&mut state);
+    state.display_cursor = 0;
+
+    update(&mut state, AppEvent::Action(AppAction::MoveCursor(-1)));
+    assert_eq!(
+        state.active_file_index, 0,
+        "crossed back to the previous file"
+    );
+
+    // When the previous file's diff lands, the cursor sits at its END.
+    let generation = Some(state.provider.head.clone());
+    update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: 99,
+            generation,
+            outcome: EffectOutcome::Rendered(Ok(rendered_file("row"))),
+        })),
+    );
+    assert_eq!(
+        state.display_cursor,
+        state.display_rows.len().saturating_sub(1),
+        "positioned at the last row of the previous file"
     );
 }

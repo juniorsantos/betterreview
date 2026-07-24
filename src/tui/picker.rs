@@ -11,7 +11,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Paragraph},
+    widgets::{Block, BorderType, Borders, Paragraph, Wrap},
 };
 use time::OffsetDateTime;
 use tokio::sync::mpsc;
@@ -47,6 +47,12 @@ pub struct PickerState {
     pub quit: bool,
     pub chosen: Option<(u64, Option<ProviderSnapshot>)>,
     pub repository: String,
+    /// Vertical scroll offset of the description panel's body, reset
+    /// whenever the highlighted item changes.
+    pub detail_scroll: u16,
+    /// `true` when keyboard focus is on the description panel (`[1]`)
+    /// instead of the list panel (`[0]`).
+    pub focus_detail: bool,
 }
 
 // The `Loaded` variant is intentionally not boxed: this is the public event
@@ -96,6 +102,8 @@ impl PickerState {
             quit: false,
             chosen: None,
             repository,
+            detail_scroll: 0,
+            focus_detail: false,
         }
     }
 }
@@ -126,6 +134,26 @@ fn key_update(state: &mut PickerState, key: KeyEvent) -> Vec<PickerCommand> {
             Vec::new()
         }
         KeyCode::Char('r') => vec![PickerCommand::ReloadList],
+        KeyCode::Tab => {
+            state.focus_detail = !state.focus_detail;
+            Vec::new()
+        }
+        KeyCode::Char('0') => {
+            state.focus_detail = false;
+            Vec::new()
+        }
+        KeyCode::Char('1') => {
+            state.focus_detail = true;
+            Vec::new()
+        }
+        KeyCode::Char('j') | KeyCode::Down if state.focus_detail => {
+            state.detail_scroll = state.detail_scroll.saturating_add(1);
+            Vec::new()
+        }
+        KeyCode::Char('k') | KeyCode::Up if state.focus_detail => {
+            state.detail_scroll = state.detail_scroll.saturating_sub(1);
+            Vec::new()
+        }
         KeyCode::Char('j') | KeyCode::Down => {
             let target = (state.highlight + 1).min(state.items.len().saturating_sub(1));
             move_highlight(state, target);
@@ -143,12 +171,14 @@ fn key_update(state: &mut PickerState, key: KeyEvent) -> Vec<PickerCommand> {
 
 /// Moves the highlight to `target`, cancelling any pending `Enter` so a
 /// prefetch that finishes later for the previously highlighted item does not
-/// auto-open it out from under the user.
+/// auto-open it out from under the user, and resetting the description
+/// panel's scroll so it starts at the top of the newly highlighted item.
 fn move_highlight(state: &mut PickerState, target: usize) {
     if target != state.highlight {
         state.highlight = target;
         state.waiting = None;
         state.error_banner = None;
+        state.detail_scroll = 0;
     }
 }
 
@@ -259,15 +289,24 @@ pub fn mark_items(
 }
 
 /// Right-side hints for the picker's flat status bar (transversal rule 1).
-const PICKER_HINTS: [(&str, &str); 4] = [
+const PICKER_HINTS: [(&str, &str); 5] = [
     ("j/k", "mover"),
+    ("Tab", "foco"),
     ("Enter", "abrir"),
     ("r", "recarregar"),
     ("q", "sair"),
 ];
 
-/// Renders the review picker screen: borderless chip header, a bordered
-/// rounded list panel, and a borderless flat status line.
+/// Below this many total rows the description panel is hidden entirely and
+/// the list panel takes the whole body.
+const DETAIL_HIDE_THRESHOLD: u16 = 14;
+/// The list panel keeps at least this many rows (header/blank rows, a
+/// couple of items, and the counter) before the description panel is
+/// allowed to grow past its ~40% share.
+const LIST_MIN_HEIGHT: u16 = 8;
+
+/// Renders the review picker screen: borderless chip header, the rounded
+/// list and description panels, and a borderless flat status line.
 pub fn render(frame: &mut Frame, state: &PickerState) {
     let area = frame.area();
     frame.render_widget(
@@ -292,19 +331,47 @@ pub fn render(frame: &mut Frame, state: &PickerState) {
         Paragraph::new(header::chip_line(&middle, area.width)),
         rows[0],
     );
-    render_panel(frame, rows[1], state);
+
+    if area.height >= DETAIL_HIDE_THRESHOLD {
+        let body = rows[1];
+        let list_height = ((body.height as u32 * 60) / 100)
+            .max(LIST_MIN_HEIGHT as u32)
+            .min(body.height as u32) as u16;
+        let detail_height = body.height - list_height;
+        let panels = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(list_height),
+                Constraint::Length(detail_height),
+            ])
+            .split(body);
+        render_panel(frame, panels[0], state, !state.focus_detail);
+        render_detail(frame, panels[1], state, state.focus_detail);
+    } else {
+        render_panel(frame, rows[1], state, !state.focus_detail);
+    }
+
     frame.render_widget(Paragraph::new(status_line(state, rows[2].width)), rows[2]);
 }
 
-/// Draws the rounded, ACCENT-bordered list panel: the item rows on top and
-/// the reviews-open counter as the last inner row.
-fn render_panel(frame: &mut Frame, area: Rect, state: &PickerState) {
+fn panel_border_style(focused: bool) -> Style {
+    Style::default().fg(if focused {
+        theme::ACCENT
+    } else {
+        theme::BORDER
+    })
+}
+
+/// Draws the rounded list panel: a blank line, the column header row, a
+/// blank line, the item rows, and the reviews-open counter as the last
+/// inner row. Border is ACCENT when `focused`, BORDER otherwise.
+fn render_panel(frame: &mut Frame, area: Rect, state: &PickerState, focused: bool) {
     let block = Block::default()
         .padding(ratatui::widgets::Padding::horizontal(1))
-        .title(" Reviews abertos ")
+        .title(" [0] Revisões abertas ")
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(theme::ACCENT));
+        .border_style(panel_border_style(focused));
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -345,79 +412,139 @@ fn counter_line(state: &PickerState, width: u16) -> Line<'static> {
     )
 }
 
+/// Column widths shared by the header row and every item row, so the
+/// AUTOR/BRANCH columns start at the same offset on every line.
+#[derive(Clone, Copy)]
+struct Columns {
+    show_author: bool,
+    show_branch: bool,
+    title_width: usize,
+}
+
+const CURSOR_WIDTH: usize = 2;
+const PR_WIDTH: usize = 6;
+const AUTHOR_DOT_WIDTH: usize = 2;
+const AUTHOR_TEXT_WIDTH: usize = 10;
+const AUTHOR_WIDTH: usize = AUTHOR_DOT_WIDTH + AUTHOR_TEXT_WIDTH;
+const BRANCH_WIDTH: usize = 16;
+const QUANDO_WIDTH: usize = 6;
+/// Below this inner width the BRANCH column is dropped so the title keeps
+/// room to breathe.
+const NARROW_BRANCH_THRESHOLD: usize = 70;
+/// Below this inner width the AUTOR column is dropped too.
+const NARROW_AUTHOR_THRESHOLD: usize = 50;
+
+fn columns_for(width: usize) -> Columns {
+    let show_branch = width >= NARROW_BRANCH_THRESHOLD;
+    let show_author = width >= NARROW_AUTHOR_THRESHOLD;
+    let mut reserved = CURSOR_WIDTH + PR_WIDTH + QUANDO_WIDTH;
+    if show_author {
+        reserved += AUTHOR_WIDTH;
+    }
+    if show_branch {
+        reserved += BRANCH_WIDTH;
+    }
+    let title_width = width.saturating_sub(reserved).max(4);
+    Columns {
+        show_author,
+        show_branch,
+        title_width,
+    }
+}
+
 fn render_list(frame: &mut Frame, area: Rect, state: &PickerState) {
     let now = OffsetDateTime::now_utc();
-    let width = area.width as usize;
-    let lines: Vec<Line> = state
-        .items
-        .iter()
-        .enumerate()
-        .map(|(index, item)| item_line(item, now, width, index == state.highlight))
-        .collect();
+    let columns = columns_for(area.width as usize);
+    let mut lines = vec![Line::raw(""), header_line(columns), Line::raw("")];
+    lines.extend(
+        state
+            .items
+            .iter()
+            .enumerate()
+            .map(|(index, item)| item_line(item, now, columns, index == state.highlight)),
+    );
     frame.render_widget(Paragraph::new(lines), area);
+}
+
+/// The `PR TÍTULO AUTOR BRANCH QUANDO` column header: MUTED BOLD uppercase,
+/// aligned to the same column widths as the item rows below it.
+fn header_line(columns: Columns) -> Line<'static> {
+    let style = Style::default()
+        .fg(theme::MUTED)
+        .add_modifier(Modifier::BOLD);
+    let mut text = format!(
+        "  {}{}",
+        pad_cell("PR", PR_WIDTH),
+        pad_cell("TÍTULO", columns.title_width)
+    );
+    if columns.show_author {
+        text.push_str(&pad_cell("AUTOR", AUTHOR_WIDTH));
+    }
+    if columns.show_branch {
+        text.push_str(&pad_cell("BRANCH", BRANCH_WIDTH));
+    }
+    text.push_str("QUANDO");
+    Line::styled(text, style)
 }
 
 /// One row of the list: `▶ ` marker + selection background when
 /// highlighted (transversal rule 2), otherwise a plain two-space indent.
-/// Number BOLD, title FG (truncated with `…`), author/branch/age MUTED, and
-/// right-side badges: `●` ACCENT for the current-branch item, `[sessão]`
-/// WARNING, `[draft]` MUTED.
+/// Number BOLD, title FG (truncated with `…`), AUTOR/BRANCH/QUANDO MUTED,
+/// `●` ACCENT before the author for the current-branch item, and badges
+/// after QUANDO: `draft` MUTED, `sessão` WARNING.
 fn item_line(
     item: &PickerItem,
     now: OffsetDateTime,
-    width: usize,
+    columns: Columns,
     highlighted: bool,
 ) -> Line<'static> {
     let cursor = if highlighted { "▶ " } else { "  " };
-    let number = format!("#{} ", item.summary.number);
-    let author = if item.current_branch {
-        "você".to_string()
-    } else {
-        format!("@{}", item.summary.author)
-    };
-    let suffix = format!(
-        "  {}  {}  {}",
-        author,
-        item.summary.source_branch,
-        age(now, item.summary.updated_at)
-    );
-    let suffix_span = Span::styled(suffix.clone(), Style::default().fg(theme::MUTED));
-
-    let mut badge_spans = Vec::new();
-    if item.summary.draft {
-        badge_spans.push(Span::styled(" [draft]", Style::default().fg(theme::MUTED)));
-    }
-    if item.has_session {
-        badge_spans.push(Span::styled(
-            " [sessão]",
-            Style::default().fg(theme::WARNING),
-        ));
-    }
-    if item.current_branch {
-        badge_spans.push(Span::styled(" ●", Style::default().fg(theme::ACCENT)));
-    }
-
-    let fixed_width = cursor.chars().count()
-        + number.chars().count()
-        + suffix.chars().count()
-        + badge_spans
-            .iter()
-            .map(|span| span.content.chars().count())
-            .sum::<usize>();
-    let title_budget = width.saturating_sub(fixed_width).max(1);
-    let title = truncate_title(&item.summary.title, title_budget);
+    let pr = pad_cell(&format!("#{}", item.summary.number), PR_WIDTH);
+    let title = pad_cell(&item.summary.title, columns.title_width);
 
     let mut spans = vec![
         Span::raw(cursor),
-        Span::styled(number, Style::default().add_modifier(Modifier::BOLD)),
+        Span::styled(pr, Style::default().add_modifier(Modifier::BOLD)),
         Span::styled(title, Style::default().fg(theme::FG)),
-        suffix_span,
     ];
-    spans.extend(badge_spans);
+
+    if columns.show_author {
+        if item.current_branch {
+            spans.push(Span::styled("● ", Style::default().fg(theme::ACCENT)));
+            spans.push(Span::styled(
+                pad_cell("você", AUTHOR_TEXT_WIDTH),
+                Style::default().fg(theme::MUTED),
+            ));
+        } else {
+            spans.push(Span::raw("  "));
+            spans.push(Span::styled(
+                pad_cell(&format!("@{}", item.summary.author), AUTHOR_TEXT_WIDTH),
+                Style::default().fg(theme::MUTED),
+            ));
+        }
+    }
+    if columns.show_branch {
+        spans.push(Span::styled(
+            pad_cell(&item.summary.source_branch, BRANCH_WIDTH),
+            Style::default().fg(theme::MUTED),
+        ));
+    }
+    spans.push(Span::styled(
+        age(now, item.summary.updated_at),
+        Style::default().fg(theme::MUTED),
+    ));
+    if item.summary.draft {
+        spans.push(Span::styled(" draft", Style::default().fg(theme::MUTED)));
+    }
+    if item.has_session {
+        spans.push(Span::styled(" sessão", Style::default().fg(theme::WARNING)));
+    }
+
     let mut line = Line::from(spans);
 
     if highlighted {
         // Pad so the background reaches the panel's inner right edge.
+        let width = area_width_hint(columns);
         let text_width = line.width();
         if text_width < width {
             line.spans.push(Span::raw(" ".repeat(width - text_width)));
@@ -431,6 +558,20 @@ fn item_line(
     line
 }
 
+/// Reconstructs the row's nominal width from its column layout, for the
+/// highlight background padding (the QUANDO/badge tail is ragged, so this
+/// is a lower bound rather than the exact rendered width).
+fn area_width_hint(columns: Columns) -> usize {
+    let mut width = CURSOR_WIDTH + PR_WIDTH + columns.title_width + QUANDO_WIDTH;
+    if columns.show_author {
+        width += AUTHOR_WIDTH;
+    }
+    if columns.show_branch {
+        width += BRANCH_WIDTH;
+    }
+    width
+}
+
 fn truncate_title(title: &str, budget: usize) -> String {
     if title.chars().count() <= budget {
         return title.to_owned();
@@ -438,6 +579,130 @@ fn truncate_title(title: &str, budget: usize) -> String {
     let mut shown: String = title.chars().take(budget.saturating_sub(1)).collect();
     shown.push('…');
     shown
+}
+
+/// Truncates `text` to `width` columns (appending `…` when it overflows)
+/// and pads it with trailing spaces so it always occupies exactly `width`
+/// columns — the building block for aligned table columns.
+fn pad_cell(text: &str, width: usize) -> String {
+    let truncated = truncate_title(text, width);
+    let used = truncated.chars().count();
+    if used >= width {
+        truncated
+    } else {
+        format!("{truncated}{}", " ".repeat(width - used))
+    }
+}
+
+/// Draws the rounded description panel: title + `#N · aberto`, the
+/// `@autor · branch` line, a blank line, then the (possibly scrolled)
+/// description body. Border is ACCENT when `focused`, BORDER otherwise.
+fn render_detail(frame: &mut Frame, area: Rect, state: &PickerState, focused: bool) {
+    let block = Block::default()
+        .padding(ratatui::widgets::Padding::horizontal(1))
+        .title(" [1] Descrição da revisão ")
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(panel_border_style(focused));
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+
+    if inner.height == 0 {
+        return;
+    }
+    let Some(item) = state.items.get(state.highlight) else {
+        return;
+    };
+
+    let slots = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Min(0),
+        ])
+        .split(inner);
+
+    let width = inner.width as usize;
+    let meta = format!("#{} · aberto", item.summary.number);
+    frame.render_widget(
+        Paragraph::new(title_meta_line(&item.summary.title, &meta, width)),
+        slots[0],
+    );
+    frame.render_widget(
+        Paragraph::new(Line::styled(
+            format!("@{} · {}", item.summary.author, item.summary.source_branch),
+            Style::default().fg(theme::MUTED),
+        )),
+        slots[1],
+    );
+
+    let body_area = slots[3];
+    if body_area.height == 0 || body_area.width == 0 {
+        return;
+    }
+    if item.summary.description.is_empty() {
+        frame.render_widget(
+            Paragraph::new(Line::styled(
+                "sem descrição",
+                Style::default().fg(theme::MUTED),
+            )),
+            body_area,
+        );
+        return;
+    }
+    let paragraph = Paragraph::new(item.summary.description.clone())
+        .style(Style::default().fg(theme::FG))
+        .wrap(Wrap { trim: false });
+    let total_lines = wrapped_line_count(&item.summary.description, body_area.width as usize);
+    let max_scroll = total_lines.saturating_sub(body_area.height);
+    let scroll = state.detail_scroll.min(max_scroll);
+    frame.render_widget(paragraph.scroll((scroll, 0)), body_area);
+}
+
+/// Approximates how many rows `text` occupies once word-wrapped to `width`
+/// columns — used only to clamp the description panel's scroll offset to
+/// the content height, so an approximation (no hard mid-word breaking) is
+/// good enough.
+fn wrapped_line_count(text: &str, width: usize) -> u16 {
+    let width = width.max(1);
+    let mut total = 0usize;
+    for paragraph in text.split('\n') {
+        if paragraph.trim().is_empty() {
+            total += 1;
+            continue;
+        }
+        let mut current = 0usize;
+        let mut lines_in_paragraph = 1usize;
+        for word in paragraph.split_whitespace() {
+            let word_len = word.chars().count();
+            if current == 0 {
+                current = word_len;
+            } else if current + 1 + word_len <= width {
+                current += 1 + word_len;
+            } else {
+                lines_in_paragraph += 1;
+                current = word_len;
+            }
+        }
+        total += lines_in_paragraph;
+    }
+    total.max(1) as u16
+}
+
+/// Builds `left` in BOLD followed by `right` in MUTED, right-aligned within
+/// `width` columns (falling back to a single space gap when `left` and
+/// `right` together don't fit).
+fn title_meta_line(left: &str, right: &str, width: usize) -> Line<'static> {
+    let left_span = Span::styled(
+        left.to_owned(),
+        Style::default().add_modifier(Modifier::BOLD),
+    );
+    let right_span = Span::styled(right.to_owned(), Style::default().fg(theme::MUTED));
+    let used = left.chars().count() + right.chars().count();
+    let pad = width.saturating_sub(used).max(1);
+    Line::from(vec![left_span, Span::raw(" ".repeat(pad)), right_span])
 }
 
 /// Left side keeps the prefetch/error precedence; right side is the flat,
