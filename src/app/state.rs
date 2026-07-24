@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
     diff::{ParsedFileDiff, RenderedDiff},
@@ -48,6 +48,8 @@ pub struct AppState {
     pub collapsed_dirs: BTreeSet<String>,
     pub display_cursor: usize,
     pub comments_hidden: bool,
+    pub pending_labels: BTreeMap<u64, &'static str>,
+    pub spinner_frame: usize,
     pub display_rows: Vec<DisplayRow>,
     pub editing_draft: Option<DraftId>,
     pub replying_thread: Option<ThreadId>,
@@ -89,6 +91,8 @@ impl AppState {
             collapsed_dirs: BTreeSet::new(),
             display_cursor: 0,
             comments_hidden: false,
+            pending_labels: BTreeMap::new(),
+            spinner_frame: 0,
             display_rows: Vec::new(),
             editing_draft: None,
             replying_thread: None,

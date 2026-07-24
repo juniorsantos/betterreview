@@ -17,6 +17,9 @@ pub fn update(state: &mut AppState, event: AppEvent) -> Vec<EffectEnvelope> {
         AppEvent::Action(action) => action_update(state, action),
         AppEvent::Terminal(_) => Vec::new(),
         AppEvent::Tick => {
+            if !state.pending_labels.is_empty() {
+                state.spinner_frame = state.spinner_frame.wrapping_add(1);
+            }
             if state.dirty {
                 state.dirty = false;
                 vec![envelope(
@@ -429,6 +432,7 @@ fn toggle_reviewed(state: &mut AppState) -> Vec<EffectEnvelope> {
 
 fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelope> {
     state.busy_operations.remove(&result.id);
+    state.pending_labels.remove(&result.id);
     if result
         .generation
         .as_ref()
@@ -704,6 +708,19 @@ fn placeholder_selection(state: &AppState) -> DiffSelection {
     }
 }
 
+/// Human-facing label for effects whose progress the status bar reports.
+fn effect_label(effect: &AppEffect) -> Option<&'static str> {
+    match effect {
+        AppEffect::CreateDraft { .. } => Some("salvando comentário…"),
+        AppEffect::UpdateDraft { .. } => Some("atualizando comentário…"),
+        AppEffect::DeleteDraft { .. } => Some("excluindo comentário…"),
+        AppEffect::Reply { .. } => Some("respondendo…"),
+        AppEffect::SubmitReview { .. } => Some("enviando revisão…"),
+        AppEffect::RefreshSnapshot => Some("atualizando…"),
+        _ => None,
+    }
+}
+
 fn envelope(
     state: &mut AppState,
     generation: Option<crate::domain::CommitOid>,
@@ -712,6 +729,9 @@ fn envelope(
     let id = state.next_request_id;
     state.next_request_id += 1;
     state.busy_operations.insert(id);
+    if let Some(label) = effect_label(&effect) {
+        state.pending_labels.insert(id, label);
+    }
     EffectEnvelope {
         id,
         generation,

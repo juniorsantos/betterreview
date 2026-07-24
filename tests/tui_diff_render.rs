@@ -237,3 +237,14 @@ fn toggle_hides_comment_rows() {
     assert!(!hidden_screen.contains("Please double-check this line"));
     assert!(hidden_screen.contains("+added"));
 }
+
+#[test]
+fn status_shows_spinner_while_saving() {
+    let mut state = app();
+    state.pending_labels.insert(3, "salvando comentário…");
+    state.busy_operations.insert(3);
+    let terminal = draw(&state);
+    let screen = screen(&terminal);
+
+    assert!(screen.contains("salvando comentário…"));
+}

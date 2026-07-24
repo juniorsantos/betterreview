@@ -9,18 +9,28 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         .values()
         .filter(|progress| progress.reviewed)
         .count();
-    let message = state.error_banner.clone().unwrap_or_else(|| {
-        format!(
-            " {reviewed}/{} reviewed  •  {} drafts  •  {} operations",
-            state.provider.files.len(),
-            state.provider.drafts.len(),
-            state.busy_operations.len()
+    const SPINNER: [&str; 8] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"];
+    // Errors first, then in-flight operation feedback, then the idle summary.
+    let (message, style) = if let Some(error) = &state.error_banner {
+        (
+            error.clone(),
+            ratatui::style::Style::default().fg(crate::tui::theme::DANGER),
         )
-    });
-    let style = if state.error_banner.is_some() {
-        ratatui::style::Style::default().fg(crate::tui::theme::DANGER)
+    } else if let Some((_, label)) = state.pending_labels.iter().next_back() {
+        (
+            format!(" {} {label}", SPINNER[state.spinner_frame % SPINNER.len()]),
+            ratatui::style::Style::default().fg(crate::tui::theme::ACCENT),
+        )
     } else {
-        ratatui::style::Style::default().fg(crate::tui::theme::MUTED)
+        (
+            format!(
+                " {reviewed}/{} reviewed  •  {} drafts  •  {} operations",
+                state.provider.files.len(),
+                state.provider.drafts.len(),
+                state.busy_operations.len()
+            ),
+            ratatui::style::Style::default().fg(crate::tui::theme::MUTED),
+        )
     };
     frame.render_widget(Paragraph::new(Line::raw(message)).style(style), area);
 }

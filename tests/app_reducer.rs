@@ -989,3 +989,59 @@ fn reply_on_thread_dispatches_reply() {
     assert!(!state.editor_open);
     assert!(state.session.editor.is_none());
 }
+
+#[test]
+fn scheduling_a_draft_registers_a_pending_label() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let input = betterreview::providers::NewDraftComment {
+        body: betterreview::providers::DraftBody("corpo".into()),
+        selection: betterreview::domain::DiffSelection {
+            start: betterreview::domain::DiffPosition {
+                path: RepoPath("src/file_0.rs".into()),
+                side: betterreview::domain::DiffSide::Right,
+                line: 1,
+                hunk: 0,
+            },
+            end: betterreview::domain::DiffPosition {
+                path: RepoPath("src/file_0.rs".into()),
+                side: betterreview::domain::DiffSide::Right,
+                line: 1,
+                hunk: 0,
+            },
+        },
+        suggestion: None,
+        operation_id: "op".into(),
+    };
+
+    let effects = update(&mut state, AppEvent::Action(AppAction::CreateDraft(input)));
+
+    assert_eq!(effects.len(), 1);
+    assert_eq!(
+        state.pending_labels.get(&effects[0].id).copied(),
+        Some("salvando comentário…")
+    );
+}
+
+#[test]
+fn finished_effect_clears_its_label_and_tick_spins_while_busy() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    state.pending_labels.insert(7, "salvando comentário…");
+    state.busy_operations.insert(7);
+
+    let frame_before = state.spinner_frame;
+    update(&mut state, AppEvent::Tick);
+    assert!(
+        state.spinner_frame != frame_before,
+        "tick advances the spinner"
+    );
+
+    update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: 7,
+            generation: None,
+            outcome: EffectOutcome::Completed(Ok(())),
+        })),
+    );
+    assert!(state.pending_labels.is_empty());
+}
