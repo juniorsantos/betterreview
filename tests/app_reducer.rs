@@ -510,6 +510,31 @@ fn submit_persists_intent_before_scheduling_remote_write() {
 #[test]
 fn quit_flow_can_cancel_or_discard_the_editor() {
     let mut state = app_with_reviewed_pattern([false; 4]);
+    // Without a parked draft, q leaves immediately — no dialog.
+    update(&mut state, AppEvent::Action(AppAction::Quit));
+    assert!(!state.quit_dialog);
+    assert!(state.quit_requested);
+
+    // With a parked draft the dialog opens.
+    state.quit_requested = false;
+    let anchor = DiffPosition {
+        path: RepoPath("src/file_0.rs".into()),
+        side: DiffSide::Right,
+        line: 1,
+        hunk: 0,
+    };
+    state.session.editor = Some(betterreview::state::EditorSnapshot {
+        lines: vec!["rascunho".into()],
+        cursor_row: 0,
+        grapheme_col: 0,
+        original_head: CommitOid("new-head".into()),
+        path: RepoPath("src/file_0.rs".into()),
+        selection: DiffSelection {
+            start: anchor.clone(),
+            end: anchor,
+        },
+        stale: false,
+    });
     update(&mut state, AppEvent::Action(AppAction::Quit));
     assert!(state.quit_dialog);
 
@@ -898,6 +923,7 @@ fn toggle_comments_resyncs_cursor() {
 #[test]
 fn folding_the_active_directory_makes_navigation_skip_its_files() {
     let mut state = app_with_two_directories();
+    state.focus = betterreview::app::AppFocus::Files;
 
     update(&mut state, AppEvent::Action(AppAction::ToggleFold));
 
@@ -2100,4 +2126,33 @@ fn opening_a_comment_is_refused_on_a_gap_row() {
             .iter()
             .any(|notice| notice == "mova para uma linha de código")
     );
+}
+
+#[test]
+fn folded_directories_stay_reachable_for_unfolding() {
+    let mut state = app_with_two_directories();
+    state.focus = betterreview::app::AppFocus::Files;
+
+    // Fold both directories.
+    update(&mut state, AppEvent::Action(AppAction::ToggleFold));
+    update(&mut state, AppEvent::Action(AppAction::NextFile));
+    update(&mut state, AppEvent::Action(AppAction::ToggleFold));
+    assert_eq!(state.collapsed_dirs.len(), 2);
+
+    // With everything folded, j/k still walks between the folded
+    // directories (their representative first file)...
+    update(&mut state, AppEvent::Action(AppAction::PreviousFile));
+    assert_eq!(
+        state.provider.files[state.active_file_index].path.0,
+        "a/one.rs"
+    );
+    update(&mut state, AppEvent::Action(AppAction::NextFile));
+    assert_eq!(
+        state.provider.files[state.active_file_index].path.0,
+        "b/three.rs"
+    );
+
+    // ...so z can unfold the directory under the highlight again.
+    update(&mut state, AppEvent::Action(AppAction::ToggleFold));
+    assert!(!state.collapsed_dirs.contains("b"));
 }

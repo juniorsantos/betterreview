@@ -5,7 +5,11 @@ use crate::{
     tui::widgets::dialog::{Dialog, menu_line, render_dialog},
 };
 
-const OPTIONS: [&str; 3] = ["Manter sessão", "Descartar editor", "Cancelar"];
+const OPTIONS: [&str; 3] = [
+    "Sair mantendo o rascunho",
+    "Sair descartando o rascunho",
+    "Cancelar",
+];
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let body: Vec<Line> = OPTIONS

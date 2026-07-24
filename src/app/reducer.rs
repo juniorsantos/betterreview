@@ -224,6 +224,12 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             AppEffect::RefreshSnapshot,
         )],
         AppAction::Quit => {
+            // Without an unsaved editor draft both dialog choices are
+            // identical (the session is always persisted) — just leave.
+            if state.session.editor.is_none() {
+                state.quit_requested = true;
+                return Vec::new();
+            }
             state.quit_dialog = true;
             state.quit_selected = 0;
             Vec::new()
@@ -269,6 +275,11 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             Vec::new()
         }
         AppAction::ToggleFold => {
+            // `z` is contextual: folders only from the Files panel (in the
+            // diff it expands hidden-context gaps via the key dispatch).
+            if state.focus != AppFocus::Files {
+                return Vec::new();
+            }
             if let Some(file) = state.provider.files.get(state.active_file_index) {
                 let dir = directory_of(&file.path.0).to_owned();
                 if !state.collapsed_dirs.remove(&dir) {
@@ -505,6 +516,22 @@ pub fn directory_of(path: &str) -> &str {
     path.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("")
 }
 
+/// The first file of its directory: the row the fold highlight collapses
+/// onto, and therefore the navigation stop that keeps a folded directory
+/// reachable.
+fn is_directory_representative(state: &AppState, index: usize) -> bool {
+    let Some(file) = state.provider.files.get(index) else {
+        return false;
+    };
+    let dir = directory_of(&file.path.0);
+    state
+        .provider
+        .files
+        .iter()
+        .position(|candidate| directory_of(&candidate.path.0) == dir)
+        == Some(index)
+}
+
 fn is_folded(state: &AppState, index: usize) -> bool {
     state
         .provider
@@ -518,7 +545,9 @@ fn navigate_by(state: &mut AppState, delta: i32) -> Vec<EffectEnvelope> {
     if count == 0 {
         return Vec::new();
     }
-    // Step over files hidden inside collapsed directories.
+    // Step over files hidden inside collapsed directories — but a folded
+    // directory stays reachable through its FIRST file (shown highlighted
+    // on the directory header), so `z` can always unfold it again.
     let step = delta.signum();
     let mut index = state.active_file_index;
     loop {
@@ -527,7 +556,7 @@ fn navigate_by(state: &mut AppState, delta: i32) -> Vec<EffectEnvelope> {
             return Vec::new();
         }
         index = next;
-        if !is_folded(state, index) {
+        if !is_folded(state, index) || is_directory_representative(state, index) {
             break;
         }
     }

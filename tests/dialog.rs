@@ -196,15 +196,15 @@ fn dialog_selected_menu_row_gets_a_filled_background_and_the_new_marker() {
     let buffer = terminal.backend().buffer().clone();
     let (screen, lines) = screen(&app, 80, 24);
 
-    assert!(screen.contains("▶ Manter sessão"));
+    assert!(screen.contains("▶ Sair mantendo o rascunho"));
     assert!(
-        !screen.contains("▸ Manter sessão"),
+        !screen.contains("▸ Sair mantendo o rascunho"),
         "old marker must be gone"
     );
 
     let selected_row = lines
         .iter()
-        .position(|line| line.contains("▶ Manter sessão"))
+        .position(|line| line.contains("▶ Sair mantendo o rascunho"))
         .expect("selected row rendered");
 
     // Derive the dialog's left/right columns from the rounded top border
@@ -231,9 +231,9 @@ fn dialog_selected_menu_row_gets_a_filled_background_and_the_new_marker() {
 
     let unselected_row = lines
         .iter()
-        .position(|line| line.contains("Descartar editor"))
+        .position(|line| line.contains("Sair descartando o rascunho"))
         .expect("unselected row rendered");
-    assert!(lines[unselected_row].contains("  Descartar editor"));
+    assert!(lines[unselected_row].contains("  Sair descartando o rascunho"));
     let cell = buffer
         .cell((box_left as u16 + 1, unselected_row as u16))
         .unwrap();
