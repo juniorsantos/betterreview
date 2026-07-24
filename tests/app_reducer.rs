@@ -439,6 +439,9 @@ fn quit_flow_can_cancel_or_discard_the_editor() {
     );
     assert!(state.quit_requested);
     assert!(state.session.editor.is_none());
+    assert!(state.editing_draft.is_none());
+    assert!(state.replying_thread.is_none());
+    assert!(!state.editor_open);
 }
 
 fn added_row(path: &str, line: u32) -> betterreview::diff::DiffRow {
@@ -756,6 +759,134 @@ fn edit_opens_editor_with_draft_body_and_enter_updates() {
             .find(|d| d.id == draft.id)
             .map(|d| d.body.as_str()),
         Some("new body")
+    );
+}
+
+#[test]
+fn edit_refuses_when_a_fresh_draft_is_parked() {
+    use betterreview::domain::{DiffPosition, DiffSelection, DiffSide};
+    use betterreview::state::EditorSnapshot;
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let path = RepoPath("src/file_0.rs".into());
+    let position = DiffPosition {
+        path: path.clone(),
+        side: DiffSide::Right,
+        line: 1,
+        hunk: 0,
+    };
+    let parked = EditorSnapshot {
+        lines: vec!["parked text".into()],
+        cursor_row: 0,
+        grapheme_col: 0,
+        original_head: CommitOid("new-head".into()),
+        path: path.clone(),
+        selection: DiffSelection {
+            start: position.clone(),
+            end: position,
+        },
+        stale: false,
+    };
+    state.session.editor = Some(parked.clone());
+    state.editor_open = false;
+    state.editing_draft = None;
+    state.replying_thread = None;
+
+    let draft = DraftComment {
+        id: DraftId("d1".into()),
+        body: "old body".into(),
+        selection: Some(DiffSelection {
+            start: comment_pos(&path, DiffSide::Right, 1),
+            end: comment_pos(&path, DiffSide::Right, 1),
+        }),
+        thread_id: None,
+    };
+    state.provider.drafts.push(draft.clone());
+
+    update(
+        &mut state,
+        AppEvent::Action(AppAction::EditComment(draft.id.clone())),
+    );
+
+    assert_eq!(
+        state.session.editor.as_ref().map(|editor| &editor.lines),
+        Some(&parked.lines),
+        "parked draft body must survive untouched"
+    );
+    assert!(state.editing_draft.is_none());
+    assert!(!state.editor_open);
+    assert!(
+        state
+            .notices
+            .iter()
+            .any(|notice| notice.contains("comentário não salvo")),
+        "expected a notice about the unsaved draft, got {:?}",
+        state.notices
+    );
+}
+
+#[test]
+fn reply_refuses_when_a_fresh_draft_is_parked() {
+    use betterreview::domain::{DiffPosition, DiffSelection, DiffSide};
+    use betterreview::state::EditorSnapshot;
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let path = RepoPath("src/file_0.rs".into());
+    let position = DiffPosition {
+        path: path.clone(),
+        side: DiffSide::Right,
+        line: 1,
+        hunk: 0,
+    };
+    let parked = EditorSnapshot {
+        lines: vec!["parked text".into()],
+        cursor_row: 0,
+        grapheme_col: 0,
+        original_head: CommitOid("new-head".into()),
+        path: path.clone(),
+        selection: DiffSelection {
+            start: position.clone(),
+            end: position,
+        },
+        stale: false,
+    };
+    state.session.editor = Some(parked.clone());
+    state.editor_open = false;
+    state.editing_draft = None;
+    state.replying_thread = None;
+
+    let thread = ReviewThread {
+        id: ThreadId("t1".into()),
+        path: path.clone(),
+        resolved: false,
+        outdated: false,
+        comments: vec![ReviewComment {
+            id: "c1".into(),
+            author: "alice".into(),
+            body: "please explain".into(),
+            position: Some(comment_pos(&path, DiffSide::Right, 1)),
+            pending: false,
+        }],
+    };
+    state.provider.threads.push(thread.clone());
+
+    update(
+        &mut state,
+        AppEvent::Action(AppAction::ReplyComment(thread.id.clone())),
+    );
+
+    assert_eq!(
+        state.session.editor.as_ref().map(|editor| &editor.lines),
+        Some(&parked.lines),
+        "parked draft body must survive untouched"
+    );
+    assert!(state.replying_thread.is_none());
+    assert!(!state.editor_open);
+    assert!(
+        state
+            .notices
+            .iter()
+            .any(|notice| notice.contains("comentário não salvo")),
+        "expected a notice about the unsaved draft, got {:?}",
+        state.notices
     );
 }
 

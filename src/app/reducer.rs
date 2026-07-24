@@ -201,6 +201,9 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
                 QuitChoice::KeepSession => state.quit_requested = true,
                 QuitChoice::DiscardEditor => {
                     state.session.editor = None;
+                    state.editing_draft = None;
+                    state.replying_thread = None;
+                    state.editor_open = false;
                     state.dirty = true;
                     state.quit_requested = true;
                 }
@@ -599,6 +602,16 @@ fn open_editor(state: &mut AppState, suggestion: bool) {
 /// none recorded, a placeholder anchored at the active file's first line is
 /// harmless.
 fn edit_comment(state: &mut AppState, id: DraftId) {
+    if state.session.editor.is_some()
+        && state.editing_draft.is_none()
+        && state.replying_thread.is_none()
+    {
+        state.notices.push(
+            "você tem um comentário não salvo; salve (c → Enter) ou descarte antes de editar"
+                .into(),
+        );
+        return;
+    }
     let Some(draft) = state.provider.drafts.iter().find(|draft| draft.id == id) else {
         state.error_banner = Some("draft comment not found".into());
         return;
@@ -633,6 +646,16 @@ fn edit_comment(state: &mut AppState, id: DraftId) {
 /// in [`edit_comment`] — the selection on the resulting `EditorSnapshot` is
 /// never transmitted and a placeholder is harmless.
 fn reply_comment(state: &mut AppState, thread: ThreadId) {
+    if state.session.editor.is_some()
+        && state.editing_draft.is_none()
+        && state.replying_thread.is_none()
+    {
+        state.notices.push(
+            "você tem um comentário não salvo; salve (c → Enter) ou descarte antes de editar"
+                .into(),
+        );
+        return;
+    }
     let Some(thread_ref) = state.provider.threads.iter().find(|item| item.id == thread) else {
         state.error_banner = Some("thread not found".into());
         return;
