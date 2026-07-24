@@ -213,7 +213,28 @@ pub fn refresh_display_rows(state: &mut AppState) {
         .display_rows
         .iter()
         .position(|row| matches!(row, DisplayRow::Diff { row } if *row == target))
+        .or_else(|| {
+            // The row `session.cursor_row` pointed at is no longer in the
+            // display (e.g. a header/metadata row hidden by a later
+            // refresh): snap forward to the nearest Diff row that still is,
+            // and rewrite `session.cursor_row` to match so future refreshes
+            // (and the persisted session) agree with where the cursor
+            // actually landed.
+            state
+                .display_rows
+                .iter()
+                .enumerate()
+                .find_map(|(index, row)| {
+                    matches!(row, DisplayRow::Diff { row } if *row >= target).then_some(index)
+                })
+        })
         .unwrap_or(0);
+    if let Some(DisplayRow::Diff { row }) = state.display_rows.get(state.display_cursor)
+        && *row != target
+    {
+        state.session.cursor_row = *row;
+        state.dirty = true;
+    }
 }
 
 /// Finds runs of unchanged lines the parsed diff skipped over — between
@@ -332,8 +353,11 @@ fn push_gap_row(
 
 /// Display rows whose rendered text contains `state.search_query`
 /// (case-insensitive), in display order. `Diff` rows are matched against the
-/// rendered diff text; `Comment` rows against their own `text`. Returns an
-/// empty vector when there is no active query. Shared by the reducer (to
+/// rendered diff text; `Comment` rows (including `Body` lines) against their
+/// own `text`, but a match inside a comment is reported at its block's
+/// `Header` row — the only row inside a comment block that is a navigation
+/// stop — with consecutive duplicates from the same block collapsed. Returns
+/// an empty vector when there is no active query. Shared by the reducer (to
 /// land on/step between matches) and the status bar (to show the match
 /// count).
 pub fn search_matches(state: &AppState) -> Vec<usize> {
@@ -344,16 +368,46 @@ pub fn search_matches(state: &AppState) -> Vec<usize> {
     if needle.is_empty() {
         return Vec::new();
     }
-    state
-        .display_rows
-        .iter()
-        .enumerate()
-        .filter_map(|(index, row)| {
-            row_search_text(state, row)
-                .is_some_and(|text| text.to_lowercase().contains(&needle))
-                .then_some(index)
-        })
-        .collect()
+    let mut matches = Vec::new();
+    for (index, row) in state.display_rows.iter().enumerate() {
+        let Some(text) = row_search_text(state, row) else {
+            continue;
+        };
+        if !text.to_lowercase().contains(&needle) {
+            continue;
+        }
+        let target = match row {
+            DisplayRow::Comment { .. } => block_header_index(&state.display_rows, index),
+            _ => index,
+        };
+        if matches.last() != Some(&target) {
+            matches.push(target);
+        }
+    }
+    matches
+}
+
+/// Walks backward from `index` to the nearest `Comment` row with
+/// `CommentRowKind::Header` — the start of the block `index` belongs to.
+/// Comment blocks are always pushed contiguously (`Header`, `Body`*,
+/// `Footer`), so this always finds one for a genuine comment row.
+fn block_header_index(rows: &[DisplayRow], index: usize) -> usize {
+    let mut cursor = index;
+    loop {
+        if matches!(
+            rows[cursor],
+            DisplayRow::Comment {
+                kind: CommentRowKind::Header,
+                ..
+            }
+        ) {
+            return cursor;
+        }
+        match cursor.checked_sub(1) {
+            Some(previous) => cursor = previous,
+            None => return index,
+        }
+    }
 }
 
 fn row_search_text(state: &AppState, row: &DisplayRow) -> Option<String> {

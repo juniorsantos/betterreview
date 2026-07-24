@@ -326,7 +326,12 @@ fn ignores_effect_result_from_old_head_generation() {
     );
 
     assert!(state.rendered_diff.is_none());
-    assert!(state.notices.iter().any(|notice| notice.contains("stale")));
+    assert!(
+        state
+            .notices
+            .iter()
+            .any(|notice| notice.contains("operação antiga ignorada"))
+    );
 }
 
 #[test]
@@ -1487,6 +1492,22 @@ fn search_jumps_to_the_first_match() {
 }
 
 #[test]
+fn search_matching_only_a_comment_body_lands_on_its_block_header() {
+    // "line2" only appears inside the comment's second body line; jumping to
+    // it must still land on the block's Header row (the only navigation
+    // stop inside a comment block), not on the Body row itself.
+    let mut state = state_with_multiline_comment();
+    state.search_input = Some("line2".into());
+
+    update(&mut state, AppEvent::Action(AppAction::ConfirmSearch));
+
+    assert_eq!(
+        state.display_cursor, 1,
+        "a match inside a comment body must land on the block's Header row"
+    );
+}
+
+#[test]
 fn n_wraps_around_matches() {
     let mut state = state_with_search_fixture();
     state.search_query = Some("needle".into());
@@ -1718,6 +1739,63 @@ fn file_header_and_metadata_rows_are_hidden_from_the_display() {
         diff_rows,
         vec![2, 3],
         "header/metadata hidden, hunk header and code kept"
+    );
+}
+
+#[test]
+fn cursor_on_a_now_hidden_row_snaps_to_the_nearest_following_diff_row() {
+    use betterreview::diff::{DiffRow, DiffRowKind, ParsedFileDiff};
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let mk = |raw: &str, kind| DiffRow {
+        raw: raw.into(),
+        kind,
+        old_line: None,
+        new_line: None,
+        left: None,
+        right: None,
+    };
+    state.parsed_diff = Some(ParsedFileDiff {
+        path: RepoPath("src/file_0.rs".into()),
+        head: CommitOid("new-head".into()),
+        rows: vec![
+            mk("diff --git a/x b/x", DiffRowKind::Header),
+            mk("index 1..2", DiffRowKind::Metadata),
+            mk("@@ -1 +1 @@", DiffRowKind::HunkHeader),
+            mk("+new", DiffRowKind::Added),
+        ],
+        hunks: Vec::new(),
+    });
+    state.rendered_diff = Some(RenderedDiff {
+        rows: (0..4)
+            .map(|index| RenderedRow {
+                text: Line::raw(format!("row-{index}")),
+                binding: RowBinding {
+                    row_index: index,
+                    left: None,
+                    right: None,
+                },
+            })
+            .collect(),
+    });
+    // The old session's cursor points at parsed row 0 (the `diff --git`
+    // header), which is now filtered out of the display entirely.
+    state.session.cursor_row = 0;
+    state.dirty = false;
+
+    betterreview::app::refresh_display_rows(&mut state);
+
+    let landed = state.display_rows.get(state.display_cursor);
+    assert!(
+        matches!(landed, Some(betterreview::app::DisplayRow::Diff { row: 2 })),
+        "must snap to the nearest following Diff row instead of falling back to index 0, got {landed:?}"
+    );
+    assert_eq!(
+        state.session.cursor_row, 2,
+        "session.cursor_row must be rewritten to the row actually landed on"
+    );
+    assert!(
+        state.dirty,
+        "snapping the cursor to a new row must mark the session dirty"
     );
 }
 

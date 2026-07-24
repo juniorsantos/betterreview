@@ -51,6 +51,7 @@ fn state(items: Vec<PickerItem>, highlight: usize) -> PickerState {
         repository: String::new(),
         detail_scroll: 0,
         focus_detail: false,
+        detail_visible: true,
     }
 }
 
@@ -251,11 +252,22 @@ fn selected_row_gets_the_marker_and_the_selection_background() {
         .expect("selected row rendered");
     let marker_col = char_offset(&row_lines[selected_row], "▶").unwrap();
     // Somewhere past the marker, well inside the panel, the row's
-    // background must be the selection color, spanning to the inner edge.
+    // background must be the selection color.
     let cell = buffer
         .cell(((marker_col + 40) as u16, selected_row as u16))
         .unwrap();
     assert_eq!(cell.bg, theme::SELECTION);
+
+    // The fill must reach all the way to the panel's inner right edge: a
+    // 100-column terminal with a rounded border (1 col) and horizontal
+    // padding (1 col) on each side leaves an inner width of 96, columns
+    // 2..=97.
+    let edge_cell = buffer.cell((97, selected_row as u16)).unwrap();
+    assert_eq!(
+        edge_cell.bg,
+        theme::SELECTION,
+        "selection background must reach the panel's inner right edge, not stop short by BADGE_RESERVE"
+    );
 
     // The unselected row carries a plain two-space indent, no marker.
     let unselected_row = row_lines
@@ -282,7 +294,7 @@ fn panel_shows_the_open_review_counter() {
 
     let screen = screen(&draw(&picker));
 
-    assert!(screen.contains("2 reviews abertos"));
+    assert!(screen.contains("2 revisões abertas"));
 }
 
 #[test]

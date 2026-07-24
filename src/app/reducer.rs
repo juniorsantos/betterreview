@@ -725,7 +725,7 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
         .as_ref()
         .is_some_and(|generation| generation != &state.provider.head)
     {
-        push_notice(state, "ignored stale operation from an older head");
+        push_notice(state, "operação antiga ignorada (head mudou)");
         return Vec::new();
     }
     match result.outcome {

@@ -5,7 +5,7 @@ expression: "screen(&app_with_drafts(3), 80, 24)"
  betterreview  owner/repo #42 · Review terminal · @dev                   v0.1.0 
                                                                                 
 ┌ [2] Arquivos — e expandir /┐┌ [3] Diff ──────────────────────────────────────┐
-│ ▾ src/                     ││ Loading diff...                                │
+│ ▾ src/                     ││ Carregando diff…                               │
 │ [ ] M app.rs         +1 -1 ││                                                │
 │       ╭ Enviar revisão ──────────────────────────────────────────────╮       │
 │       │ 3 drafts serão publicados                                    │       │

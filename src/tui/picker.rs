@@ -53,6 +53,12 @@ pub struct PickerState {
     /// `true` when keyboard focus is on the description panel (`[1]`)
     /// instead of the list panel (`[0]`).
     pub focus_detail: bool,
+    /// `true` when the terminal is tall enough for `render` to draw the
+    /// description panel (mirrors `area.height >= DETAIL_HIDE_THRESHOLD`).
+    /// The reducer has no access to the terminal size, so `run`'s draw loop
+    /// refreshes this every iteration before dispatching events; it keeps
+    /// `Tab`/`1` from focusing a panel that isn't actually on screen.
+    pub detail_visible: bool,
 }
 
 // The `Loaded` variant is intentionally not boxed: this is the public event
@@ -104,6 +110,7 @@ impl PickerState {
             repository,
             detail_scroll: 0,
             focus_detail: false,
+            detail_visible: true,
         }
     }
 }
@@ -128,12 +135,18 @@ fn key_update(state: &mut PickerState, key: KeyEvent) -> Vec<PickerCommand> {
     if key.kind == KeyEventKind::Release {
         return Vec::new();
     }
+    if !state.detail_visible {
+        // The description panel isn't on screen: keep focus pinned to the
+        // list and ignore the keys that would otherwise move it there.
+        state.focus_detail = false;
+    }
     match key.code {
         KeyCode::Char('q') | KeyCode::Esc => {
             state.quit = true;
             Vec::new()
         }
         KeyCode::Char('r') => vec![PickerCommand::ReloadList],
+        KeyCode::Tab if !state.detail_visible => Vec::new(),
         KeyCode::Tab => {
             state.focus_detail = !state.focus_detail;
             Vec::new()
@@ -142,6 +155,7 @@ fn key_update(state: &mut PickerState, key: KeyEvent) -> Vec<PickerCommand> {
             state.focus_detail = false;
             Vec::new()
         }
+        KeyCode::Char('1') if !state.detail_visible => Vec::new(),
         KeyCode::Char('1') => {
             state.focus_detail = true;
             Vec::new()
@@ -403,7 +417,7 @@ fn counter_line(state: &PickerState, width: u16) -> Line<'static> {
     let text = if state.items.len() == 50 {
         "50 mais recentes".to_string()
     } else {
-        format!("{} reviews abertos", state.items.len())
+        format!("{} revisões abertas", state.items.len())
     };
     let used = text.chars().count() + 1;
     let pad = (width as usize).saturating_sub(used);
@@ -460,13 +474,15 @@ fn render_list(frame: &mut Frame, area: Rect, state: &PickerState) {
     let now = OffsetDateTime::now_utc();
     let columns = columns_for(area.width as usize);
     let mut lines = vec![Line::raw(""), header_line(columns), Line::raw("")];
-    lines.extend(
-        state
-            .items
-            .iter()
-            .enumerate()
-            .map(|(index, item)| item_line(item, now, columns, index == state.highlight)),
-    );
+    lines.extend(state.items.iter().enumerate().map(|(index, item)| {
+        item_line(
+            item,
+            now,
+            columns,
+            area.width as usize,
+            index == state.highlight,
+        )
+    }));
     // Keep the highlighted row inside the visible window (50 items easily
     // exceed the panel height).
     let visible = area.height as usize;
@@ -505,6 +521,7 @@ fn item_line(
     item: &PickerItem,
     now: OffsetDateTime,
     columns: Columns,
+    row_width: usize,
     highlighted: bool,
 ) -> Line<'static> {
     let cursor = if highlighted { "▶ " } else { "  " };
@@ -552,11 +569,14 @@ fn item_line(
     let mut line = Line::from(spans);
 
     if highlighted {
-        // Pad so the background reaches the panel's inner right edge.
-        let width = area_width_hint(columns);
+        // Pad so the background reaches the panel's inner right edge (the
+        // full row width the Paragraph is rendered into), not just the
+        // nominal column layout — the QUANDO/badge tail is ragged and
+        // otherwise falls short of the edge.
         let text_width = line.width();
-        if text_width < width {
-            line.spans.push(Span::raw(" ".repeat(width - text_width)));
+        if text_width < row_width {
+            line.spans
+                .push(Span::raw(" ".repeat(row_width - text_width)));
         }
         line = line.style(
             Style::default()
@@ -565,20 +585,6 @@ fn item_line(
         );
     }
     line
-}
-
-/// Reconstructs the row's nominal width from its column layout, for the
-/// highlight background padding (the QUANDO/badge tail is ragged, so this
-/// is a lower bound rather than the exact rendered width).
-fn area_width_hint(columns: Columns) -> usize {
-    let mut width = CURSOR_WIDTH + PR_WIDTH + columns.title_width + QUANDO_WIDTH;
-    if columns.show_author {
-        width += AUTHOR_WIDTH;
-    }
-    if columns.show_branch {
-        width += BRANCH_WIDTH;
-    }
-    width
 }
 
 fn truncate_title(title: &str, budget: usize) -> String {
@@ -800,6 +806,8 @@ pub async fn run(
     let mut prefetch: Option<(u64, tokio::task::JoinHandle<()>)> = None;
 
     loop {
+        let terminal_height = terminal.size().map(|size| size.height).unwrap_or(0);
+        state.detail_visible = terminal_height >= DETAIL_HIDE_THRESHOLD;
         terminal
             .draw(|frame| render(frame, &state))
             .map_err(TuiError::Draw)?;

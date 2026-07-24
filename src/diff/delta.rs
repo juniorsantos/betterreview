@@ -86,7 +86,11 @@ impl DiffRenderer for DeltaRenderer {
                     "--true-color=always".to_owned(),
                     // Ignore the user's global delta config entirely: options
                     // like line-numbers or side-by-side would corrupt the 1:1
-                    // row mapping the app depends on.
+                    // row mapping the app depends on. This also means the
+                    // user's own `--syntax-theme` never applies; that's fine
+                    // as-is, not a gap to fill, because the app always paints
+                    // its own dark background (see `theme::BG`) and delta's
+                    // default syntax palette is tuned for a dark background.
                     "--no-gitconfig".to_owned(),
                     format!("--plus-style=syntax {}", crate::tui::theme::DELTA_PLUS_BG),
                     format!("--minus-style=syntax {}", crate::tui::theme::DELTA_MINUS_BG),

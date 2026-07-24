@@ -386,6 +386,25 @@ fn moving_the_highlight_resets_the_description_scroll() {
 }
 
 #[test]
+fn tab_and_one_are_ignored_when_the_detail_panel_is_not_visible() {
+    let mut state = PickerState::new(vec![item(1, true)], "owner/repo".into());
+    state.detail_visible = false;
+    state.focus_detail = true;
+
+    update(&mut state, PickerEvent::Key(key_event(KeyCode::Tab)));
+    assert!(
+        !state.focus_detail,
+        "Tab must not move focus to a hidden panel, and must clear a stale focus"
+    );
+
+    update(&mut state, PickerEvent::Key(key_event(KeyCode::Char('1'))));
+    assert!(
+        !state.focus_detail,
+        "`1` must not move focus to a hidden panel"
+    );
+}
+
+#[test]
 fn enter_still_opens_the_highlighted_item_while_the_detail_panel_is_focused() {
     let mut state = PickerState::new(vec![item(1, true)], "owner/repo".into());
     state.focus_detail = true;

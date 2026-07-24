@@ -260,13 +260,13 @@ fn marker(state: &AppState, entry: &CommentEntry) -> Option<(&'static str, ratat
 
 fn unavailable_reason(state: &AppState) -> String {
     let Some(file) = state.provider.files.get(state.active_file_index) else {
-        return "No changed files".into();
+        return "Nenhum arquivo alterado".into();
     };
     match &file.patch {
-        PatchAvailability::Available(_) => "Loading diff...".into(),
-        PatchAvailability::Binary => "Binary file: inline review unavailable".into(),
-        PatchAvailability::TooLarge => "Patch is too large for inline review".into(),
-        PatchAvailability::Collapsed => "Patch was collapsed by the provider".into(),
-        PatchAvailability::Truncated { reason } => format!("Patch unavailable: {reason}"),
+        PatchAvailability::Available(_) => "Carregando diff…".into(),
+        PatchAvailability::Binary => "Arquivo binário: revisão inline indisponível".into(),
+        PatchAvailability::TooLarge => "Diff grande demais para revisão inline".into(),
+        PatchAvailability::Collapsed => "Diff recolhido pelo provider".into(),
+        PatchAvailability::Truncated { reason } => format!("Diff indisponível: {reason}"),
     }
 }
