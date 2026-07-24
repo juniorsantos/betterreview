@@ -410,3 +410,22 @@ fn age_formats_minutes_hours_days() {
     assert_eq!(age(now, now - Duration::hours(3)), "3h");
     assert_eq!(age(now, now - Duration::days(2)), "2d");
 }
+
+#[test]
+fn list_scrolls_to_keep_the_highlight_visible() {
+    let items: Vec<_> = (1..=40)
+        .map(|n| item(n, "dev", "branch", false, false))
+        .collect();
+    let picker = state(items, 35);
+
+    let screen_text = lines(&draw(&picker)).join("\n");
+
+    assert!(
+        screen_text.contains("▶ #36"),
+        "highlighted row must stay on screen"
+    );
+    assert!(
+        !screen_text.contains("#1 "),
+        "rows far above the highlight scroll out"
+    );
+}

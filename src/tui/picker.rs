@@ -334,7 +334,7 @@ pub fn render(frame: &mut Frame, state: &PickerState) {
     );
 
     if area.height >= DETAIL_HIDE_THRESHOLD {
-        let body = rows[1];
+        let body = rows[2];
         let list_height = ((body.height as u32 * 60) / 100)
             .max(LIST_MIN_HEIGHT as u32)
             .min(body.height as u32) as u16;
@@ -349,10 +349,10 @@ pub fn render(frame: &mut Frame, state: &PickerState) {
         render_panel(frame, panels[0], state, !state.focus_detail);
         render_detail(frame, panels[1], state, state.focus_detail);
     } else {
-        render_panel(frame, rows[1], state, !state.focus_detail);
+        render_panel(frame, rows[2], state, !state.focus_detail);
     }
 
-    frame.render_widget(Paragraph::new(status_line(state, rows[2].width)), rows[2]);
+    frame.render_widget(Paragraph::new(status_line(state, rows[3].width)), rows[3]);
 }
 
 fn panel_border_style(focused: bool) -> Style {
@@ -467,7 +467,12 @@ fn render_list(frame: &mut Frame, area: Rect, state: &PickerState) {
             .enumerate()
             .map(|(index, item)| item_line(item, now, columns, index == state.highlight)),
     );
-    frame.render_widget(Paragraph::new(lines), area);
+    // Keep the highlighted row inside the visible window (50 items easily
+    // exceed the panel height).
+    let visible = area.height as usize;
+    let start = super::viewport::start(3 + state.highlight, lines.len(), visible);
+    let scroll = u16::try_from(start).unwrap_or(u16::MAX);
+    frame.render_widget(Paragraph::new(lines).scroll((scroll, 0)), area);
 }
 
 /// The `PR TÍTULO AUTOR BRANCH QUANDO` column header: MUTED BOLD uppercase,
@@ -589,10 +594,9 @@ fn truncate_title(title: &str, budget: usize) -> String {
 /// and pads it with trailing spaces so it always occupies exactly `width`
 /// columns — the building block for aligned table columns.
 fn pad_cell(text: &str, width: usize) -> String {
-    // Always keep at least two trailing spaces as the column gap, so a
+    // Always keep at least one trailing space as the column gap, so a
     // full-width value never glues onto its neighbor.
-    let gap = 2usize.min(width.saturating_sub(1));
-    let truncated = truncate_title(text, width.saturating_sub(gap));
+    let truncated = truncate_title(text, width.saturating_sub(1));
     let used = truncated.chars().count();
     format!("{truncated}{}", " ".repeat(width.saturating_sub(used)))
 }
