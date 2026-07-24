@@ -136,6 +136,7 @@ pub struct ListNode {
     pub head_ref_name: String,
     pub url: String,
     pub author: Option<Author>,
+    pub body: Option<String>,
 }
 
 #[derive(Deserialize)]

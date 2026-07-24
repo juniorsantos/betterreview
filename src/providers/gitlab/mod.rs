@@ -385,6 +385,7 @@ where
                     .map_err(|error| malformed("list open merge requests", &error.to_string()))?,
                     draft: summary.draft,
                     web_url: summary.web_url,
+                    description: summary.description.unwrap_or_default(),
                 })
             })
             .collect()

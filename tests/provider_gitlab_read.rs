@@ -255,7 +255,9 @@ async fn lists_open_merge_requests_in_one_call() {
     assert_eq!(list.len(), 2);
     assert_eq!(list[0].number, 12);
     assert_eq!(list[0].source_branch, "feature/picker");
+    assert_eq!(list[0].description, "Adds the review picker prefetch flow.");
     assert!(list[1].draft);
+    assert_eq!(list[1].description, "");
     assert_eq!(runner.calls.lock().unwrap().len(), 1);
 }
 

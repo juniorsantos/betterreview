@@ -10,7 +10,8 @@
             "updatedAt": "2026-07-23T10:00:00Z",
             "headRefName": "feature/picker",
             "url": "https://ghe.acme.test/acme/api/pull/7",
-            "author": { "login": "jsjunior" }
+            "author": { "login": "jsjunior" },
+            "body": "Adds the review picker prefetch flow."
           },
           {
             "number": 5,
@@ -19,7 +20,8 @@
             "updatedAt": "2026-07-22T09:00:00Z",
             "headRefName": "chore/deps",
             "url": "https://ghe.acme.test/acme/api/pull/5",
-            "author": null
+            "author": null,
+            "body": null
           }
         ]
       }

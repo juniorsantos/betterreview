@@ -337,6 +337,7 @@ where
                     .map_err(|error| malformed("list open pull requests", &error.to_string()))?,
                     draft: node.is_draft,
                     web_url: node.url,
+                    description: node.body.unwrap_or_default(),
                 })
             })
             .collect()

@@ -18,6 +18,7 @@ fn summary(number: u64, branch: &str) -> ChangeRequestSummary {
         updated_at: time::OffsetDateTime::UNIX_EPOCH,
         draft: false,
         web_url: format!("https://example.com/{number}"),
+        description: String::new(),
     }
 }
 

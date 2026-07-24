@@ -19,6 +19,7 @@ fn summary(number: u64, author: &str, branch: &str, draft: bool) -> ChangeReques
         updated_at: OffsetDateTime::UNIX_EPOCH,
         draft,
         web_url: format!("https://github.com/owner/repo/pull/{number}"),
+        description: String::new(),
     }
 }
 

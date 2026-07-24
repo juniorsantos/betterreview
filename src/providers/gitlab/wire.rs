@@ -100,4 +100,5 @@ pub struct MergeRequestSummary {
     pub source_branch: String,
     pub web_url: String,
     pub author: Author,
+    pub description: Option<String>,
 }

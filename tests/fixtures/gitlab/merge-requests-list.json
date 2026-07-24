@@ -6,7 +6,8 @@
     "updated_at": "2026-07-23T10:00:00.000Z",
     "source_branch": "feature/picker",
     "web_url": "https://git.acme.test/group/api/-/merge_requests/12",
-    "author": { "username": "jsjunior" }
+    "author": { "username": "jsjunior" },
+    "description": "Adds the review picker prefetch flow."
   },
   {
     "iid": 9,
@@ -15,6 +16,7 @@
     "updated_at": "2026-07-21T08:00:00.000Z",
     "source_branch": "wip",
     "web_url": "https://git.acme.test/group/api/-/merge_requests/9",
-    "author": { "username": "dev2" }
+    "author": { "username": "dev2" },
+    "description": null
   }
 ]

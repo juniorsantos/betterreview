@@ -228,8 +228,10 @@ async fn lists_open_pull_requests_in_one_call() {
     assert_eq!(list[0].source_branch, "feature/picker");
     assert_eq!(list[0].author, "jsjunior");
     assert!(!list[0].draft);
+    assert_eq!(list[0].description, "Adds the review picker prefetch flow.");
     assert_eq!(list[1].author, "unknown");
     assert!(list[1].draft);
+    assert_eq!(list[1].description, "");
     let calls = runner.calls.lock().unwrap();
     assert_eq!(
         calls

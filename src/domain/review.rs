@@ -48,6 +48,7 @@ pub struct ChangeRequestSummary {
     pub updated_at: time::OffsetDateTime,
     pub draft: bool,
     pub web_url: String,
+    pub description: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
