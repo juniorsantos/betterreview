@@ -46,7 +46,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     } else {
         (
             format!(
-                " {reviewed}/{} reviewed  •  {} drafts  •  {} operations",
+                " {reviewed}/{} revisados · {} drafts · {} operações",
                 state.provider.files.len(),
                 state.provider.drafts.len(),
                 state.busy_operations.len()

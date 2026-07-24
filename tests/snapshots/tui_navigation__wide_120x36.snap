@@ -3,7 +3,7 @@ source: tests/tui_navigation.rs
 expression: "screen(&app(), 120, 36)"
 ---
  GitHub owner/repo #42 — Add terminal review — by developer
-┌ Files — e expand / z fold ─┐┌ Diff ──────────────────────────────────────────────────────────────────────────────────┐
+┌ Arquivos — e expandir / z r┐┌ Diff ──────────────────────────────────────────────────────────────────────────────────┐
 │src/                        ││    8 -old                                                                              │
 │✓M app.rs              +1 -1││    8 +new                                                                              │
 │~A new.rs                 +1││                                                                                        │
@@ -36,5 +36,5 @@ expression: "screen(&app(), 120, 36)"
 │                            ││                                                                                        │
 │                            ││                                                                                        │
 └────────────────────────────┘└────────────────────────────────────────────────────────────────────────────────────────┘
- 1/2 reviewed  •  0 drafts  •  0 operations
- Tab/h/l focus  j/k move  ]f/[f file  m reviewed  e expand  R submit  ? help  q quit
+ 1/2 revisados · 0 drafts · 0 operações
+ Tab/h/l foco  j/k mover  ]f/[f arquivo  m revisado  e expandir  R enviar  ? ajuda  q sair

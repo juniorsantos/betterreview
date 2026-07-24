@@ -23,7 +23,11 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         .threads
         .iter()
         .flat_map(|thread| {
-            let status = if thread.resolved { "resolved" } else { "open" };
+            let status = if thread.resolved {
+                "resolvido"
+            } else {
+                "aberto"
+            };
             let mut lines = vec![ListItem::new(Line::raw(format!(
                 "{} [{}]",
                 thread.path.0, status
@@ -36,7 +40,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         .collect::<Vec<_>>();
     frame.render_widget(Clear, popup);
     frame.render_widget(
-        List::new(items).block(Block::default().title(" Threads ").borders(Borders::ALL)),
+        List::new(items).block(Block::default().title(" Conversas ").borders(Borders::ALL)),
         popup,
     );
 }

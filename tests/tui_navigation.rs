@@ -189,9 +189,9 @@ fn renders_wide_file_panel_canonical_diff_and_shortcuts() {
     assert!(screen.contains("~A new.rs"));
     assert!(screen.contains("    8 -old"));
     assert!(screen.contains("    8 +new"));
-    assert!(screen.contains("]f/[f file"));
-    assert!(screen.contains("h/l focus"));
-    assert!(screen.contains("R submit"));
+    assert!(screen.contains("]f/[f arquivo"));
+    assert!(screen.contains("h/l foco"));
+    assert!(screen.contains("R enviar"));
 }
 
 #[test]

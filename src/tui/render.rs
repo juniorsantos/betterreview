@@ -60,7 +60,7 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     status::render(frame, rows[2], state);
     frame.render_widget(
         Paragraph::new(
-            " Tab/h/l focus  j/k move  ]f/[f file  m reviewed  e expand  R submit  ? help  q quit",
+            " Tab/h/l foco  j/k mover  ]f/[f arquivo  m revisado  e expandir  R enviar  ? ajuda  q sair",
         )
         .style(Style::default().fg(theme::MUTED)),
         rows[3],

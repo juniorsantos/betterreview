@@ -66,7 +66,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     frame.render_widget(
         List::new(items).block(
             Block::default()
-                .title(" Files — e expand / z fold ")
+                .title(" Arquivos — e expandir / z recolher ")
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(border)),
         ),
