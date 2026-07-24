@@ -1,5 +1,6 @@
 mod editor_state;
 mod keymap;
+mod layout;
 pub mod picker;
 mod render;
 mod splash;

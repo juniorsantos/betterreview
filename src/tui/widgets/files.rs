@@ -13,13 +13,20 @@ use crate::{
     tui::{theme, viewport},
 };
 
-enum Row<'a> {
-    Directory { dir: &'a str, folded: bool },
-    File { index: usize, file: &'a ChangedFile },
+/// One row of the files panel: a directory header or a visible (unfolded)
+/// file. Shared between the widget's rendering and the mouse click handler,
+/// which maps a click's row position through the same list to find what it
+/// landed on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FilesRow<'a> {
+    Directory(&'a str),
+    File(usize),
 }
 
-pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
-    let inner_width = area.width.saturating_sub(4) as usize;
+/// Builds the files panel's visible rows — directory headers interleaved
+/// with unfolded files, already windowed to the viewport around the active
+/// file for a panel of `height` rows.
+pub(crate) fn visible_rows(state: &AppState, height: u16) -> Vec<FilesRow<'_>> {
     let mut rows = Vec::new();
     let mut current_dir: Option<&str> = None;
     let mut active_row = 0;
@@ -27,36 +34,41 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         let (dir, _) = split_path(&file.path.0);
         let folded = state.collapsed_dirs.contains(dir);
         if !dir.is_empty() && current_dir != Some(dir) {
-            rows.push(Row::Directory { dir, folded });
+            rows.push(FilesRow::Directory(dir));
             current_dir = Some(dir);
         }
         if index == state.active_file_index {
             active_row = rows.len().saturating_sub(if folded { 1 } else { 0 });
         }
         if !folded {
-            rows.push(Row::File { index, file });
+            rows.push(FilesRow::File(index));
         }
     }
 
-    let visible = area.height.saturating_sub(2) as usize;
+    let visible = height.saturating_sub(2) as usize;
     let start = viewport::start(active_row, rows.len(), visible);
+    rows.into_iter().skip(start).take(visible).collect()
+}
+
+pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
+    let inner_width = area.width.saturating_sub(4) as usize;
+    let rows = visible_rows(state, area.height);
     let items = rows
         .iter()
-        .skip(start)
-        .take(visible)
         .map(|row| match row {
-            Row::Directory { dir, folded } => {
+            FilesRow::Directory(dir) => {
+                let folded = state.collapsed_dirs.contains(*dir);
                 let (reviewed, total) = directory_progress(state, dir);
                 // Chevron orientation signals the fold state: ▸ collapsed,
                 // ▾ expanded (toggled with z/Enter).
-                let text = if *folded {
+                let text = if folded {
                     format!("\u{25b8} {dir}/ ({reviewed}/{total})")
                 } else {
                     format!("\u{25be} {dir}/")
                 };
                 // A folded folder holding the active file carries the
                 // highlight so the current position never disappears.
-                let holds_active = *folded
+                let holds_active = folded
                     && state
                         .provider
                         .files
@@ -77,7 +89,9 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
                 }
                 ListItem::new(line)
             }
-            Row::File { index, file } => file_item(state, *index, file, inner_width),
+            FilesRow::File(index) => {
+                file_item(state, *index, &state.provider.files[*index], inner_width)
+            }
         })
         .collect::<Vec<_>>();
 
@@ -252,5 +266,119 @@ fn status_color(status: FileStatus) -> Color {
         FileStatus::Modified => theme::WARNING,
         FileStatus::Deleted => theme::DANGER,
         FileStatus::Renamed | FileStatus::Copied => theme::ACCENT,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::{
+        ChangeRequestKey, CommitOid, PatchAvailability, ProviderCapabilities, ProviderKind,
+        ProviderSnapshot,
+    };
+    use crate::state::{SESSION_SCHEMA_VERSION, SessionSnapshot};
+
+    fn changed_file(path: &str) -> ChangedFile {
+        ChangedFile {
+            path: crate::domain::RepoPath(path.into()),
+            previous_path: None,
+            status: FileStatus::Modified,
+            additions: 1,
+            deletions: 1,
+            patch: PatchAvailability::Available("@@ -1 +1 @@\n-old\n+new\n".into()),
+            base_blob: None,
+            head_blob: None,
+            remotely_reviewed: Some(false),
+        }
+    }
+
+    fn state_with_files(paths: &[&str]) -> AppState {
+        let key = ChangeRequestKey {
+            provider: ProviderKind::GitHub,
+            host: "github.com".into(),
+            repository: "owner/repo".into(),
+            number: 1,
+        };
+        let provider = ProviderSnapshot {
+            key: key.clone(),
+            title: String::new(),
+            author: String::new(),
+            web_url: String::new(),
+            base: CommitOid("base".into()),
+            head: CommitOid("head".into()),
+            files: paths.iter().map(|path| changed_file(path)).collect(),
+            threads: Vec::new(),
+            drafts: Vec::new(),
+            capabilities: ProviderCapabilities::all_supported(),
+        };
+        let session = SessionSnapshot {
+            schema_version: SESSION_SCHEMA_VERSION,
+            key,
+            base: CommitOid("base".into()),
+            head: CommitOid("head".into()),
+            active_file: None,
+            cursor_row: 0,
+            scroll_row: 0,
+            files: Default::default(),
+            editor: None,
+            pending_submit: None,
+            updated_at: time::OffsetDateTime::UNIX_EPOCH,
+        };
+        AppState::new(provider, session)
+    }
+
+    #[test]
+    fn lists_directory_headers_interleaved_with_their_files() {
+        let state = state_with_files(&["a/one.rs", "a/two.rs", "b/three.rs"]);
+
+        let rows = visible_rows(&state, 10);
+
+        assert_eq!(
+            rows,
+            vec![
+                FilesRow::Directory("a"),
+                FilesRow::File(0),
+                FilesRow::File(1),
+                FilesRow::Directory("b"),
+                FilesRow::File(2),
+            ]
+        );
+    }
+
+    #[test]
+    fn folded_directory_hides_its_files_but_keeps_its_header() {
+        let mut state = state_with_files(&["a/one.rs", "a/two.rs", "b/three.rs"]);
+        state.collapsed_dirs.insert("a".into());
+
+        let rows = visible_rows(&state, 10);
+
+        assert_eq!(
+            rows,
+            vec![
+                FilesRow::Directory("a"),
+                FilesRow::Directory("b"),
+                FilesRow::File(2),
+            ]
+        );
+    }
+
+    #[test]
+    fn scrolled_viewport_windows_around_the_active_file() {
+        // Ten single-file directories, no active-file grouping ambiguity:
+        // each directory contributes exactly one header + one file row, so
+        // row `2 * index` is the header for file `index` and `2 * index + 1`
+        // is the file itself.
+        let paths: Vec<String> = (0..10).map(|index| format!("d{index}/f.rs")).collect();
+        let path_refs: Vec<&str> = paths.iter().map(String::as_str).collect();
+        let mut state = state_with_files(&path_refs);
+        state.active_file_index = 9;
+
+        // height 6 => visible = 4; active row is 2*9+1 = 19 of 20 total rows.
+        let rows = visible_rows(&state, 6);
+
+        assert_eq!(rows.len(), 4);
+        // viewport::start(19, 20, 4) = 19 - 2 = 17, clamped to 20 - 4 = 16.
+        assert_eq!(rows[0], FilesRow::Directory("d8"));
+        assert_eq!(rows[3], FilesRow::File(9));
     }
 }

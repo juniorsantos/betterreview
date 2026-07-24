@@ -1,6 +1,6 @@
 use ratatui::{
     Frame,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::Rect,
     style::Style,
     widgets::{Block, Clear, Paragraph},
 };
@@ -8,6 +8,7 @@ use ratatui::{
 use crate::app::{AppFocus, AppState};
 
 use super::{
+    layout::{ScreenLayout, header_row, screen_layout, status_row},
     theme,
     widgets::{delete, diff, editor, files, header, help, quit, status, submit, threads},
 };
@@ -18,15 +19,6 @@ pub fn render(frame: &mut Frame, state: &AppState) {
         Block::default().style(Style::default().bg(theme::BG).fg(theme::FG)),
         area,
     );
-    let rows = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(1),
-            Constraint::Length(1),
-            Constraint::Min(1),
-            Constraint::Length(1),
-        ])
-        .split(area);
 
     let middle = format!(
         " {} #{} · {} · @{} ",
@@ -37,27 +29,29 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     );
     frame.render_widget(
         Paragraph::new(header::chip_line(&middle, area.width)),
-        rows[0],
+        header_row(area),
     );
 
-    if area.width >= 80 {
-        let files_width = if state.files_expanded { 50 } else { 30 };
-        let columns = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Length(files_width), Constraint::Min(1)])
-            .split(rows[2]);
-        files::render(frame, columns[0], state);
-        diff::render(frame, columns[1], state);
-    } else {
-        diff::render(frame, rows[2], state);
-        if state.focus == AppFocus::Files {
-            let overlay = inset(rows[2], 2, 1);
-            frame.render_widget(Clear, overlay);
-            files::render(frame, overlay, state);
+    let ScreenLayout {
+        files: files_rect,
+        diff: diff_rect,
+    } = screen_layout(area, state);
+    match files_rect {
+        Some(files_rect) => {
+            files::render(frame, files_rect, state);
+            diff::render(frame, diff_rect, state);
+        }
+        None => {
+            diff::render(frame, diff_rect, state);
+            if state.focus == AppFocus::Files {
+                let overlay = inset(diff_rect, 2, 1);
+                frame.render_widget(Clear, overlay);
+                files::render(frame, overlay, state);
+            }
         }
     }
 
-    status::render(frame, rows[3], state);
+    status::render(frame, status_row(area), state);
 
     help::render(frame, area, state);
     threads::render(frame, area, state);
