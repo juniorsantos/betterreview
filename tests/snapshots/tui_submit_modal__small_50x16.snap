@@ -5,12 +5,12 @@ expression: "screen(&app_with_drafts(2), 50, 16)"
  betterreview  owner/repo #42 · Review terminal · 
 ┌ [3] Diff ──────────────────────────────────────┐
 │ Loa╭ Enviar revisão ──────────────────────╮    │
-│    │ 2 drafts will be published           │    │
+│    │ 2 drafts serão publicados            │    │
 │    │                                      │    │
-│    │ Summary                              │    │
+│    │ Resumo                               │    │
 │    │ Ready to merge                       │    │
 │    │                                      │    │
-│    │ [COMMENT]  APPROVE  REQUEST_CHANGES  │    │
+│    │ [COMENTAR]  APROVAR  PEDIR MUDANÇAS  │    │
 │    │                                      │    │
 │    │                                      │    │
 │    │                                      │    │

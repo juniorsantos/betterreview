@@ -103,8 +103,8 @@ fn help_shows_the_dialog_title_and_key_bindings() {
 
     assert!(screen.contains("Ajuda"));
     assert!(screen.contains("hunk"));
-    assert!(screen.contains("comment"));
-    assert!(screen.contains("search"));
+    assert!(screen.contains("comentário"));
+    assert!(screen.contains("buscar"));
 }
 
 #[test]
@@ -133,14 +133,14 @@ fn help_renders_section_titles_in_muted_bold() {
     state.help_visible = true;
 
     let (screen, lines, terminal) = screen(&state);
-    assert!(screen.contains("Navigation"));
+    assert!(screen.contains("Navegação"));
 
     let buffer = terminal.backend().buffer();
     let row = lines
         .iter()
-        .position(|line| line.contains("Navigation"))
+        .position(|line| line.contains("Navegação"))
         .expect("section title row rendered");
-    let col = char_offset(&lines[row], "Navigation").unwrap();
+    let col = char_offset(&lines[row], "Navegação").unwrap();
     let cell = buffer.cell((col as u16, row as u16)).unwrap();
 
     assert_eq!(cell.style().fg, Some(theme::MUTED));

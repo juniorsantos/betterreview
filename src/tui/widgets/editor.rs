@@ -61,6 +61,8 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         let row = u16::try_from(editor.cursor_row)
             .unwrap_or(u16::MAX)
             .min(max_row);
-        frame.set_cursor_position((inner.x + col, inner.y + row));
+        // +1: render_dialog prefixes every body line with one breathing
+        // space, so column 0 of the text sits one cell right of `inner.x`.
+        frame.set_cursor_position((inner.x + 1 + col, inner.y + row));
     }
 }

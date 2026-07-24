@@ -550,6 +550,7 @@ fn navigate_unreviewed(state: &mut AppState, delta: i32) -> Vec<EffectEnvelope> 
 }
 
 fn activate_file(state: &mut AppState, index: usize) -> Vec<EffectEnvelope> {
+    state.enter_file_at_end = false;
     state.active_file_index = index;
     state.session.active_file = state
         .provider
@@ -676,6 +677,7 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
                 }
             }
             Err(message) => {
+                state.enter_file_at_end = false;
                 if let Some(progress) = state.session.files.get_mut(&path) {
                     progress.sync = ReviewSync::Failed {
                         desired: reviewed,

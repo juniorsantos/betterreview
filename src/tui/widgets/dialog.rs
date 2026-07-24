@@ -132,8 +132,33 @@ pub(in crate::tui) fn menu_line(label: &str, selected: bool) -> Line<'static> {
 fn centered_hint_line(hints: &str, width: u16) -> Line<'static> {
     let hint_width = hints.chars().count();
     let left_pad = (width as usize).saturating_sub(hint_width) / 2;
-    Line::from(vec![
-        Span::raw(" ".repeat(left_pad)),
-        Span::styled(hints.to_owned(), Style::default().fg(theme::MUTED)),
-    ])
+    let mut spans = vec![Span::raw(" ".repeat(left_pad))];
+    // Same key styling as everywhere else: the key in accent bold, the
+    // label muted, separators dimmed.
+    for (index, pair) in hints.split(" · ").enumerate() {
+        if index > 0 {
+            spans.push(Span::styled(" · ", Style::default().fg(theme::BORDER)));
+        }
+        match pair.split_once(' ') {
+            Some((key, label)) => {
+                spans.push(Span::styled(
+                    key.to_owned(),
+                    Style::default()
+                        .fg(theme::ACCENT)
+                        .add_modifier(Modifier::BOLD),
+                ));
+                spans.push(Span::styled(
+                    format!(" {label}"),
+                    Style::default().fg(theme::MUTED),
+                ));
+            }
+            None => spans.push(Span::styled(
+                pair.to_owned(),
+                Style::default()
+                    .fg(theme::ACCENT)
+                    .add_modifier(Modifier::BOLD),
+            )),
+        }
+    }
+    Line::from(spans)
 }

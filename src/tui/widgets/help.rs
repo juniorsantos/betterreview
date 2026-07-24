@@ -25,31 +25,33 @@ const COLUMN_WIDTH: usize = 22;
 
 const COLUMNS: [Column; 3] = [
     Column {
-        title: "Navigation",
+        title: "Navegação",
         rows: &[
-            ("j/k", "move"),
-            ("Tab/h/l", "focus"),
-            ("]f / [f", "file"),
-            ("]u / [u", "unreviewed"),
+            ("j/k", "mover"),
+            ("Tab/h/l", "foco"),
+            ("]f / [f", "arquivo"),
+            ("]u / [u", "não revisado"),
             ("]h / [h", "hunk"),
-            ("]c / [c", "comment"),
-            ("/", "search"),
+            ("]c / [c", "comentário"),
+            ("/", "buscar"),
+            ("n / N", "próx./ant. resultado"),
+            ("2 / 3", "focar painel"),
         ],
     },
     Column {
-        title: "Files",
+        title: "Arquivos",
         rows: &[
-            ("e", "expand panel"),
-            ("z", "fold folder"),
-            ("m", "reviewed"),
+            ("e", "expandir painel"),
+            ("z", "recolher pasta"),
+            ("m", "revisado"),
         ],
     },
     Column {
-        title: "Review",
+        title: "Revisão",
         rows: &[
-            ("v", "selection"),
-            ("c", "comment"),
-            ("s", "suggestion"),
+            ("v", "seleção"),
+            ("c", "comentar"),
+            ("s", "sugestão"),
             ("t", "threads"),
         ],
     },
@@ -105,20 +107,20 @@ fn body_lines() -> Vec<Line<'static>> {
 
     lines.push(Line::raw(""));
     lines.push(group_line(
-        "Comments:",
+        "Comentários:",
         &[
-            ("e", "edit"),
-            ("x", "delete"),
-            ("r", "reply"),
-            ("T", "hide/show"),
+            ("e", "editar"),
+            ("x", "excluir"),
+            ("r", "responder"),
+            ("T", "ocultar/mostrar"),
         ],
     ));
     lines.push(group_line(
         "Editor:",
         &[
-            ("Enter", "save"),
-            ("Alt+Enter", "newline"),
-            ("Esc", "close"),
+            ("Enter", "salvar"),
+            ("Alt+Enter", "nova linha"),
+            ("Esc", "fechar"),
         ],
     ));
     lines.push(group_line(

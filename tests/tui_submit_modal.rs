@@ -103,10 +103,10 @@ fn screen(state: &AppState, width: u16, height: u16) -> String {
 fn submission_modal_is_compact_and_has_no_pending_comment_list() {
     let screen = screen(&app_with_drafts(3), 80, 24);
 
-    assert!(screen.contains("3 drafts will be published"));
-    assert!(screen.contains("COMMENT"));
-    assert!(screen.contains("APPROVE"));
-    assert!(screen.contains("REQUEST_CHANGES"));
+    assert!(screen.contains("3 drafts serão publicados"));
+    assert!(screen.contains("COMENTAR"));
+    assert!(screen.contains("APROVAR"));
+    assert!(screen.contains("PEDIR MUDANÇAS"));
     assert!(screen.contains("Ready to merge"));
     assert!(!screen.contains("Pending comments"));
     assert!(!screen.contains("src/app.rs:42"));
@@ -122,9 +122,9 @@ fn unsupported_outcome_stays_visible_with_its_reason() {
 
     let screen = screen(&app, 80, 24);
 
-    assert!(screen.contains("REQUEST_CHANGES"));
+    assert!(screen.contains("PEDIR MUDANÇAS"));
     assert!(screen.contains("Requires GitLab 17.3 or newer"));
-    assert!(screen.contains("disabled"));
+    assert!(screen.contains("indisponível"));
 }
 
 #[test]

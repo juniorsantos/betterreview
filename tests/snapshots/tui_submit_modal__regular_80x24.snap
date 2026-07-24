@@ -8,15 +8,15 @@ expression: "screen(&app_with_drafts(3), 80, 24)"
 │ [ ] M app.rs         +1 -1 ││                                                │
 │                            ││                                                │
 │       ╭ Enviar revisão ──────────────────────────────────────────────╮       │
-│       │ 3 drafts will be published                                   │       │
+│       │ 3 drafts serão publicados                                    │       │
 │       │                                                              │       │
-│       │ Summary                                                      │       │
+│       │ Resumo                                                       │       │
 │       │ Ready to merge                                               │       │
 │       │                                                              │       │
-│       │ [COMMENT]  APPROVE  REQUEST_CHANGES                          │       │
+│       │ [COMENTAR]  APROVAR  PEDIR MUDANÇAS                          │       │
 │       │                                                              │       │
 │       │                                                              │       │
-│       │ Comment review                                               │       │
+│       │ Comentar na revisão                                          │       │
 │       │                                                              │       │
 │       │                                                              │       │
 │       │   Tab campo · ↑/↓ resultado · Enter enviar · Esc cancelar    │       │

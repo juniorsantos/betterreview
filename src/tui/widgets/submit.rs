@@ -18,27 +18,27 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let support = state.provider.capabilities.for_outcome(modal.outcome);
     let reason = match support {
         Support::Supported => String::new(),
-        Support::Unsupported { reason } => format!("disabled: {reason}"),
+        Support::Unsupported { reason } => format!("indisponível: {reason}"),
     };
     let draft_label = if state.provider.drafts.len() == 1 {
-        "1 draft will be published".to_owned()
+        "1 draft será publicado".to_owned()
     } else {
-        format!("{} drafts will be published", state.provider.drafts.len())
+        format!("{} drafts serão publicados", state.provider.drafts.len())
     };
     let outcomes = vec![
-        outcome("COMMENT", modal.outcome == ReviewOutcome::Comment),
+        outcome("COMENTAR", modal.outcome == ReviewOutcome::Comment),
         Span::raw("  "),
-        outcome("APPROVE", modal.outcome == ReviewOutcome::Approve),
+        outcome("APROVAR", modal.outcome == ReviewOutcome::Approve),
         Span::raw("  "),
         outcome(
-            "REQUEST_CHANGES",
+            "PEDIR MUDANÇAS",
             modal.outcome == ReviewOutcome::RequestChanges,
         ),
     ];
     let body = vec![
         Line::raw(draft_label),
         Line::raw(""),
-        Line::raw("Summary"),
+        Line::raw("Resumo"),
         Line::raw(modal.summary.clone()),
         Line::raw(""),
         Line::from(outcomes),
@@ -75,8 +75,8 @@ fn outcome(label: &'static str, selected: bool) -> Span<'static> {
 
 fn action_label(outcome: ReviewOutcome) -> &'static str {
     match outcome {
-        ReviewOutcome::Comment => "Comment review",
-        ReviewOutcome::Approve => "Approve review",
-        ReviewOutcome::RequestChanges => "Request changes",
+        ReviewOutcome::Comment => "Comentar na revisão",
+        ReviewOutcome::Approve => "Aprovar a revisão",
+        ReviewOutcome::RequestChanges => "Pedir mudanças",
     }
 }

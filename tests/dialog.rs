@@ -113,7 +113,7 @@ fn dialog_shows_its_title_on_the_border() {
 }
 
 #[test]
-fn dialog_places_hints_as_the_last_inner_line_in_muted_style() {
+fn dialog_places_hints_as_the_last_inner_line_with_key_styling() {
     let mut app = base_app();
     app.quit_dialog = true;
 
@@ -136,11 +136,15 @@ fn dialog_places_hints_as_the_last_inner_line_in_muted_style() {
     );
     assert!(lines[hint_row].contains("Esc cancelar"));
 
-    // Confirm the hint text renders in the muted color, not the default fg.
+    // Keys render in accent bold, labels in muted — the shared key-hint
+    // styling rule.
     let byte_offset = lines[hint_row].find("j/k mover").unwrap();
-    let hint_x = lines[hint_row][..byte_offset].chars().count() as u16;
-    let cell = buffer.cell((hint_x, hint_row as u16)).unwrap();
-    assert_eq!(cell.fg, betterreview::tui::theme::MUTED);
+    let key_x = lines[hint_row][..byte_offset].chars().count() as u16;
+    let key_cell = buffer.cell((key_x, hint_row as u16)).unwrap();
+    assert_eq!(key_cell.fg, betterreview::tui::theme::ACCENT);
+    let label_x = key_x + 4; // first char of "mover"
+    let label_cell = buffer.cell((label_x, hint_row as u16)).unwrap();
+    assert_eq!(label_cell.fg, betterreview::tui::theme::MUTED);
 }
 
 #[test]
