@@ -3,6 +3,17 @@
 All notable changes to this project are documented in this file, generated
 from conventional commits by [git-cliff](https://git-cliff.org).
 
+## [0.1.1] - 2026-07-24
+
+### Documentation
+
+- Document the homebrew tap install
+- Show the tap then install flow for homebrew
+
+### CI
+
+- Update the homebrew tap formula on release
+- Bump patch for small changes and add glab to the formula
 ## [0.1.0] - 2026-07-24
 
 ### Features
