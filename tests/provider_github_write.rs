@@ -295,3 +295,72 @@ async fn delete_draft_sends_the_node_id_field() {
             .is_none()
     );
 }
+
+#[tokio::test]
+async fn reply_refetches_the_full_thread() {
+    use betterreview::domain::ThreadId;
+    let runner = Arc::new(RecordingRunner::new(vec![
+        Ok(json_output(json!({
+            "data": { "addPullRequestReviewThreadReply": { "comment": { "id": "reply-1" } } }
+        }))),
+        Ok(json_output(json!({
+            "data": {
+                "node": {
+                    "id": "thread-1",
+                    "path": "src/lib.rs",
+                    "isResolved": false,
+                    "isOutdated": false,
+                    "diffSide": "RIGHT",
+                    "comments": { "nodes": [
+                        {
+                            "id": "c1",
+                            "body": "primeiro",
+                            "line": 3,
+                            "originalLine": 3,
+                            "viewerDidAuthor": false,
+                            "author": { "login": "alice" },
+                            "pullRequestReview": { "state": "SUBMITTED" }
+                        },
+                        {
+                            "id": "reply-1",
+                            "body": "resposta",
+                            "line": 3,
+                            "originalLine": 3,
+                            "viewerDidAuthor": true,
+                            "author": { "login": "you" },
+                            "pullRequestReview": { "state": "SUBMITTED" }
+                        }
+                    ] }
+                }
+            }
+        }))),
+    ]));
+    let provider = GitHubProvider::new(runner.clone());
+
+    let thread = provider
+        .reply(
+            &key(),
+            &ThreadId("thread-1".into()),
+            DraftBody("resposta".into()),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        thread.comments.len(),
+        2,
+        "prior comments must survive a reply"
+    );
+    assert_eq!(thread.comments[1].body, "resposta");
+    let calls = runner.calls.lock().unwrap();
+    let mutation = graphql_body(&calls[0]);
+    assert!(
+        !mutation["query"]
+            .as_str()
+            .unwrap()
+            .contains("pullRequestReviewThread"),
+        "the reply payload has no thread field in the schema"
+    );
+    let refetch = graphql_body(&calls[1]);
+    assert_eq!(refetch["variables"]["id"], "thread-1");
+}

@@ -52,10 +52,29 @@ mutation DeleteDraft($input: DeletePullRequestReviewCommentInput!) {
 }
 "#;
 
+// The reply payload exposes only the comment (verified by introspection);
+// the refreshed thread is fetched separately through `node(id:)`.
 const REPLY: &str = r#"
 mutation Reply($input: AddPullRequestReviewThreadReplyInput!) {
   addPullRequestReviewThreadReply(input: $input) {
-    comment { id body author { login } pullRequestReviewThread { id path isResolved isOutdated } }
+    comment { id }
+  }
+}
+"#;
+
+const THREAD_QUERY: &str = r#"
+query Thread($id: ID!) {
+  node(id: $id) {
+    ... on PullRequestReviewThread {
+      id path isResolved isOutdated diffSide
+      comments(first: 100) {
+        nodes {
+          id body line originalLine viewerDidAuthor
+          author { login }
+          pullRequestReview { state }
+        }
+      }
+    }
   }
 }
 "#;
@@ -205,24 +224,28 @@ where
             )
             .await?;
         let value: Value = parse_json(&bytes, "reply")?;
-        let comment = &value["data"]["addPullRequestReviewThreadReply"]["comment"];
-        let wire_thread = &comment["pullRequestReviewThread"];
-        Ok(ReviewThread {
-            id: ThreadId(string_at(&wire_thread["id"], "reply", "thread id")?),
-            path: RepoPath(string_at(&wire_thread["path"], "reply", "path")?),
-            resolved: wire_thread["isResolved"].as_bool().unwrap_or(false),
-            outdated: wire_thread["isOutdated"].as_bool().unwrap_or(false),
-            comments: vec![ReviewComment {
-                id: string_at(&comment["id"], "reply", "comment id")?,
-                author: comment["author"]["login"]
-                    .as_str()
-                    .unwrap_or("unknown")
-                    .into(),
-                body: string_at(&comment["body"], "reply", "body")?,
-                position: None,
-                pending: false,
-            }],
-        })
+        string_at(
+            &value["data"]["addPullRequestReviewThreadReply"]["comment"]["id"],
+            "reply",
+            "comment id",
+        )?;
+        // Refetch the whole thread so earlier comments survive the update.
+        let bytes = self
+            .client
+            .graphql(
+                &key.host,
+                THREAD_QUERY,
+                json!({ "id": thread.0 }),
+                "reload thread",
+            )
+            .await?;
+        let value: Value = parse_json(&bytes, "reload thread")?;
+        let wire: super::wire::ReviewThread = serde_json::from_value(value["data"]["node"].clone())
+            .map_err(|error| malformed("reload thread", &error.to_string()))?;
+        let (mut threads, _) = super::map_threads(vec![wire]);
+        threads
+            .pop()
+            .ok_or_else(|| malformed("reload thread", "missing thread"))
     }
 
     pub(super) async fn change_thread_resolution(
