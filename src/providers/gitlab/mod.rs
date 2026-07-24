@@ -414,6 +414,29 @@ where
         Ok(CommitOid(merge_request.diff_refs.head_sha))
     }
 
+    async fn read_file(
+        &self,
+        key: &ChangeRequestKey,
+        path: &RepoPath,
+        revision: &CommitOid,
+    ) -> Result<String, ProviderError> {
+        let project = encode(&key.repository);
+        let endpoint = format!(
+            "projects/{project}/repository/files/{}/raw?ref={}",
+            encode(&path.0),
+            encode(&revision.0)
+        );
+        let bytes = self
+            .read_api(
+                &key.host,
+                api_args(&key.host, [endpoint.as_str()]),
+                "read file contents",
+            )
+            .await?;
+        String::from_utf8(bytes)
+            .map_err(|error| malformed("read file contents", &error.to_string()))
+    }
+
     async fn create_draft(
         &self,
         key: &ChangeRequestKey,

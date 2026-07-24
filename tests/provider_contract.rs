@@ -49,6 +49,15 @@ impl ReviewProvider for FakeProvider {
         unimplemented!()
     }
 
+    async fn read_file(
+        &self,
+        _key: &ChangeRequestKey,
+        _path: &RepoPath,
+        _revision: &CommitOid,
+    ) -> Result<String, ProviderError> {
+        unimplemented!()
+    }
+
     async fn create_draft(
         &self,
         _key: &ChangeRequestKey,

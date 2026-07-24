@@ -4,6 +4,7 @@ mod mutations;
 mod wire;
 
 use async_trait::async_trait;
+use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, sync::Arc};
@@ -364,6 +365,37 @@ where
             .ok_or_else(|| malformed("read pull request head", "missing head sha"))
     }
 
+    async fn read_file(
+        &self,
+        key: &ChangeRequestKey,
+        path: &RepoPath,
+        revision: &CommitOid,
+    ) -> Result<String, ProviderError> {
+        let endpoint = format!(
+            "repos/{}/contents/{}?ref={}",
+            key.repository,
+            encode_path(&path.0),
+            utf8_percent_encode(&revision.0, PATH_SEGMENT)
+        );
+        let bytes = self
+            .client
+            .api(
+                &key.host,
+                [
+                    "api",
+                    "--hostname",
+                    key.host.as_str(),
+                    "-H",
+                    "Accept:application/vnd.github.raw",
+                    endpoint.as_str(),
+                ],
+                "read file contents",
+            )
+            .await?;
+        String::from_utf8(bytes)
+            .map_err(|error| malformed("read file contents", &error.to_string()))
+    }
+
     async fn create_draft(
         &self,
         key: &ChangeRequestKey,
@@ -428,6 +460,24 @@ where
     async fn discard_review(&self, key: &ChangeRequestKey) -> Result<(), ProviderError> {
         self.discard_pending_review(key).await
     }
+}
+
+/// Unreserved characters (RFC 3986) left unescaped so encoded paths stay
+/// readable; everything else, including `/`, is percent-encoded.
+const PATH_SEGMENT: &AsciiSet = &NON_ALPHANUMERIC
+    .remove(b'-')
+    .remove(b'_')
+    .remove(b'.')
+    .remove(b'~');
+
+/// Percent-encodes each `/`-separated segment of a repository path while
+/// keeping the separators themselves literal, so the contents API receives a
+/// valid nested path rather than one giant encoded blob.
+fn encode_path(path: &str) -> String {
+    path.split('/')
+        .map(|segment| utf8_percent_encode(segment, PATH_SEGMENT).to_string())
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 fn repository_parts(repository: &str) -> Result<(&str, &str), ProviderError> {

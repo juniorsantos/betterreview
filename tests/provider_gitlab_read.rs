@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use betterreview::{
-    domain::{ChangeRequestKey, ProviderKind, ReviewOutcome, Support},
+    domain::{ChangeRequestKey, CommitOid, ProviderKind, RepoPath, ReviewOutcome, Support},
     process::{CommandError, CommandOutput, CommandRunner, CommandSpec},
     providers::{GitLabProvider, ProviderError, ReviewProvider},
 };
@@ -259,6 +259,34 @@ async fn lists_open_merge_requests_in_one_call() {
     assert!(list[1].draft);
     assert_eq!(list[1].description, "");
     assert_eq!(runner.calls.lock().unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn reads_file_contents_at_a_revision() {
+    let runner = Arc::new(RoutingRunner::new(vec![(
+        "projects/group%2Fapi/repository/files/src%2Fnested%2Ffile.rs/raw?ref=deadbeef",
+        output(b"fn example() {}\n".to_vec()),
+    )]));
+    let provider = GitLabProvider::new(runner.clone());
+
+    let contents = provider
+        .read_file(
+            &key(),
+            &RepoPath("src/nested/file.rs".into()),
+            &CommitOid("deadbeef".into()),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(contents, "fn example() {}\n");
+    let calls = runner.calls.lock().unwrap();
+    assert!(calls.iter().any(|spec| args(spec)
+        == vec![
+            "api",
+            "--hostname",
+            "git.acme.test",
+            "projects/group%2Fapi/repository/files/src%2Fnested%2Ffile.rs/raw?ref=deadbeef",
+        ]));
 }
 
 fn key() -> ChangeRequestKey {

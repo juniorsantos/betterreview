@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use betterreview::{
-    domain::{ChangeRequestKey, PatchAvailability, ProviderKind},
+    domain::{ChangeRequestKey, CommitOid, PatchAvailability, ProviderKind, RepoPath},
     process::{CommandError, CommandOutput, CommandRunner, CommandSpec},
     providers::{GitHubProvider, ProviderError, ReviewProvider},
 };
@@ -68,6 +68,8 @@ impl RoutingRunner {
             }
         } else if args.iter().any(|arg| arg.contains("/files")) {
             ok(fixture("files-page-1.json"))
+        } else if args.iter().any(|arg| arg.contains("/contents/")) {
+            ok(b"fn example() {}\n".to_vec())
         } else if args.iter().any(|arg| arg.starts_with("Accept:")) {
             if self.diff_too_large {
                 return CommandOutput {
@@ -268,6 +270,34 @@ fn args(spec: &CommandSpec) -> Vec<String> {
         .iter()
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect()
+}
+
+#[tokio::test]
+async fn reads_file_contents_at_a_revision() {
+    let runner = Arc::new(RoutingRunner::new());
+    let provider = GitHubProvider::new(runner.clone());
+    let key = github_key();
+
+    let contents = provider
+        .read_file(
+            &key,
+            &RepoPath("src/nested/my file.rs".into()),
+            &CommitOid("deadbeef".into()),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(contents, "fn example() {}\n");
+    let calls = runner.calls.lock().unwrap();
+    assert!(calls.iter().any(|spec| args(spec)
+        == [
+            "api",
+            "--hostname",
+            "ghe.acme.test",
+            "-H",
+            "Accept:application/vnd.github.raw",
+            "repos/acme/api/contents/src/nested/my%20file.rs?ref=deadbeef",
+        ]));
 }
 
 #[tokio::test]

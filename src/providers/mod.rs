@@ -42,6 +42,12 @@ pub trait ReviewProvider: Send + Sync {
         &self,
         key: &crate::domain::ChangeRequestKey,
     ) -> Result<crate::domain::CommitOid, ProviderError>;
+    async fn read_file(
+        &self,
+        key: &crate::domain::ChangeRequestKey,
+        path: &crate::domain::RepoPath,
+        revision: &crate::domain::CommitOid,
+    ) -> Result<String, ProviderError>;
     async fn create_draft(
         &self,
         key: &crate::domain::ChangeRequestKey,

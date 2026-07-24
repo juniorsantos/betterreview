@@ -156,6 +156,7 @@ dependencies = [
  "futures-util",
  "hex",
  "insta",
+ "percent-encoding",
  "predicates",
  "pretty_assertions",
  "proptest",
