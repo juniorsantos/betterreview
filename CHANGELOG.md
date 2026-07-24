@@ -3,6 +3,11 @@
 All notable changes to this project are documented in this file, generated
 from conventional commits by [git-cliff](https://git-cliff.org).
 
+## [0.1.4] - 2026-07-24
+
+### CI
+
+- Push the tap formula with a deploy key
 ## [0.1.3] - 2026-07-24
 
 ### CI
