@@ -13,6 +13,9 @@ pub const ACCENT: Color = Color::Rgb(0x71, 0xb7, 0xff);
 pub const SUCCESS: Color = Color::Rgb(0x26, 0xcd, 0x4d);
 pub const DANGER: Color = Color::Rgb(0xff, 0x6a, 0x69);
 pub const WARNING: Color = Color::Rgb(0xf0, 0xb7, 0x2f);
+/// Borda dos cartões de comentário — o roxo de "conversa" da paleta
+/// dark high contrast, distinto do azul de foco.
+pub const COMMENT: Color = Color::Rgb(0xc7, 0x9b, 0xff);
 pub const CURSOR_LINE: Color = Color::Rgb(0x27, 0x2b, 0x33);
 pub const SELECTION: Color = Color::Rgb(0x14, 0x3d, 0x79);
 

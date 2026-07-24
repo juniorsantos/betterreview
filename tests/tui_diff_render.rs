@@ -296,7 +296,7 @@ fn comment_box_renders_under_its_line() {
         .expect("anchored diff row rendered");
     // Card: top border with the meta, body line, bottom border with hints.
     assert!(lines[anchor + 1].contains("╭─ @você · draft"));
-    assert!(lines[anchor + 2].contains("│ Please double-check this line"));
+    assert!(lines[anchor + 2].contains("│  Please double-check this line"));
     assert!(lines[anchor + 3].contains("╰─"));
 }
 
@@ -389,8 +389,8 @@ fn comment_block_renders_as_a_card_with_action_hints() {
     let screen = screen_wide(&terminal);
 
     assert!(screen.contains("╭─ @você · draft"));
-    assert!(screen.contains("│ corpo do comentário"));
-    assert!(screen.contains("│ segunda linha"));
+    assert!(screen.contains("│  corpo do comentário"));
+    assert!(screen.contains("│  segunda linha"));
     assert!(screen.contains("╰─ e editar · x excluir"));
 }
 
@@ -483,5 +483,31 @@ fn diff_line_background_extends_to_the_panel_edge() {
         cell.style().bg,
         Some(bg),
         "background must run edge to edge"
+    );
+}
+
+#[test]
+fn comment_card_border_uses_the_comment_color() {
+    let mut state = app();
+    state.provider.drafts.push(draft_at_line_5());
+    refresh_display_rows(&mut state);
+
+    let terminal = draw_wide(&state);
+    let buffer = terminal.backend().buffer();
+    let row = (0..30)
+        .find(|y| {
+            (0..120)
+                .map(|x| buffer.cell((x, *y)).unwrap().symbol())
+                .collect::<String>()
+                .contains("╭─ @você")
+        })
+        .expect("card header rendered");
+    let x = (0..120)
+        .find(|x| buffer.cell((*x, row)).unwrap().symbol() == "╭")
+        .unwrap();
+    assert_eq!(
+        buffer.cell((x, row)).unwrap().style().fg,
+        Some(theme::COMMENT),
+        "card borders must use the comment color"
     );
 }
