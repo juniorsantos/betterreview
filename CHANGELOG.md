@@ -3,6 +3,21 @@
 All notable changes to this project are documented in this file, generated
 from conventional commits by [release-please](https://github.com/googleapis/release-please).
 
+## [0.3.0](https://github.com/juniorsantos/betterreview/compare/v0.2.0...v0.3.0) (2026-07-26)
+
+
+### Features
+
+* migrar toda a interface para inglês (closes [#15](https://github.com/juniorsantos/betterreview/issues/15)) ([6bb33d2](https://github.com/juniorsantos/betterreview/commit/6bb33d2880d60ba8645045964ff61be1f641be57))
+* Q volta ao seletor de PRs em vez de sair (closes [#14](https://github.com/juniorsantos/betterreview/issues/14)) ([37342cc](https://github.com/juniorsantos/betterreview/commit/37342cc307b576b24d3e94d605e30def88b034e4))
+
+
+### Bug Fixes
+
+* dar foco visível ao modal de envio e trocar o veredito por atalho (closes [#9](https://github.com/juniorsantos/betterreview/issues/9)) ([9845fca](https://github.com/juniorsantos/betterreview/commit/9845fca6d353d4b1d5efd82fe277b0a88dd09bcd))
+* enviar revisão sem draft e trocar atalho de veredito por Tab (closes [#11](https://github.com/juniorsantos/betterreview/issues/11), closes [#12](https://github.com/juniorsantos/betterreview/issues/12)) ([6b64171](https://github.com/juniorsantos/betterreview/commit/6b641711efd5ec22d2cc129fa99d83ac0398598d))
+* traduzir os asserts do modal de envio que ficaram em português ([389d42e](https://github.com/juniorsantos/betterreview/commit/389d42efdc7934cd1d13a516d7c035f96d27e663))
+
 ## [0.2.0] - 2026-07-26
 
 ### Features
