@@ -112,14 +112,17 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     frame.render_widget(block, area);
 
     let full = inner.height as usize;
-    let heights: Vec<usize> = if state.wrap_lines {
-        lines
-            .iter()
-            .map(|line| viewport::wrapped_height(line.width(), inner.width as usize))
-            .collect()
-    } else {
-        vec![1; lines.len()]
-    };
+    let rows: Vec<Vec<Line<'static>>> = lines
+        .into_iter()
+        .map(|line| {
+            if state.wrap_lines {
+                wrap_with_gutter(line, inner.width as usize, gutter.width())
+            } else {
+                vec![line]
+            }
+        })
+        .collect();
+    let heights: Vec<usize> = rows.iter().map(Vec::len).collect();
     let pinned = viewport::start_wrapped(state.display_cursor, &heights, full) > 0;
     let visible = if pinned { full.saturating_sub(1) } else { full };
     let start = viewport::start_wrapped(state.display_cursor, &heights, visible);
@@ -134,13 +137,69 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     } else {
         inner
     };
-    let paragraph = Paragraph::new(lines).scroll((scroll, 0));
-    let paragraph = if state.wrap_lines {
-        paragraph.wrap(ratatui::widgets::Wrap { trim: false })
-    } else {
-        paragraph
-    };
+    let paragraph =
+        Paragraph::new(rows.into_iter().flatten().collect::<Vec<_>>()).scroll((scroll, 0));
     frame.render_widget(paragraph, body);
+}
+
+fn wrap_with_gutter(line: Line<'static>, width: usize, gutter_width: usize) -> Vec<Line<'static>> {
+    if width == 0 || line.width() <= width {
+        return vec![line];
+    }
+    let style = line.style;
+    let continuation = width.saturating_sub(gutter_width).max(1);
+    let mut remaining = line.spans;
+    let mut rows = Vec::new();
+    let mut room = width;
+    let mut indent = 0;
+    loop {
+        let (head, tail) = split_spans(&remaining, room);
+        if head.is_empty() {
+            rows.push(Line::from(remaining).style(style));
+            break;
+        }
+        let mut spans = Vec::with_capacity(head.len() + 1);
+        if indent > 0 {
+            spans.push(Span::raw(" ".repeat(indent)));
+        }
+        spans.extend(head);
+        rows.push(Line::from(spans).style(style));
+        if tail.is_empty() {
+            break;
+        }
+        remaining = tail;
+        room = continuation;
+        indent = gutter_width;
+    }
+    rows
+}
+
+fn split_spans(spans: &[Span<'static>], width: usize) -> (Vec<Span<'static>>, Vec<Span<'static>>) {
+    let mut head = Vec::new();
+    let mut tail = Vec::new();
+    let mut used = 0;
+    for span in spans {
+        if used >= width {
+            tail.push(span.clone());
+            continue;
+        }
+        let span_width = display_width(&span.content);
+        if used + span_width <= width {
+            used += span_width;
+            head.push(span.clone());
+            continue;
+        }
+        let taken = truncate_to_width(&span.content, width - used);
+        let rest = span.content[taken.len()..].to_owned();
+        if !taken.is_empty() {
+            head.push(Span::styled(taken, span.style));
+        }
+        if !rest.is_empty() {
+            tail.push(Span::styled(rest, span.style));
+        }
+        used = width;
+    }
+    (head, tail)
 }
 
 fn pinned_line(state: &AppState) -> Line<'static> {

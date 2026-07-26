@@ -904,6 +904,31 @@ fn wrapping_shows_the_whole_line_across_rows() {
 }
 
 #[test]
+fn a_wrapped_row_keeps_its_gutter_reserved_and_wastes_no_row() {
+    let mut state = app_with_a_long_line();
+    state.wrap_lines = true;
+
+    let screen = screen(&draw(&state));
+    let rows: Vec<&str> = screen.lines().filter(|line| line.contains('x')).collect();
+    let column = |row: &str, needle: char| row.chars().position(|c| c == needle);
+
+    let first = rows.first().expect("the wrapped row rendered");
+    let marker = column(first, '+').expect("the first row carries the marker");
+    assert_eq!(
+        column(first, 'x'),
+        Some(marker + 1),
+        "the numbered row carries code, it is not spent on the number alone: {screen}"
+    );
+    for row in rows.iter().skip(1) {
+        assert_eq!(
+            column(row, 'x'),
+            Some(marker),
+            "a continuation row lines up under the content, never under the gutter: {screen}"
+        );
+    }
+}
+
+#[test]
 fn the_gutter_widens_with_the_highest_line_number_in_the_file() {
     let mut state = app();
     state.rendered_diff = Some(RenderedDiff {
