@@ -31,6 +31,7 @@ Rodando dentro de um repositório, o seletor lista as revisões abertas e já fa
 | [gh](https://cli.github.com) | PRs do GitHub (`gh auth login`) | `brew install gh` |
 | [glab](https://gitlab.com/gitlab-org/cli) | MRs do GitLab (`glab auth login`) | `brew install glab` |
 | [delta](https://github.com/dandavison/delta) | renderização do diff | `brew install git-delta` |
+| [gitui](https://github.com/extrawurst/gitui) | opcional: preparar o índice antes da revisão | `brew install gitui` |
 
 Rode `betterreview doctor` para verificar se está tudo pronto.
 
@@ -95,6 +96,7 @@ betterreview doctor
 | `s` | sugerir código na seleção |
 | `e` / `x` / `r` | editar / excluir / responder comentário sob o cursor |
 | `m` | marcar arquivo como revisado |
+| `M` | marcar o hunk sob o cursor como revisado |
 | `z` | expandir trecho oculto do diff (ou recolher pasta no painel Arquivos) |
 | `]h` `[h` / `]c` `[c` | próximo/anterior hunk / comentário |
 | `]f` `[f` / `]u` `[u` | próximo/anterior arquivo / arquivo não revisado |

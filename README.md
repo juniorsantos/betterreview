@@ -19,6 +19,7 @@ When launched inside a repository, the picker lists the open reviews and prefetc
 - Line or block selection (`v`) to comment exactly like on GitHub
 - File tree with reviewed checkboxes (`m`), collapsible folders and de-emphasized generated files
 - Quick jumps: next hunk (`]h`), next comment (`]c`), next file (`]f`), next unreviewed (`]u`)
+- Hunk-level progress (`M`): each hunk carries its own reviewed mark, surfaced in the Files panel as `2/5`
 - In-diff search (`/`, `n`/`N`), mouse support (scroll and click)
 - Persistent sessions: quit and resume the review where you left off (`betterreview resume`)
 - Full review submission (`R`): approve, request changes or comment
@@ -31,6 +32,7 @@ When launched inside a repository, the picker lists the open reviews and prefetc
 | [gh](https://cli.github.com) | GitHub PRs (`gh auth login`) | `brew install gh` |
 | [glab](https://gitlab.com/gitlab-org/cli) | GitLab MRs (`glab auth login`) | `brew install glab` |
 | [delta](https://github.com/dandavison/delta) | diff rendering | `brew install git-delta` |
+| [gitui](https://github.com/extrawurst/gitui) | optional: staging before review | `brew install gitui` |
 
 Run `betterreview doctor` to check that everything is ready.
 
@@ -95,6 +97,7 @@ betterreview doctor
 | `s` | suggest code on the selection |
 | `e` / `x` / `r` | edit / delete / reply to the comment under the cursor |
 | `m` | mark file as reviewed |
+| `M` | mark the hunk under the cursor as reviewed |
 | `z` | expand hidden diff context (or collapse folder in the Files panel) |
 | `]h` `[h` / `]c` `[c` | next/previous hunk / comment |
 | `]f` `[f` / `]u` `[u` | next/previous file / unreviewed file |
@@ -107,6 +110,7 @@ betterreview doctor
 
 ```sh
 cargo test          # full suite
+cargo test --test app_reducer   # reducer only, the fastest loop
 cargo clippy --all-targets -- -D warnings
 cargo fmt --check
 ```
