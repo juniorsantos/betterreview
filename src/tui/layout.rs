@@ -13,6 +13,13 @@ const FILES_OVERLAY_BREAKPOINT: u16 = 80;
 /// the geometry the frame was last drawn with. `files` is `None` below the
 /// overlay breakpoint — the overlay isn't part of the normal split, so there
 /// is nothing stable for a click to hit-test against.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DiffColumns {
+    pub left: Rect,
+    pub divider: u16,
+    pub right: Rect,
+}
+
 pub(crate) struct ScreenLayout {
     pub files: Option<Rect>,
     pub diff: Rect,
@@ -64,6 +71,41 @@ pub(crate) fn screen_layout(area: Rect, state: &AppState) -> ScreenLayout {
         files: Some(columns[0]),
         diff: columns[1],
     }
+}
+
+/// Where the two sides of a side-by-side diff land inside `area`, or `None`
+/// when the diff is rendered unified. Computed here rather than inside the
+/// widget so the mouse handler can hit-test a click against the same columns
+/// the frame was drawn with.
+pub fn diff_columns(area: Rect, state: &AppState) -> Option<DiffColumns> {
+    if state.diff_layout != crate::domain::DiffLayout::Split
+        || crate::app::diff_panel_width(state) < crate::app::SPLIT_MIN_DIFF_WIDTH
+    {
+        return None;
+    }
+    let inner = area.width.saturating_sub(4);
+    let divider_width = 3u16;
+    Some(match state.split_focus {
+        Some(crate::tui::SplitSide::Old) => DiffColumns {
+            left: Rect::new(area.x, area.y, area.width, area.height),
+            divider: area.x + area.width,
+            right: Rect::new(area.x + area.width, area.y, 0, area.height),
+        },
+        Some(crate::tui::SplitSide::New) => DiffColumns {
+            left: Rect::new(area.x, area.y, 0, area.height),
+            divider: area.x,
+            right: Rect::new(area.x, area.y, area.width, area.height),
+        },
+        None => {
+            let column = inner.saturating_sub(divider_width) / 2;
+            let divider = area.x + column;
+            DiffColumns {
+                left: Rect::new(area.x, area.y, column, area.height),
+                divider,
+                right: Rect::new(divider + divider_width, area.y, column, area.height),
+            }
+        }
+    })
 }
 
 #[cfg(test)]

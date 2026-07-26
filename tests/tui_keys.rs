@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 
 use betterreview::{
-    app::{AppAction, AppEvent, AppFocus, AppState, CommentEntry, DisplayRow, SubmissionModal},
+    app::{
+        AppAction, AppEvent, AppFocus, AppState, CommentEntry, DisplayRow, SubmissionModal, update,
+    },
     domain::{
         ChangeRequestKey, ChangedFile, CommitOid, DiffPosition, DiffSelection, DiffSide,
         FileStatus, PatchAvailability, ProviderCapabilities, ProviderKind, ProviderSnapshot,
@@ -725,4 +727,49 @@ fn shift_q_asks_to_go_back_to_the_picker_while_q_quits() {
         Some(AppEvent::Action(AppAction::BackToPicker))
     ));
     assert!(matches!(quit, Some(AppEvent::Action(AppAction::Quit))));
+}
+
+#[test]
+fn shift_backslash_cycles_which_side_of_the_split_is_expanded() {
+    let mut app = base_app();
+    app.diff_layout = betterreview::domain::DiffLayout::Split;
+    let mut keymap = KeyMap::default();
+
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('|'), KeyModifiers::SHIFT),
+    );
+    let Some(AppEvent::Action(AppAction::CycleSplitSide)) = event else {
+        panic!("expected CycleSplitSide, got {event:?}");
+    };
+
+    update(&mut app, AppEvent::Action(AppAction::CycleSplitSide));
+    assert_eq!(app.split_focus, Some(betterreview::tui::SplitSide::New));
+
+    update(&mut app, AppEvent::Action(AppAction::CycleSplitSide));
+    assert_eq!(app.split_focus, Some(betterreview::tui::SplitSide::Old));
+
+    update(&mut app, AppEvent::Action(AppAction::CycleSplitSide));
+    assert_eq!(app.split_focus, None, "back to both columns");
+}
+
+#[test]
+fn expanding_a_side_is_refused_while_unified() {
+    let mut app = base_app();
+    let mut keymap = KeyMap::default();
+
+    handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('|'), KeyModifiers::SHIFT),
+    );
+    update(&mut app, AppEvent::Action(AppAction::CycleSplitSide));
+
+    assert_eq!(app.split_focus, None);
+    assert!(
+        app.notices.iter().any(|notice| notice.contains("split")),
+        "got {:?}",
+        app.notices
+    );
 }

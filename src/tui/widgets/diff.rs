@@ -24,13 +24,14 @@ const GUTTER: &str = "      ";
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     // Borders (2) plus one column of breathing room on each side.
     let inner_width = area.width.saturating_sub(4) as usize;
+    let columns = crate::tui::diff_columns(area, state);
     let lines = match &state.rendered_diff {
         Some(diff) => state
             .display_rows
             .iter()
             .enumerate()
             .map(|(index, display_row)| {
-                render_display_row(state, diff, display_row, index, inner_width)
+                render_display_row(state, diff, display_row, index, inner_width, columns)
             })
             .collect(),
         None => vec![Line::raw(unavailable_reason(state))],
@@ -61,6 +62,7 @@ fn render_display_row(
     display_row: &DisplayRow,
     index: usize,
     inner_width: usize,
+    columns: Option<crate::tui::DiffColumns>,
 ) -> Line<'static> {
     let mut line = match display_row {
         DisplayRow::Diff { row } => diff_line(diff, *row, inner_width),
@@ -91,7 +93,7 @@ fn render_display_row(
             ),
         ]),
         DisplayRow::HunkHeader { hunk } => hunk_header_line(state, *hunk),
-        DisplayRow::SplitDiff { left, right } => split_line(diff, *left, *right, inner_width),
+        DisplayRow::SplitDiff { left, right } => split_line(diff, *left, *right, columns),
         DisplayRow::Context { new_line, text } => Line::from(vec![
             Span::styled(format!("{new_line:>5} "), Style::default().fg(theme::MUTED)),
             Span::styled(text.clone(), Style::default().fg(theme::FG)),
@@ -206,12 +208,31 @@ fn split_line(
     diff: &RenderedDiff,
     left: Option<usize>,
     right: Option<usize>,
-    inner_width: usize,
+    columns: Option<crate::tui::DiffColumns>,
 ) -> Line<'static> {
-    let column = inner_width.saturating_sub(3) / 2;
-    let mut spans = side_spans(diff, left, DiffSide::Left, column);
-    spans.push(Span::styled(" │ ", Style::default().fg(theme::BORDER)));
-    spans.extend(side_spans(diff, right, DiffSide::Right, column));
+    let Some(columns) = columns else {
+        return Line::default();
+    };
+    let mut spans = Vec::new();
+    if columns.left.width > 0 {
+        spans.extend(side_spans(
+            diff,
+            left,
+            DiffSide::Left,
+            columns.left.width as usize,
+        ));
+    }
+    if columns.left.width > 0 && columns.right.width > 0 {
+        spans.push(Span::styled(" │ ", Style::default().fg(theme::BORDER)));
+    }
+    if columns.right.width > 0 {
+        spans.extend(side_spans(
+            diff,
+            right,
+            DiffSide::Right,
+            columns.right.width as usize,
+        ));
+    }
     Line::from(spans)
 }
 

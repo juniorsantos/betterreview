@@ -77,6 +77,7 @@ pub enum AppAction {
     ToggleFold,
     ToggleComments,
     ToggleDiffLayout,
+    CycleSplitSide,
     ExpandGap,
     ConfirmSearch,
     SearchNext,

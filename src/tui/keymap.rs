@@ -63,6 +63,7 @@ pub fn key_to_action(event: KeyEvent) -> Option<AppAction> {
         (KeyCode::Char('q'), KeyModifiers::NONE) => Some(AppAction::Quit),
         (KeyCode::Char('Q'), _) => Some(AppAction::BackToPicker),
         (KeyCode::Char('\\'), _) => Some(AppAction::ToggleDiffLayout),
+        (KeyCode::Char('|'), _) => Some(AppAction::CycleSplitSide),
         (KeyCode::Char('?'), _) => Some(AppAction::ToggleHelp),
         _ => None,
     };

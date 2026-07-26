@@ -322,6 +322,7 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             Vec::new()
         }
         AppAction::ToggleDiffLayout => toggle_diff_layout(state),
+        AppAction::CycleSplitSide => cycle_split_side(state),
         AppAction::ToggleComments => {
             state.comments_hidden = !state.comments_hidden;
             refresh_display_rows(state);
@@ -720,6 +721,19 @@ fn toggle_diff_layout(state: &mut AppState) -> Vec<EffectEnvelope> {
             },
         },
     )]
+}
+
+fn cycle_split_side(state: &mut AppState) -> Vec<EffectEnvelope> {
+    if state.diff_layout != DiffLayout::Split {
+        push_notice(state, "expanding a side needs the split layout (\\)");
+        return Vec::new();
+    }
+    state.split_focus = match state.split_focus {
+        None => Some(crate::tui::SplitSide::New),
+        Some(crate::tui::SplitSide::New) => Some(crate::tui::SplitSide::Old),
+        Some(crate::tui::SplitSide::Old) => None,
+    };
+    Vec::new()
 }
 
 fn leave_review(state: &mut AppState, to_picker: bool) -> Vec<EffectEnvelope> {

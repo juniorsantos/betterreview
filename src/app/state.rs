@@ -78,6 +78,7 @@ pub struct AppState {
     pub pending_gap: Option<u32>,
     pub hunk_totals: BTreeMap<RepoPath, u32>,
     pub diff_layout: DiffLayout,
+    pub split_focus: Option<crate::tui::SplitSide>,
 }
 
 impl AppState {
@@ -153,6 +154,7 @@ impl AppState {
             pending_gap: None,
             hunk_totals: BTreeMap::new(),
             diff_layout: DiffLayout::default(),
+            split_focus: None,
         };
         state.refresh_hunk_totals();
         state
