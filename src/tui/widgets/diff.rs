@@ -98,7 +98,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         theme::BORDER
     };
     let block = Block::default()
-        .title(" [3] Diff ")
+        .title(crate::tui::text::panel_title("[3] Diff", None, area.width))
         .borders(Borders::ALL)
         .padding(ratatui::widgets::Padding::horizontal(1))
         .border_style(Style::default().fg(border));

@@ -7,12 +7,12 @@ pub fn display_width(text: &str) -> usize {
 
 pub fn panel_title(name: &str, count: Option<&str>, width: u16) -> String {
     if let Some(count) = count {
-        let full = format!(" {name} ({count}) ");
+        let full = format!("\u{2500} {name} ({count}) ");
         if display_width(&full) <= width as usize {
             return full;
         }
     }
-    format!(" {name} ")
+    format!("\u{2500} {name} ")
 }
 
 pub fn expand_tabs(text: &str, tab_width: usize, start_column: usize) -> String {

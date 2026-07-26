@@ -137,16 +137,26 @@ fn a_tab_advances_to_the_next_stop_not_a_fixed_number_of_spaces() {
 
 #[test]
 fn a_panel_title_drops_its_count_before_it_drops_its_name() {
-    assert_eq!(panel_title("Files", Some("4/12"), 20), " Files (4/12) ");
+    assert_eq!(panel_title("Files", Some("4/12"), 20), "─ Files (4/12) ");
     assert_eq!(
         panel_title("Files", Some("4/12"), 10),
-        " Files ",
+        "─ Files ",
         "the count is what yields when the border is narrow"
     );
-    assert_eq!(panel_title("Files", None, 20), " Files ");
+    assert_eq!(panel_title("Files", None, 20), "─ Files ");
     assert_eq!(
         panel_title("Files", Some("4/12"), 3),
-        " Files ",
+        "─ Files ",
         "the name survives even when nothing fits: a nameless panel is useless"
+    );
+}
+
+#[test]
+fn a_panel_title_stands_off_the_corner() {
+    assert_eq!(panel_title("Files", Some("4/12"), 30), "─ Files (4/12) ");
+    assert_eq!(
+        panel_title("Files", None, 30),
+        "─ Files ",
+        "the title never sits flush against the corner"
     );
 }

@@ -4,7 +4,7 @@ expression: "redact_version(screen(&app_with_drafts(2), 50, 16))"
 ---
  betterreview  owner/repo #42 · Review terminal · 
                                                   
-┌ [3] Diff ──────────────────────────────────────┐
+┌─ [3] Diff ─────────────────────────────────────┐
 │ Loa╭ Submit review · COMMENT ─────────────╮    │
 │    │ 2 drafts will be published           │    │
 │    │                                      │    │
