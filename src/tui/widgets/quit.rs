@@ -2,7 +2,7 @@ use ratatui::{Frame, layout::Rect, text::Line};
 
 use crate::{
     app::AppState,
-    tui::widgets::dialog::{Dialog, menu_line, render_dialog},
+    tui::widgets::dialog::{Dialog, Sizing, menu_line, render_dialog},
 };
 
 const OPTIONS: [&str; 3] = [
@@ -24,8 +24,8 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             title: Line::raw(" Quit review "),
             body,
             hints: "j/k move · Enter confirm · Esc cancel",
-            width: 52,
-            height: 7,
+            sizing: Sizing::Content { max_width: 52 },
+            zones: Vec::new(),
         },
     );
 }

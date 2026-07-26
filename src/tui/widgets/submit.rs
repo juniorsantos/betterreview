@@ -10,7 +10,7 @@ use crate::{
     domain::{ReviewOutcome, Support},
     tui::{
         theme,
-        widgets::dialog::{Dialog, render_dialog},
+        widgets::dialog::{Dialog, Sizing, render_dialog},
     },
 };
 
@@ -44,8 +44,8 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             title: title_line(modal.outcome),
             body,
             hints: "Tab verdict · Enter submit · ⌥Enter new line · Esc cancel",
-            width: 70,
-            height,
+            sizing: Sizing::Fixed { width: 70, height },
+            zones: Vec::new(),
         },
     );
 }

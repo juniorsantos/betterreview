@@ -18,6 +18,7 @@ pub use splash::splash;
 pub use terminal::{ExitReason, TuiError, handle_key, run};
 pub use text::{abbreviate_path, display_width, truncate_to_width};
 pub use viewport::{start_wrapped, wrapped_height};
+pub use widgets::dialog::{Dialog, Sizing, Zone, render_dialog};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SplitSide {

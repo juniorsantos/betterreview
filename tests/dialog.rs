@@ -272,3 +272,107 @@ fn dialog_is_centered_and_never_wider_than_eighty_percent_of_the_area() {
         "dialog is not centered: left={left} right_margin={right_margin}"
     );
 }
+
+use betterreview::tui::{Dialog, Sizing, Zone, render_dialog};
+use ratatui::text::Line;
+
+fn draw_dialog_in(dialog: Dialog<'_>, width: u16, height: u16) -> String {
+    let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+    terminal
+        .draw(|frame| {
+            let area = frame.area();
+            render_dialog(frame, area, dialog);
+        })
+        .unwrap();
+    let buffer = terminal.backend().buffer();
+    (0..height)
+        .map(|y| {
+            (0..width)
+                .map(|x| buffer.cell((x, y)).unwrap().symbol())
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn draw_dialog(dialog: Dialog<'_>) -> String {
+    draw_dialog_in(dialog, 100, 30)
+}
+
+fn box_height(screen: &str) -> usize {
+    screen.lines().filter(|line| line.contains('│')).count() + 2
+}
+
+fn box_width(screen: &str) -> usize {
+    screen
+        .lines()
+        .find(|line| line.contains('╭'))
+        .map(|line| line.trim_end().len() - line.find('╭').unwrap())
+        .unwrap_or(0)
+}
+
+#[test]
+fn a_dialog_sizes_itself_to_its_content() {
+    let short = draw_dialog(Dialog {
+        title: Line::raw(" Title "),
+        body: vec![Line::raw("one line")],
+        hints: "Esc close",
+        sizing: Sizing::Content { max_width: 60 },
+        zones: Vec::new(),
+    });
+    let tall = draw_dialog(Dialog {
+        title: Line::raw(" Title "),
+        body: (0..8).map(|i| Line::raw(format!("line {i}"))).collect(),
+        hints: "Esc close",
+        sizing: Sizing::Content { max_width: 60 },
+        zones: Vec::new(),
+    });
+
+    assert!(
+        box_height(&tall) > box_height(&short),
+        "more content, taller box"
+    );
+    assert!(box_width(&short) <= 60, "never wider than the maximum");
+    assert!(
+        box_width(&short) >= "one line".len() + 2,
+        "wide enough for the content"
+    );
+}
+
+#[test]
+fn a_dialog_never_outgrows_its_area() {
+    let screen = draw_dialog_in(
+        Dialog {
+            title: Line::raw(" Title "),
+            body: (0..200).map(|i| Line::raw(format!("line {i}"))).collect(),
+            hints: "Esc close",
+            sizing: Sizing::Content { max_width: 200 },
+            zones: Vec::new(),
+        },
+        40,
+        12,
+    );
+
+    assert!(box_height(&screen) <= 12);
+    assert!(box_width(&screen) <= 40);
+}
+
+#[test]
+fn zones_split_the_interior_vertically() {
+    let screen = draw_dialog(Dialog {
+        title: Line::raw(" Search "),
+        body: vec![Line::raw("results go here")],
+        hints: "Enter open",
+        sizing: Sizing::Fixed {
+            width: 60,
+            height: 12,
+        },
+        zones: vec![Zone::Fill, Zone::Fixed(3)],
+    });
+
+    assert!(screen.contains("results go here"));
+    assert!(
+        screen.lines().filter(|line| line.contains('│')).count() >= 8,
+        "the box is drawn with room for both zones"
+    );
+}

@@ -10,7 +10,7 @@ use crate::{
     tui::{
         text::display_width,
         theme,
-        widgets::dialog::{Dialog, render_dialog},
+        widgets::dialog::{Dialog, Sizing, render_dialog},
     },
 };
 
@@ -74,8 +74,8 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             title: Line::raw(" Help "),
             body: body_lines(),
             hints: "Esc close",
-            width: 72,
-            height: 17,
+            sizing: Sizing::Content { max_width: 78 },
+            zones: Vec::new(),
         },
     );
 }

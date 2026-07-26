@@ -5,7 +5,7 @@
 
 use ratatui::{
     Frame,
-    layout::Rect,
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Clear, Paragraph},
@@ -13,32 +13,68 @@ use ratatui::{
 
 use crate::tui::{text::display_width, theme};
 
-pub(in crate::tui) struct Dialog<'a> {
+pub struct Dialog<'a> {
     /// e.g. " Delete comment "
     pub title: Line<'a>,
     /// Content lines, NOT including the hints footer.
     pub body: Vec<Line<'a>>,
-    /// e.g. "j/k mover · Enter confirmar · Esc cancelar"
+    /// e.g. "j/k move · Enter confirm · Esc cancel"
     pub hints: &'a str,
-    /// Desired outer width, clamped to 80% of `area`.
-    pub width: u16,
-    /// Desired outer height, clamped to 80% of `area`.
-    pub height: u16,
+    pub sizing: Sizing,
+    /// Vertical regions the interior is split into, above the hints row. An
+    /// empty list means one region holding the whole body.
+    pub zones: Vec<Zone>,
+}
+
+/// How a dialog decides its outer size.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Sizing {
+    /// Exact dimensions, still clamped to the area.
+    Fixed { width: u16, height: u16 },
+    /// Grows with the content up to `max_width`, and as tall as the body needs.
+    Content { max_width: u16 },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Zone {
+    /// Takes whatever is left after the fixed zones.
+    Fill,
+    /// Exactly this many rows.
+    Fixed(u16),
+}
+
+impl Dialog<'_> {
+    fn outer(&self, area: Rect) -> (u16, u16) {
+        let (width, height) = match self.sizing {
+            Sizing::Fixed { width, height } => (width, height),
+            Sizing::Content { max_width } => {
+                let widest = self
+                    .body
+                    .iter()
+                    .map(|line| line.width())
+                    .chain([self.title.width(), display_width(self.hints)])
+                    .max()
+                    .unwrap_or(0);
+                // Borders (2), the breathing space every body line gets (1),
+                // and one column of slack on the right.
+                let width = u16::try_from(widest + 4).unwrap_or(u16::MAX);
+                let height = u16::try_from(self.body.len() + 4).unwrap_or(u16::MAX);
+                (width.min(max_width), height)
+            }
+        };
+        (
+            width.min(((area.width as u32) * 4 / 5) as u16).max(1),
+            height.min(((area.height as u32) * 4 / 5) as u16).max(1),
+        )
+    }
 }
 
 /// Renders `dialog` centered in `area` (clamped to 80% of it) and returns the
 /// inner body `Rect` — the region above the blank/hints rows, for callers
 /// that need to position the terminal cursor without overlapping the hints
 /// line.
-pub(in crate::tui) fn render_dialog(frame: &mut Frame, area: Rect, dialog: Dialog) -> Rect {
-    let width = dialog
-        .width
-        .min(((area.width as u32) * 4 / 5) as u16)
-        .max(1);
-    let height = dialog
-        .height
-        .min(((area.height as u32) * 4 / 5) as u16)
-        .max(1);
+pub fn render_dialog(frame: &mut Frame, area: Rect, dialog: Dialog) -> Vec<Rect> {
+    let (width, height) = dialog.outer(area);
     let outer = Rect {
         x: area.x + area.width.saturating_sub(width) / 2,
         y: area.y + area.height.saturating_sub(height) / 2,
@@ -106,7 +142,28 @@ pub(in crate::tui) fn render_dialog(frame: &mut Frame, area: Rect, dialog: Dialo
         outer,
     );
 
-    body_rect
+    split_zones(body_rect, &dialog.zones)
+}
+
+/// Splits the body region into the requested zones, top to bottom. With no
+/// zones the whole region is returned as a single rect, which is what every
+/// caller that just stacks lines wants.
+fn split_zones(body: Rect, zones: &[Zone]) -> Vec<Rect> {
+    if zones.is_empty() {
+        return vec![body];
+    }
+    let constraints: Vec<Constraint> = zones
+        .iter()
+        .map(|zone| match zone {
+            Zone::Fill => Constraint::Min(1),
+            Zone::Fixed(rows) => Constraint::Length(*rows),
+        })
+        .collect();
+    Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(constraints)
+        .split(body)
+        .to_vec()
 }
 
 /// One row of a menu-style dialog (quit/delete): the selected row carries a

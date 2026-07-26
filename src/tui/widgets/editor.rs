@@ -2,7 +2,7 @@ use ratatui::{Frame, layout::Rect, text::Line};
 
 use crate::{
     app::AppState,
-    tui::widgets::dialog::{Dialog, render_dialog},
+    tui::widgets::dialog::{Dialog, Sizing, render_dialog},
 };
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
@@ -29,17 +29,21 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         .iter()
         .map(|line| Line::raw(line.clone()))
         .collect();
-    let inner = render_dialog(
+    let zones = render_dialog(
         frame,
         area,
         Dialog {
             title: Line::raw(title),
             body,
             hints,
-            width: 76,
-            height: 14,
+            sizing: Sizing::Fixed {
+                width: 76,
+                height: 14,
+            },
+            zones: Vec::new(),
         },
     );
+    let inner = zones[0];
     if !editor.stale {
         // Show the real terminal cursor at the typing position so the user
         // always knows where input lands. Clamped to the body region
