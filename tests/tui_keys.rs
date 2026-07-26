@@ -773,3 +773,44 @@ fn expanding_a_side_is_refused_while_unified() {
         app.notices
     );
 }
+
+#[test]
+fn the_arrows_walk_between_panels_and_stop_at_the_ends() {
+    let mut state = base_app();
+
+    state.focus = AppFocus::Files;
+    update(&mut state, AppEvent::Action(AppAction::FocusLeft));
+    assert_eq!(
+        state.focus,
+        AppFocus::Files,
+        "the leftmost panel has nothing to its left, it does not wrap round"
+    );
+
+    update(&mut state, AppEvent::Action(AppAction::FocusRight));
+    assert_eq!(state.focus, AppFocus::Diff);
+    update(&mut state, AppEvent::Action(AppAction::FocusRight));
+    assert_eq!(state.focus, AppFocus::Threads);
+    update(&mut state, AppEvent::Action(AppAction::FocusRight));
+    assert_eq!(
+        state.focus,
+        AppFocus::Threads,
+        "and the rightmost stays put too"
+    );
+
+    update(&mut state, AppEvent::Action(AppAction::FocusLeft));
+    assert_eq!(state.focus, AppFocus::Diff);
+}
+
+#[test]
+fn tab_still_cycles_all_the_way_round() {
+    let mut state = base_app();
+    state.focus = AppFocus::Threads;
+
+    update(&mut state, AppEvent::Action(AppAction::FocusNext));
+
+    assert_eq!(
+        state.focus,
+        AppFocus::Files,
+        "tab is a cycle; only the arrows clamp"
+    );
+}

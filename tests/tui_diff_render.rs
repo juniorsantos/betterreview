@@ -1185,3 +1185,67 @@ fn the_cursor_is_visible_even_on_an_added_row() {
         "and the row the cursor is not on carries no bar:\n{screen}"
     );
 }
+
+#[test]
+fn the_cursor_row_lifts_its_own_diff_background_instead_of_losing_it() {
+    let green = ratatui::style::Color::Rgb(0x1c, 0x44, 0x28);
+    let mut state = app();
+    state.rendered_diff = Some(RenderedDiff {
+        rows: vec![
+            RenderedRow {
+                text: Line::from(ratatui::text::Span::styled(
+                    "+first",
+                    ratatui::style::Style::default().bg(green),
+                )),
+                binding: RowBinding {
+                    row_index: 0,
+                    left: None,
+                    right: Some(position(DiffSide::Right, 5)),
+                },
+            },
+            RenderedRow {
+                text: Line::from(ratatui::text::Span::styled(
+                    "+second",
+                    ratatui::style::Style::default().bg(green),
+                )),
+                binding: RowBinding {
+                    row_index: 1,
+                    left: None,
+                    right: Some(position(DiffSide::Right, 6)),
+                },
+            },
+        ],
+    });
+    state.session.cursor_row = 0;
+    refresh_display_rows(&mut state);
+
+    let terminal = draw(&state);
+    let buffer = terminal.backend().buffer();
+    let bg_of = |needle: &str| {
+        let row = (0..24)
+            .find(|y| {
+                (0..80)
+                    .map(|x| buffer.cell((x, *y)).unwrap().symbol())
+                    .collect::<String>()
+                    .contains(needle)
+            })
+            .expect("row rendered");
+        buffer.cell((70, row)).unwrap().style().bg
+    };
+
+    let cursor_bg = bg_of("+first").expect("the cursor row keeps a background");
+    assert_ne!(
+        cursor_bg,
+        ratatui::style::Color::Rgb(0x27, 0x2b, 0x33),
+        "the cursor must not erase the fact that this line was added"
+    );
+    assert_ne!(
+        cursor_bg, green,
+        "but it has to be distinguishable from the row below it"
+    );
+    assert_eq!(
+        bg_of("+second"),
+        Some(green),
+        "a row away from the cursor keeps the plain diff background"
+    );
+}

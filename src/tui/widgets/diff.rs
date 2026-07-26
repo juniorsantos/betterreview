@@ -157,6 +157,18 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     frame.render_widget(paragraph, body);
 }
 
+fn lift(color: ratatui::style::Color) -> ratatui::style::Color {
+    let ratatui::style::Color::Rgb(red, green, blue) = color else {
+        return color;
+    };
+    let raise = |value: u8| {
+        value
+            .saturating_add(value / 2)
+            .max(value.saturating_add(24))
+    };
+    ratatui::style::Color::Rgb(raise(red), raise(green), raise(blue))
+}
+
 fn expand_span_tabs(spans: &[Span<'static>], tab_width: usize) -> Vec<Span<'static>> {
     let mut column = 0;
     spans
@@ -450,6 +462,11 @@ fn render_display_row(
                 span.style = span.style.patch(style);
             }
         } else {
+            for span in line.spans.iter_mut() {
+                if let Some(background) = span.style.bg {
+                    span.style = span.style.bg(lift(background));
+                }
+            }
             line = line.style(style);
         }
     }

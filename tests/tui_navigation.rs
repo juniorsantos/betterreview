@@ -261,19 +261,19 @@ fn maps_navigation_keys_and_ignores_release_events() {
     );
     assert_eq!(
         key_to_action(KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE)),
-        Some(AppAction::FocusPrevious)
+        Some(AppAction::FocusLeft)
     );
     assert_eq!(
         key_to_action(KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE)),
-        Some(AppAction::FocusNext)
+        Some(AppAction::FocusRight)
     );
     assert_eq!(
         key_to_action(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE)),
-        Some(AppAction::FocusPrevious)
+        Some(AppAction::FocusLeft)
     );
     assert_eq!(
         key_to_action(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE)),
-        Some(AppAction::FocusNext)
+        Some(AppAction::FocusRight)
     );
     assert_eq!(
         key_to_action(KeyEvent::new_with_kind(

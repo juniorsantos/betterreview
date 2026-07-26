@@ -42,8 +42,8 @@ pub fn key_to_action(event: KeyEvent) -> Option<AppAction> {
     let action = match (event.code, event.modifiers) {
         (KeyCode::Tab, KeyModifiers::NONE) => Some(AppAction::FocusNext),
         (KeyCode::BackTab, _) => Some(AppAction::FocusPrevious),
-        (KeyCode::Char('h') | KeyCode::Left, KeyModifiers::NONE) => Some(AppAction::FocusPrevious),
-        (KeyCode::Char('l') | KeyCode::Right, KeyModifiers::NONE) => Some(AppAction::FocusNext),
+        (KeyCode::Char('h') | KeyCode::Left, KeyModifiers::NONE) => Some(AppAction::FocusLeft),
+        (KeyCode::Char('l') | KeyCode::Right, KeyModifiers::NONE) => Some(AppAction::FocusRight),
         (KeyCode::Char('j') | KeyCode::Down, KeyModifiers::NONE) => Some(AppAction::MoveCursor(1)),
         (KeyCode::Char('k') | KeyCode::Up, KeyModifiers::NONE) => Some(AppAction::MoveCursor(-1)),
         (KeyCode::Char('m'), KeyModifiers::NONE) => Some(AppAction::ToggleReviewed),

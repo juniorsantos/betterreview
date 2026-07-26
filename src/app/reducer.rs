@@ -68,6 +68,22 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             };
             Vec::new()
         }
+        AppAction::FocusLeft => {
+            state.focus = match state.focus {
+                AppFocus::Files => AppFocus::Files,
+                AppFocus::Diff => AppFocus::Files,
+                AppFocus::Threads => AppFocus::Diff,
+            };
+            Vec::new()
+        }
+        AppAction::FocusRight => {
+            state.focus = match state.focus {
+                AppFocus::Files => AppFocus::Diff,
+                AppFocus::Diff => AppFocus::Threads,
+                AppFocus::Threads => AppFocus::Threads,
+            };
+            Vec::new()
+        }
         AppAction::FocusFiles => {
             state.files_hidden = false;
             state.focus = AppFocus::Files;
