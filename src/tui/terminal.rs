@@ -382,8 +382,8 @@ fn contains(rect: Rect, point: (u16, u16)) -> bool {
 fn files_click(app: &AppState, rect: Rect, mouse_row: u16) -> Option<AppAction> {
     let content_row = mouse_row.checked_sub(rect.y + 1)?;
     match files::visible_rows(app, rect.height).get(content_row as usize)? {
-        FilesRow::File(index) => Some(AppAction::ActivateFile(*index)),
-        FilesRow::Directory(dir) => Some(AppAction::ToggleFoldDir((*dir).to_owned())),
+        FilesRow::File { index, .. } => Some(AppAction::ActivateFile(*index)),
+        FilesRow::Directory { path, .. } => Some(AppAction::ToggleFoldDir((*path).to_owned())),
     }
 }
 

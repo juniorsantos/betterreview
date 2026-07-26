@@ -22,8 +22,15 @@ use crate::{
 /// landed on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum FilesRow<'a> {
-    Directory(&'a str),
-    File(usize),
+    Directory {
+        path: &'a str,
+        label: &'a str,
+        depth: usize,
+    },
+    File {
+        index: usize,
+        depth: usize,
+    },
 }
 
 /// Builds the files panel's visible rows — directory headers interleaved
@@ -32,19 +39,38 @@ pub(crate) enum FilesRow<'a> {
 pub(crate) fn visible_rows(state: &AppState, height: u16) -> Vec<FilesRow<'_>> {
     let mut rows = Vec::new();
     let mut current_dir: Option<&str> = None;
+    let mut ancestors: Vec<&str> = Vec::new();
+    let mut depth = 0;
     let mut active_row = 0;
     for (index, file) in state.provider.files.iter().enumerate() {
         let (dir, _) = split_path(&file.path.0);
         let folded = state.collapsed_dirs.contains(dir);
         if !dir.is_empty() && current_dir != Some(dir) {
-            rows.push(FilesRow::Directory(dir));
+            while ancestors
+                .last()
+                .is_some_and(|parent| !encloses(parent, dir))
+            {
+                ancestors.pop();
+            }
+            depth = ancestors.len();
+            let label = match ancestors.last() {
+                Some(parent) => &dir[parent.len() + 1..],
+                None => dir,
+            };
+            rows.push(FilesRow::Directory {
+                path: dir,
+                label,
+                depth,
+            });
+            ancestors.push(dir);
             current_dir = Some(dir);
         }
         if index == state.active_file_index {
             active_row = rows.len().saturating_sub(if folded { 1 } else { 0 });
         }
         if !folded {
-            rows.push(FilesRow::File(index));
+            let depth = if dir.is_empty() { 0 } else { depth + 1 };
+            rows.push(FilesRow::File { index, depth });
         }
     }
 
@@ -59,15 +85,15 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let items = rows
         .iter()
         .map(|row| match row {
-            FilesRow::Directory(dir) => {
-                let folded = state.collapsed_dirs.contains(*dir);
-                let (reviewed, total) = directory_progress(state, dir);
+            FilesRow::Directory { path, label, depth } => {
+                let folded = state.collapsed_dirs.contains(*path);
+                let (reviewed, total) = directory_progress(state, path);
                 // Chevron orientation signals the fold state: ▸ collapsed,
                 // ▾ expanded (toggled with z/Enter).
                 let text = if folded {
-                    format!("\u{25b8} {dir}/ ({reviewed}/{total})")
+                    format!("\u{25b8} {label}/ ({reviewed}/{total})")
                 } else {
-                    format!("\u{25be} {dir}/")
+                    format!("\u{25be} {label}/")
                 };
                 // A folded folder holding the active file carries the
                 // highlight so the current position never disappears.
@@ -76,8 +102,10 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
                         .provider
                         .files
                         .get(state.active_file_index)
-                        .is_some_and(|file| split_path(&file.path.0).0 == *dir);
-                let mut line = Line::styled(text, Style::default().fg(theme::ACCENT));
+                        .is_some_and(|file| split_path(&file.path.0).0 == *path);
+                let mut spans = indent(*depth);
+                spans.push(Span::styled(text, Style::default().fg(theme::ACCENT)));
+                let mut line = Line::from(spans);
                 if holds_active {
                     let text_width = line.width();
                     if text_width < inner_width {
@@ -92,9 +120,13 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
                 }
                 ListItem::new(line)
             }
-            FilesRow::File(index) => {
-                file_item(state, *index, &state.provider.files[*index], inner_width)
-            }
+            FilesRow::File { index, depth } => file_item(
+                state,
+                *index,
+                &state.provider.files[*index],
+                inner_width,
+                *depth,
+            ),
         })
         .collect::<Vec<_>>();
 
@@ -120,6 +152,7 @@ fn file_item<'a>(
     index: usize,
     file: &'a ChangedFile,
     inner_width: usize,
+    depth: usize,
 ) -> ListItem<'a> {
     let progress = state.session.files.get(&file.path);
     let (marker, marker_color) = match progress {
@@ -190,14 +223,16 @@ fn file_item<'a>(
         *last = Span::styled(last.content.trim_end().to_owned(), last.style);
     }
 
+    let indent_width = depth;
     let left_prefix = format!("{marker} {} ", status_letter(file.status));
     let right_width: usize = right.iter().map(|span| display_width(&span.content)).sum();
     let name_budget = inner_width
-        .saturating_sub(display_width(&left_prefix) + right_width + 1)
+        .saturating_sub(indent_width + display_width(&left_prefix) + right_width + 1)
         .max(1);
     let shown_name = abbreviate_path(name, name_budget);
-    let padding = inner_width
-        .saturating_sub(display_width(&left_prefix) + display_width(&shown_name) + right_width);
+    let padding = inner_width.saturating_sub(
+        indent_width + display_width(&left_prefix) + display_width(&shown_name) + right_width,
+    );
 
     let status_span = if generated {
         Span::styled("\u{2298} ".to_owned(), Style::default().fg(theme::MUTED))
@@ -213,12 +248,13 @@ fn file_item<'a>(
         Span::raw(shown_name)
     };
 
-    let mut spans = vec![
+    let mut spans = indent(depth);
+    spans.extend([
         Span::styled(format!("{marker} "), Style::default().fg(marker_color)),
         status_span,
         name_span,
         Span::raw(" ".repeat(padding)),
-    ];
+    ]);
     spans.extend(right);
 
     let style = if index == state.active_file_index {
@@ -248,6 +284,18 @@ fn directory_progress(state: &AppState, dir: &str) -> (usize, usize) {
         }
     }
     (reviewed, total)
+}
+
+fn encloses(parent: &str, child: &str) -> bool {
+    child.len() > parent.len()
+        && child.starts_with(parent)
+        && child.as_bytes()[parent.len()] == b'/'
+}
+
+fn indent(depth: usize) -> Vec<Span<'static>> {
+    (0..depth)
+        .map(|_| Span::styled("\u{2502}", Style::default().fg(theme::BORDER)))
+        .collect()
 }
 
 fn split_path(path: &str) -> (&str, &str) {
@@ -343,11 +391,19 @@ mod tests {
         assert_eq!(
             rows,
             vec![
-                FilesRow::Directory("a"),
-                FilesRow::File(0),
-                FilesRow::File(1),
-                FilesRow::Directory("b"),
-                FilesRow::File(2),
+                FilesRow::Directory {
+                    path: "a",
+                    label: "a",
+                    depth: 0,
+                },
+                FilesRow::File { index: 0, depth: 1 },
+                FilesRow::File { index: 1, depth: 1 },
+                FilesRow::Directory {
+                    path: "b",
+                    label: "b",
+                    depth: 0,
+                },
+                FilesRow::File { index: 2, depth: 1 },
             ]
         );
     }
@@ -362,9 +418,17 @@ mod tests {
         assert_eq!(
             rows,
             vec![
-                FilesRow::Directory("a"),
-                FilesRow::Directory("b"),
-                FilesRow::File(2),
+                FilesRow::Directory {
+                    path: "a",
+                    label: "a",
+                    depth: 0,
+                },
+                FilesRow::Directory {
+                    path: "b",
+                    label: "b",
+                    depth: 0,
+                },
+                FilesRow::File { index: 2, depth: 1 },
             ]
         );
     }
@@ -385,7 +449,14 @@ mod tests {
 
         assert_eq!(rows.len(), 4);
         // viewport::start(19, 20, 4) = 19 - 2 = 17, clamped to 20 - 4 = 16.
-        assert_eq!(rows[0], FilesRow::Directory("d8"));
-        assert_eq!(rows[3], FilesRow::File(9));
+        assert_eq!(
+            rows[0],
+            FilesRow::Directory {
+                path: "d8",
+                label: "d8",
+                depth: 0,
+            }
+        );
+        assert_eq!(rows[3], FilesRow::File { index: 9, depth: 1 });
     }
 }

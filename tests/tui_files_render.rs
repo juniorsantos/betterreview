@@ -460,3 +460,61 @@ fn a_cjk_file_name_does_not_push_the_panel_border() {
         "every row must start the panel at the same column: {borders:?}"
     );
 }
+
+#[test]
+fn a_file_is_indented_under_the_directory_it_belongs_to() {
+    let screen = screen(&app());
+    let row = |needle: &str| {
+        screen
+            .lines()
+            .find(|line| line.contains(needle))
+            .unwrap_or_else(|| panic!("row {needle} rendered:\n{screen}"))
+            .to_owned()
+    };
+
+    let folder = row("src/app/");
+    let child = row("one.rs");
+    let folder_column = folder.chars().position(|c| c == '\u{25be}').unwrap();
+    let child_column = child.chars().position(|c| c == '[').unwrap();
+
+    assert!(
+        child_column > folder_column,
+        "a file sits to the right of its folder, not flush with it:\n{screen}"
+    );
+    assert!(
+        child.contains('\u{2502}'),
+        "an indent guide traces the file back to its folder:\n{screen}"
+    );
+}
+
+#[test]
+fn a_nested_directory_shows_only_its_own_segment_indented_under_its_parent() {
+    let mut state = app();
+    state.provider.files = vec![
+        file("src/one.rs", FileStatus::Modified, 1, 0),
+        file("src/tui/two.rs", FileStatus::Modified, 1, 0),
+    ];
+    let screen = screen(&state);
+
+    let parent = screen
+        .lines()
+        .find(|line| line.contains("src/"))
+        .expect("the parent folder rendered")
+        .to_owned();
+    let nested = screen
+        .lines()
+        .find(|line| line.contains("tui/"))
+        .expect("the nested folder rendered")
+        .to_owned();
+
+    assert!(
+        !nested.contains("src/tui/"),
+        "a nested folder shows its own segment, not the whole path again:\n{screen}"
+    );
+    let parent_column = parent.chars().position(|c| c == '\u{25be}').unwrap();
+    let nested_column = nested.chars().position(|c| c == '\u{25be}').unwrap();
+    assert!(
+        nested_column > parent_column,
+        "the nested folder sits to the right of its parent:\n{screen}"
+    );
+}

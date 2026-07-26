@@ -6,7 +6,7 @@ expression: "redact_version(screen(&app_with_drafts(3), 80, 24))"
                                                                                 
 ┌ [2] Files ─────────────────┐┌ [3] Diff ──────────────────────────────────────┐
 │ ▾ src/                     ││ Loading diff…                                  │
-│ [ ] M app.rs     0/1 +1 -1 ││                                                │
+│ │[ ] M app.rs    0/1 +1 -1 ││                                                │
 │                            ││                                                │
 │                            ││                                                │
 │       ╭ Submit review · COMMENT ─────────────────────────────────────╮       │
