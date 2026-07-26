@@ -56,6 +56,19 @@ pub struct Position {
     pub new_path: String,
     pub old_line: Option<u32>,
     pub new_line: Option<u32>,
+    #[serde(default)]
+    pub line_range: Option<LineRange>,
+}
+
+#[derive(Clone, Deserialize)]
+pub struct LineRange {
+    pub start: Option<LineAnchor>,
+}
+
+#[derive(Clone, Deserialize)]
+pub struct LineAnchor {
+    pub old_line: Option<u32>,
+    pub new_line: Option<u32>,
 }
 
 #[derive(Deserialize)]

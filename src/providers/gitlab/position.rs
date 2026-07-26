@@ -94,8 +94,21 @@ pub(super) fn position(value: &Position) -> Option<DiffPosition> {
 }
 
 pub(super) fn selection(value: &Position) -> Option<DiffSelection> {
-    position(value).map(|position| DiffSelection {
-        start: position.clone(),
-        end: position,
-    })
+    let end = position(value)?;
+    let first = value
+        .line_range
+        .as_ref()
+        .and_then(|range| range.start.as_ref())
+        .and_then(|anchor| match end.side {
+            DiffSide::Left => anchor.old_line,
+            DiffSide::Right => anchor.new_line,
+        });
+    let start = match first {
+        Some(line) if line < end.line => DiffPosition {
+            line,
+            ..end.clone()
+        },
+        _ => end.clone(),
+    };
+    Some(DiffSelection { start, end })
 }

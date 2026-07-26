@@ -587,13 +587,11 @@ fn map_threads(wire_threads: Vec<WireThread>) -> (Vec<ReviewThread>, Vec<DraftCo
                 .is_some_and(|review| review.state == "PENDING")
                 && comment.viewer_did_author;
             if pending {
+                let selection = comment_selection(&path, &comment, position.clone());
                 drafts.push(DraftComment {
                     id: DraftId(comment.id),
                     body: comment.body,
-                    selection: position.clone().map(|position| DiffSelection {
-                        start: position.clone(),
-                        end: position,
-                    }),
+                    selection,
                     thread_id: Some(ThreadId(thread.id.clone())),
                 });
             } else {
@@ -617,6 +615,28 @@ fn map_threads(wire_threads: Vec<WireThread>) -> (Vec<ReviewThread>, Vec<DraftCo
         });
     }
     (threads, drafts)
+}
+
+fn comment_selection(
+    path: &RepoPath,
+    comment: &wire::ReviewComment,
+    end: Option<DiffPosition>,
+) -> Option<DiffSelection> {
+    let end = end?;
+    let start_line = match end.side {
+        DiffSide::Left => comment.original_start_line.or(comment.start_line),
+        DiffSide::Right => comment.start_line.or(comment.original_start_line),
+    };
+    let start = match start_line {
+        Some(line) if line < end.line => DiffPosition {
+            path: path.clone(),
+            side: end.side,
+            line,
+            hunk: end.hunk,
+        },
+        _ => end.clone(),
+    };
+    Some(DiffSelection { start, end })
 }
 
 fn comment_position(

@@ -100,6 +100,10 @@ pub struct ReviewComment {
     pub line: Option<u32>,
     #[serde(rename = "originalLine")]
     pub original_line: Option<u32>,
+    #[serde(rename = "startLine")]
+    pub start_line: Option<u32>,
+    #[serde(rename = "originalStartLine")]
+    pub original_start_line: Option<u32>,
     #[serde(rename = "viewerDidAuthor", default)]
     pub viewer_did_author: bool,
     #[serde(rename = "pullRequestReview")]

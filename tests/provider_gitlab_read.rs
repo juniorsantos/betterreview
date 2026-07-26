@@ -363,3 +363,26 @@ async fn falls_back_to_changes_when_the_diffs_endpoint_errors() {
         "the fallback was actually taken"
     );
 }
+
+#[tokio::test]
+async fn a_multi_line_draft_keeps_its_range_when_the_review_is_reopened() {
+    let mut responses = snapshot_responses();
+    responses.retain(|(endpoint, _)| !endpoint.ends_with("draft_notes"));
+    responses.push((
+        "projects/group%2Fapi/merge_requests/42/draft_notes",
+        fixture("draft-notes-range.json"),
+    ));
+    let provider = GitLabProvider::new(Arc::new(RoutingRunner::new(responses)));
+
+    let snapshot = provider.load(&key()).await.unwrap();
+
+    let selection = snapshot.drafts[0]
+        .selection
+        .as_ref()
+        .expect("the draft is anchored");
+    assert_eq!(
+        (selection.start.line, selection.end.line),
+        (2, 4),
+        "collapsing the range to its last line is what moves the marking on reopen"
+    );
+}

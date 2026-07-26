@@ -69,7 +69,7 @@ query Thread($id: ID!) {
       id path isResolved isOutdated diffSide
       comments(first: 100) {
         nodes {
-          id body line originalLine viewerDidAuthor
+          id body line originalLine startLine originalStartLine viewerDidAuthor
           author { login }
           pullRequestReview { state }
         }

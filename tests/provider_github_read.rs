@@ -339,3 +339,20 @@ async fn own_pull_request_disables_approve_and_request_changes() {
         Support::Supported
     ));
 }
+
+#[tokio::test]
+async fn a_multi_line_draft_keeps_its_range_when_the_review_is_reopened() {
+    let provider = GitHubProvider::new(Arc::new(RoutingRunner::new()));
+
+    let snapshot = provider.load(&github_key()).await.unwrap();
+
+    let selection = snapshot.drafts[0]
+        .selection
+        .as_ref()
+        .expect("the draft is anchored");
+    assert_eq!(
+        (selection.start.line, selection.end.line),
+        (1, 3),
+        "collapsing the range to its last line is what moves the marking on reopen"
+    );
+}

@@ -1,0 +1,16 @@
+[
+  {
+    "id": 11,
+    "note": "pending draft",
+    "position": {
+      "old_path": "src/one.rs",
+      "new_path": "src/one.rs",
+      "old_line": null,
+      "new_line": 4,
+      "line_range": {
+        "start": { "old_line": null, "new_line": 2 },
+        "end": { "old_line": null, "new_line": 4 }
+      }
+    }
+  }
+]
