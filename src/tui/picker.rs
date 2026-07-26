@@ -358,10 +358,7 @@ const LIST_MIN_HEIGHT: u16 = 8;
 /// list and description panels, and a borderless flat status line.
 pub fn render(frame: &mut Frame, state: &PickerState) {
     let area = frame.area();
-    frame.render_widget(
-        Block::default().style(Style::default().bg(theme::BG).fg(theme::FG)),
-        area,
-    );
+    frame.render_widget(Block::default().style(theme::canvas()), area);
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([

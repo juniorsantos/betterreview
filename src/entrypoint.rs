@@ -119,6 +119,8 @@ impl InstalledRuntime {
         app.files_hidden = config.files_hidden;
         app.wrap_lines = config.wrap_lines;
         app.tab_width = config.tab_width;
+        app.transparent = config.transparent;
+        crate::tui::theme::set_transparent(config.transparent);
         if read_only {
             crate::app::push_notice(&mut app, "session is open read-only");
         }

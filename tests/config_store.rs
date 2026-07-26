@@ -22,6 +22,7 @@ fn the_config_lives_under_the_config_directory_and_honours_the_legacy_file() {
         files_hidden: true,
         wrap_lines: true,
         tab_width: 8,
+        transparent: true,
     };
     config.save(&state).unwrap();
 

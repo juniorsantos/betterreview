@@ -19,6 +19,8 @@ pub struct AppConfig {
     pub wrap_lines: bool,
     #[serde(default = "default_tab_width")]
     pub tab_width: usize,
+    #[serde(default)]
+    pub transparent: bool,
 }
 
 const fn default_tab_width() -> usize {
@@ -32,6 +34,7 @@ impl Default for AppConfig {
             files_hidden: false,
             wrap_lines: false,
             tab_width: default_tab_width(),
+            transparent: false,
         }
     }
 }

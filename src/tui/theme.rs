@@ -1,4 +1,20 @@
-use ratatui::style::Color;
+use ratatui::style::{Color, Style};
+use std::sync::atomic::{AtomicBool, Ordering};
+
+static TRANSPARENT: AtomicBool = AtomicBool::new(false);
+
+pub fn set_transparent(value: bool) {
+    TRANSPARENT.store(value, Ordering::Relaxed);
+}
+
+pub fn canvas() -> Style {
+    let style = Style::default().fg(FG);
+    if TRANSPARENT.load(Ordering::Relaxed) {
+        style
+    } else {
+        style.bg(BG)
+    }
+}
 
 pub const BG: Color = Color::Rgb(0x0a, 0x0c, 0x10);
 pub const FG: Color = Color::Rgb(0xf0, 0xf3, 0xf6);

@@ -754,6 +754,7 @@ fn config_of(state: &AppState) -> crate::state::AppConfig {
         files_hidden: state.files_hidden,
         wrap_lines: state.wrap_lines,
         tab_width: state.tab_width,
+        transparent: state.transparent,
     }
 }
 

@@ -1,7 +1,6 @@
 use ratatui::{
     Frame,
     layout::Rect,
-    style::Style,
     widgets::{Block, Clear, Paragraph},
 };
 
@@ -15,10 +14,7 @@ use super::{
 
 pub fn render(frame: &mut Frame, state: &AppState) {
     let area = frame.area();
-    frame.render_widget(
-        Block::default().style(Style::default().bg(theme::BG).fg(theme::FG)),
-        area,
-    );
+    frame.render_widget(Block::default().style(theme::canvas()), area);
 
     let middle = format!(
         " {} #{} · {} · @{} ",

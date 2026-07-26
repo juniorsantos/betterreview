@@ -15,10 +15,7 @@ const CHIP_WIDTH: u16 = 20;
 
 pub fn splash(frame: &mut Frame) {
     let area = frame.area();
-    frame.render_widget(
-        Block::default().style(Style::default().bg(theme::BG).fg(theme::FG)),
-        area,
-    );
+    frame.render_widget(Block::default().style(theme::canvas()), area);
     let (lines, width) = if fits_banner(area) {
         (banner_lines(), BANNER_WIDTH)
     } else {

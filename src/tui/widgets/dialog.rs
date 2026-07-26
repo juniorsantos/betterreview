@@ -136,9 +136,7 @@ pub fn render_dialog(frame: &mut Frame, area: Rect, dialog: Dialog) -> Vec<Rect>
 
     frame.render_widget(Clear, outer);
     frame.render_widget(
-        Paragraph::new(lines)
-            .style(Style::default().bg(theme::BG).fg(theme::FG))
-            .block(block),
+        Paragraph::new(lines).style(theme::canvas()).block(block),
         outer,
     );
 
