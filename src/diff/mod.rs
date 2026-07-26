@@ -8,7 +8,7 @@ use std::ops::Range;
 
 use crate::domain::DiffPosition;
 
-pub use ansi::sanitize_ansi;
+pub use ansi::{has_confusables, sanitize_ansi};
 pub use delta::{DeltaError, DeltaRenderer, DiffRenderer, RenderedDiff, RenderedRow, RowBinding};
 pub use parser::{count_hunks, parse_file_patch};
 pub use selection::{DiffCursor, SelectionError, validate_selection};

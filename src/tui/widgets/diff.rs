@@ -266,8 +266,6 @@ fn file_header_line(path: &str, previous_path: Option<&str>) -> Line<'static> {
     Line::from(spans)
 }
 
-/// Bytes the two paths share, cut back to the last `/` so a partially
-/// matching segment is emphasised whole rather than split mid-name.
 fn shared_prefix(previous: &str, path: &str) -> usize {
     let common = previous
         .bytes()

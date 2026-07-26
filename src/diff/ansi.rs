@@ -30,7 +30,38 @@ pub fn sanitize_ansi(input: &[u8]) -> Result<Vec<u8>, DeltaError> {
         }
     }
 
-    Ok(output)
+    let text = String::from_utf8(output).map_err(|_| DeltaError::InvalidUtf8)?;
+    Ok(escape_confusables(&text).into_bytes())
+}
+
+fn is_confusable(value: char) -> bool {
+    matches!(
+        value,
+        '\u{202a}'..='\u{202e}'
+            | '\u{2066}'..='\u{2069}'
+            | '\u{200b}'..='\u{200f}'
+            | '\u{2060}'..='\u{2064}'
+            | '\u{feff}'
+    )
+}
+
+fn escape_confusables(text: &str) -> String {
+    if !text.chars().any(is_confusable) {
+        return text.to_owned();
+    }
+    let mut out = String::with_capacity(text.len());
+    for value in text.chars() {
+        if is_confusable(value) {
+            out.push_str(&format!("<U+{:04X}>", value as u32));
+        } else {
+            out.push(value);
+        }
+    }
+    out
+}
+
+pub fn has_confusables(text: &str) -> bool {
+    text.chars().any(is_confusable)
 }
 
 fn consume_escape(input: &[u8], start: usize, output: &mut Vec<u8>) -> usize {

@@ -528,3 +528,26 @@ fn the_files_panel_title_carries_how_many_files_and_how_many_are_done() {
         "the panel says how much is in it without being opened:\n{screen}"
     );
 }
+
+#[test]
+fn a_file_carrying_a_bidi_payload_is_flagged_in_the_panel() {
+    let mut state = app();
+    state.provider.files[0].patch = PatchAvailability::Available(
+        "@@ -1,1 +1,1 @@\n-let ok = 1;\n+let \u{202e}admin = 1;\n".into(),
+    );
+    state.refresh_hunk_totals();
+
+    let screen = screen(&state);
+
+    assert!(
+        screen.contains('\u{26a0}'),
+        "the reviewer has to know which file to look at:\n{screen}"
+    );
+}
+
+#[test]
+fn an_ordinary_file_carries_no_warning() {
+    let screen = screen(&app());
+
+    assert!(!screen.contains('\u{26a0}'));
+}

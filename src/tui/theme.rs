@@ -1,14 +1,3 @@
-//! GitHub Dark High Contrast palette, re-tiered by role.
-//!
-//! Content colors follow @primer/primitives dark_high_contrast, and the diff
-//! backgrounds are its muted overlays pre-blended onto the canvas. The
-//! decoration tokens deliberately do not: that palette raises every value,
-//! including the ones whose job is to recede, and a terminal has neither
-//! whitespace nor font weight left to rebuild the hierarchy with. `BORDER`,
-//! `MUTED` and `FILLER` are therefore scaled down along their own hue until
-//! they sit at the contrast their role calls for — see `tests/theme_contrast.rs`,
-//! which enforces the tiering rather than the hex values.
-
 use ratatui::style::Color;
 
 pub const BG: Color = Color::Rgb(0x0a, 0x0c, 0x10);

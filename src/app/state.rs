@@ -81,6 +81,7 @@ pub struct AppState {
     pub split_focus: Option<crate::tui::SplitSide>,
     pub wrap_lines: bool,
     pub tab_width: usize,
+    pub flagged_files: std::collections::BTreeSet<crate::domain::RepoPath>,
 }
 
 impl AppState {
@@ -102,6 +103,18 @@ impl AppState {
             .files
             .iter()
             .map(|file| (file.path.clone(), crate::diff::count_hunks(file)))
+            .collect();
+        self.flagged_files = self
+            .provider
+            .files
+            .iter()
+            .filter(|file| match &file.patch {
+                crate::domain::PatchAvailability::Available(patch) => {
+                    crate::diff::has_confusables(patch)
+                }
+                _ => false,
+            })
+            .map(|file| file.path.clone())
             .collect();
     }
 
@@ -159,6 +172,7 @@ impl AppState {
             split_focus: None,
             wrap_lines: false,
             tab_width: 4,
+            flagged_files: Default::default(),
         };
         state.refresh_hunk_totals();
         state

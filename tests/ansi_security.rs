@@ -32,3 +32,41 @@ fn rejects_invalid_utf8() {
         Err(DeltaError::InvalidUtf8)
     ));
 }
+
+#[test]
+fn a_bidi_override_is_escaped_instead_of_taking_effect() {
+    let payload = "if access_level != \u{202e}\u{2066}// \u{2069}\u{2066}root\u{2069}";
+
+    let cleaned = String::from_utf8(sanitize_ansi(payload.as_bytes()).unwrap()).unwrap();
+
+    assert!(
+        !cleaned.contains('\u{202e}'),
+        "a right-to-left override must never reach the terminal: {cleaned:?}"
+    );
+    assert!(
+        !cleaned.contains('\u{2066}') && !cleaned.contains('\u{2069}'),
+        "nor may the isolates that complete the trojan-source attack: {cleaned:?}"
+    );
+    assert!(
+        cleaned.contains("<U+202E>"),
+        "and the reviewer has to see that something was there: {cleaned:?}"
+    );
+}
+
+#[test]
+fn zero_width_characters_are_made_visible() {
+    let payload = "let admin\u{200b} = false;";
+
+    let cleaned = String::from_utf8(sanitize_ansi(payload.as_bytes()).unwrap()).unwrap();
+
+    assert_eq!(cleaned, "let admin<U+200B> = false;");
+}
+
+#[test]
+fn ordinary_text_is_untouched_by_the_confusable_pass() {
+    let payload = "let café = \"日本語\"; // ok";
+
+    let cleaned = String::from_utf8(sanitize_ansi(payload.as_bytes()).unwrap()).unwrap();
+
+    assert_eq!(cleaned, payload, "accents and CJK are not confusables");
+}

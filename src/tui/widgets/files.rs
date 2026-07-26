@@ -241,7 +241,12 @@ fn file_item<'a>(
     }
 
     let indent_width = depth;
-    let left_prefix = format!("{marker} {} ", status_letter(file.status));
+    let flagged = state.flagged_files.contains(&file.path);
+    let left_prefix = format!(
+        "{marker} {}{} ",
+        if flagged { "\u{26a0} " } else { "" },
+        status_letter(file.status)
+    );
     let right_width: usize = right.iter().map(|span| display_width(&span.content)).sum();
     let name_budget = inner_width
         .saturating_sub(indent_width + display_width(&left_prefix) + right_width + 1)
@@ -266,6 +271,12 @@ fn file_item<'a>(
     };
 
     let mut spans = indent(depth);
+    if flagged {
+        spans.push(Span::styled(
+            "\u{26a0} ".to_owned(),
+            Style::default().fg(theme::DANGER),
+        ));
+    }
     spans.extend([
         Span::styled(format!("{marker} "), Style::default().fg(marker_color)),
         status_span,
