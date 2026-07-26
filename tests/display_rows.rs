@@ -711,3 +711,38 @@ fn other_files_comments_are_ignored() {
         ]
     );
 }
+
+#[test]
+fn a_draft_spanning_several_lines_sits_under_the_last_of_them() {
+    let path = active_path();
+    let diff = rendered(&path);
+    let draft = DraftComment {
+        id: DraftId("d1".into()),
+        body: "covers the block".into(),
+        selection: Some(DiffSelection {
+            start: pos(&path, DiffSide::Left, 1),
+            end: pos(&path, DiffSide::Left, 2),
+        }),
+        thread_id: None,
+    };
+
+    let rows = build_display_rows(&diff, &[], std::slice::from_ref(&draft), &path, false);
+
+    let card = rows
+        .iter()
+        .position(|row| matches!(row, DisplayRow::Comment { .. }))
+        .expect("the card rendered");
+    let last_diff_above = rows[..card]
+        .iter()
+        .rev()
+        .find_map(|row| match row {
+            DisplayRow::Diff { row } => Some(*row),
+            _ => None,
+        })
+        .expect("a diff row above the card");
+
+    assert_eq!(
+        last_diff_above, 1,
+        "the card belongs under the last selected line, not the first: {rows:?}"
+    );
+}
