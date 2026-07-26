@@ -43,7 +43,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         Dialog {
             title: title_line(modal.outcome),
             body,
-            hints: "Enter enviar · ⌥Enter nova linha · Esc cancelar",
+            hints: "Tab veredito · Enter enviar · ⌥Enter nova linha · Esc cancelar",
             width: 70,
             height,
         },
@@ -97,14 +97,6 @@ fn shortcut_line(state: &AppState, active: ReviewOutcome) -> Line<'static> {
             state.provider.capabilities.for_outcome(outcome),
             Support::Supported
         );
-        let key_style = if supported {
-            Style::default()
-                .fg(theme::ACCENT)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(theme::BORDER)
-        };
-        spans.push(Span::styled(format!("⌥{} ", key(outcome)), key_style));
         spans.push(if outcome == active {
             Span::styled(
                 format!("[{}]", label(outcome)),
@@ -125,14 +117,6 @@ fn shortcut_line(state: &AppState, active: ReviewOutcome) -> Line<'static> {
         });
     }
     Line::from(spans)
-}
-
-fn key(outcome: ReviewOutcome) -> char {
-    match outcome {
-        ReviewOutcome::Comment => 'c',
-        ReviewOutcome::Approve => 'a',
-        ReviewOutcome::RequestChanges => 'p',
-    }
 }
 
 fn label(outcome: ReviewOutcome) -> &'static str {

@@ -364,3 +364,57 @@ async fn reply_refetches_the_full_thread() {
     let refetch = graphql_body(&calls[1]);
     assert_eq!(refetch["variables"]["id"], "thread-1");
 }
+
+fn review_context_without_pending() -> Value {
+    json!({
+        "data": {
+            "repository": {
+                "pullRequest": { "id": "pr-id", "reviews": { "nodes": [] } }
+            }
+        }
+    })
+}
+
+#[tokio::test]
+async fn submitting_without_any_draft_creates_the_review_carrying_the_verdict() {
+    let runner = Arc::new(RecordingRunner::new(vec![
+        Ok(json_output(json!({ "head": { "sha": "head-oid" } }))),
+        Ok(json_output(review_context_without_pending())),
+        Ok(json_output(json!({
+            "data": { "addPullRequestReview": { "pullRequestReview": { "id": "fresh-review" } } }
+        }))),
+    ]));
+    let provider = GitHubProvider::new(runner.clone());
+
+    provider
+        .submit_review(
+            &key(),
+            SubmitRequest {
+                expected_head: CommitOid("head-oid".into()),
+                summary: "tudo certo".into(),
+                outcome: ReviewOutcome::Approve,
+                mode: SubmitMode::Full,
+            },
+        )
+        .await
+        .unwrap();
+
+    let calls = runner.calls.lock().unwrap();
+    assert_eq!(calls.len(), 3, "head, review context, single create+submit");
+    let mutation = graphql_body(calls.last().unwrap());
+    assert_eq!(mutation["variables"]["input"]["pullRequestId"], "pr-id");
+    assert_eq!(mutation["variables"]["input"]["event"], "APPROVE");
+    assert_eq!(mutation["variables"]["input"]["body"], "tudo certo");
+}
+
+#[tokio::test]
+async fn discarding_without_a_pending_review_is_a_no_op() {
+    let runner = Arc::new(RecordingRunner::new(vec![Ok(json_output(
+        review_context_without_pending(),
+    ))]));
+    let provider = GitHubProvider::new(runner.clone());
+
+    provider.discard_review(&key()).await.unwrap();
+
+    assert_eq!(runner.calls.lock().unwrap().len(), 1);
+}

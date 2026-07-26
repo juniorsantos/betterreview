@@ -11,9 +11,9 @@ expression: "redact_version(screen(&app_with_drafts(2), 50, 16))"
 │    │ Resumo                               │    │
 │    │ Ready to merge▌                      │    │
 │    │                                      │    │
-│    │ ⌥a aprovar · ⌥p pedir mudanças · ⌥c [│    │
+│    │ aprovar · pedir mudanças · [COMENTAR]│    │
 │    │                                      │    │
-│    │Enter enviar · ⌥Enter nova linha · Esc│    │
+│    │Tab veredito · Enter enviar · ⌥Enter n│    │
 │    ╰──────────────────────────────────────╯    │
 │                                                │
 └────────────────────────────────────────────────┘

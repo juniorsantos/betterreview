@@ -149,11 +149,8 @@ pub fn handle_key(app: &mut AppState, keymap: &mut KeyMap, key: KeyEvent) -> Opt
                     outcome: modal.outcome,
                 });
             }
-            (KeyCode::Char('a'), KeyModifiers::ALT) => modal.outcome = ReviewOutcome::Approve,
-            (KeyCode::Char('p'), KeyModifiers::ALT) => {
-                modal.outcome = ReviewOutcome::RequestChanges;
-            }
-            (KeyCode::Char('c'), KeyModifiers::ALT) => modal.outcome = ReviewOutcome::Comment,
+            (KeyCode::Tab | KeyCode::Down, _) => modal.outcome = next_outcome(modal.outcome),
+            (KeyCode::BackTab | KeyCode::Up, _) => modal.outcome = previous_outcome(modal.outcome),
             (KeyCode::Backspace, _) => {
                 modal.summary.pop();
             }
@@ -394,6 +391,22 @@ fn diff_click(app: &AppState, rect: Rect, mouse_row: u16) -> Option<AppAction> {
 
 fn is_interrupt(key: KeyEvent) -> bool {
     key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL)
+}
+
+fn next_outcome(outcome: ReviewOutcome) -> ReviewOutcome {
+    match outcome {
+        ReviewOutcome::Comment => ReviewOutcome::Approve,
+        ReviewOutcome::Approve => ReviewOutcome::RequestChanges,
+        ReviewOutcome::RequestChanges => ReviewOutcome::Comment,
+    }
+}
+
+fn previous_outcome(outcome: ReviewOutcome) -> ReviewOutcome {
+    match outcome {
+        ReviewOutcome::Comment => ReviewOutcome::RequestChanges,
+        ReviewOutcome::Approve => ReviewOutcome::Comment,
+        ReviewOutcome::RequestChanges => ReviewOutcome::Approve,
+    }
 }
 
 #[cfg(test)]

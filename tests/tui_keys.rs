@@ -600,39 +600,56 @@ fn shift_m_marks_the_hunk_while_m_still_marks_the_file() {
 }
 
 #[test]
-fn alt_letters_pick_the_verdict_inside_the_submit_modal() {
+fn tab_cycles_the_verdict_inside_the_submit_modal() {
     let mut app = app_with_modal();
     let mut keymap = KeyMap::default();
 
-    handle_key(
-        &mut app,
-        &mut keymap,
-        key(KeyCode::Char('a'), KeyModifiers::ALT),
-    );
+    handle_key(&mut app, &mut keymap, key(KeyCode::Tab, KeyModifiers::NONE));
     assert_eq!(
         app.submission_modal.as_ref().unwrap().outcome,
         ReviewOutcome::Approve
     );
 
-    handle_key(
-        &mut app,
-        &mut keymap,
-        key(KeyCode::Char('p'), KeyModifiers::ALT),
-    );
+    handle_key(&mut app, &mut keymap, key(KeyCode::Tab, KeyModifiers::NONE));
     assert_eq!(
         app.submission_modal.as_ref().unwrap().outcome,
         ReviewOutcome::RequestChanges
     );
 
+    handle_key(&mut app, &mut keymap, key(KeyCode::Tab, KeyModifiers::NONE));
+    assert_eq!(
+        app.submission_modal.as_ref().unwrap().outcome,
+        ReviewOutcome::Comment,
+        "wraps back to the start"
+    );
+
+    handle_key(&mut app, &mut keymap, key(KeyCode::Up, KeyModifiers::NONE));
+    assert_eq!(
+        app.submission_modal.as_ref().unwrap().outcome,
+        ReviewOutcome::RequestChanges,
+        "arrows are an alias for the same cycle"
+    );
+}
+
+#[test]
+fn a_macos_option_composed_char_never_reaches_the_verdict() {
+    let mut app = app_with_modal();
+    app.submission_modal.as_mut().unwrap().summary = String::new();
+    let mut keymap = KeyMap::default();
+
     handle_key(
         &mut app,
         &mut keymap,
-        key(KeyCode::Char('c'), KeyModifiers::ALT),
+        key(KeyCode::Char('ç'), KeyModifiers::ALT),
     );
+
+    let modal = app.submission_modal.as_ref().unwrap();
     assert_eq!(
-        app.submission_modal.as_ref().unwrap().outcome,
-        ReviewOutcome::Comment
+        modal.outcome,
+        ReviewOutcome::Comment,
+        "option+c composes ç on macOS; it must not be a verdict shortcut"
     );
+    assert_eq!(modal.summary, "", "nor should it be typed into the summary");
 }
 
 #[test]
@@ -685,15 +702,4 @@ fn alt_enter_breaks_the_summary_line_while_enter_submits() {
         sent,
         Some(AppEvent::Action(AppAction::SubmitReview { .. }))
     ));
-}
-
-#[test]
-fn tab_no_longer_moves_focus_inside_the_submit_modal() {
-    let mut app = app_with_modal();
-    let before = app.submission_modal.clone();
-    let mut keymap = KeyMap::default();
-
-    handle_key(&mut app, &mut keymap, key(KeyCode::Tab, KeyModifiers::NONE));
-
-    assert_eq!(app.submission_modal, before);
 }

@@ -129,12 +129,15 @@ fn the_summary_carries_a_caret_and_the_verdicts_are_shortcuts() {
         screen.contains("Ready to merge▌"),
         "the caret marks the focus"
     );
-    assert!(screen.contains("⌥a"));
-    assert!(screen.contains("⌥p"));
-    assert!(screen.contains("⌥c"));
     assert!(
-        !screen.contains("Tab campo"),
-        "there is no second field to tab into"
+        screen.contains("[COMENTAR]"),
+        "the active verdict is highlighted"
+    );
+    assert!(screen.contains("aprovar"));
+    assert!(screen.contains("pedir mudanças"));
+    assert!(
+        screen.contains("Tab veredito"),
+        "Tab always reaches the app, unlike option+letter on macOS"
     );
 }
 
@@ -170,7 +173,7 @@ fn submission_modal_remains_usable_on_a_small_terminal() {
 
     assert!(screen.contains("Enviar revisão"));
     assert!(screen.contains("2 drafts"));
-    assert!(screen.contains("⌥a"));
+    assert!(screen.contains("aprovar"));
 }
 
 /// A versão do crate aparece no cabeçalho renderizado; sem a redação os

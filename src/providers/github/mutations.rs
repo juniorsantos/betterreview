@@ -300,13 +300,24 @@ where
     ) -> Result<SubmitResult, ProviderError> {
         self.ensure_head(key, &request.expected_head).await?;
         let context = self.review_context(key).await?;
-        let review_id = context.review_id.ok_or_else(|| ProviderError::NotFound {
-            resource: "pending GitHub review".into(),
-        })?;
         let event = match request.outcome {
             ReviewOutcome::Comment => "COMMENT",
             ReviewOutcome::Approve => "APPROVE",
             ReviewOutcome::RequestChanges => "REQUEST_CHANGES",
+        };
+        let Some(review_id) = context.review_id else {
+            self.write_graphql(
+                key,
+                CREATE_REVIEW,
+                json!({ "input": {
+                    "pullRequestId": context.pull_request_id,
+                    "event": event,
+                    "body": request.summary,
+                }}),
+                "create and submit review",
+            )
+            .await?;
+            return Ok(SubmitResult::Complete);
         };
         self.write_graphql(
             key,
@@ -327,9 +338,9 @@ where
         key: &ChangeRequestKey,
     ) -> Result<(), ProviderError> {
         let context = self.review_context(key).await?;
-        let review_id = context.review_id.ok_or_else(|| ProviderError::NotFound {
-            resource: "pending GitHub review".into(),
-        })?;
+        let Some(review_id) = context.review_id else {
+            return Ok(());
+        };
         self.write_graphql(
             key,
             DISCARD_REVIEW,
