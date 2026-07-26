@@ -3,7 +3,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem},
+    widgets::{Block, List, ListItem},
 };
 
 const INDENT_WIDTH: usize = 1;
@@ -82,7 +82,13 @@ pub(crate) fn visible_rows(state: &AppState, height: u16) -> Vec<FilesRow<'_>> {
 }
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
-    let inner_width = area.width.saturating_sub(4) as usize;
+    let block = Block::default()
+        .title(Span::styled(
+            files_title(state, area.width),
+            title_style(state.focus == AppFocus::Files),
+        ))
+        .padding(ratatui::widgets::Padding::horizontal(1));
+    let inner_width = block.inner(area).width as usize;
     let rows = visible_rows(state, area.height);
     let items = rows
         .iter()
@@ -132,21 +138,17 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         })
         .collect::<Vec<_>>();
 
-    let border = if state.focus == AppFocus::Files {
-        theme::ACCENT
+    frame.render_widget(List::new(items).block(block), area);
+}
+
+fn title_style(focused: bool) -> Style {
+    if focused {
+        Style::default()
+            .fg(theme::ACCENT)
+            .add_modifier(Modifier::BOLD)
     } else {
-        theme::BORDER
-    };
-    frame.render_widget(
-        List::new(items).block(
-            Block::default()
-                .title(files_title(state, area.width))
-                .borders(Borders::ALL)
-                .padding(ratatui::widgets::Padding::horizontal(1))
-                .border_style(Style::default().fg(border)),
-        ),
-        area,
-    );
+        Style::default().fg(theme::MUTED)
+    }
 }
 
 fn files_title(state: &AppState, width: u16) -> String {

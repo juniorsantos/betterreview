@@ -92,7 +92,22 @@ impl Gutter {
 }
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
-    let inner_width = area.width.saturating_sub(4) as usize;
+    let block = Block::default()
+        .title(Span::styled(
+            " [3] Diff ".to_owned(),
+            if state.focus == AppFocus::Diff {
+                Style::default()
+                    .fg(theme::ACCENT)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(theme::MUTED)
+            },
+        ))
+        .borders(Borders::LEFT)
+        .padding(ratatui::widgets::Padding::horizontal(1))
+        .border_style(Style::default().fg(theme::BORDER));
+    let inner = block.inner(area);
+    let inner_width = inner.width as usize;
     let columns = crate::tui::diff_columns(area, state);
     let gutter = Gutter::for_state(state);
     let layout = RowLayout {
@@ -117,17 +132,6 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             .collect(),
         None => vec![Line::raw(unavailable_reason(state))],
     };
-    let border = if state.focus == AppFocus::Diff {
-        theme::ACCENT
-    } else {
-        theme::BORDER
-    };
-    let block = Block::default()
-        .title(" [3] Diff ")
-        .borders(Borders::ALL)
-        .padding(ratatui::widgets::Padding::horizontal(1))
-        .border_style(Style::default().fg(border));
-    let inner = block.inner(area);
     frame.render_widget(block, area);
 
     let full = inner.height as usize;

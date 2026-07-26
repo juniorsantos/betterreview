@@ -83,7 +83,7 @@ pub fn diff_columns(area: Rect, state: &AppState) -> Option<DiffColumns> {
     {
         return None;
     }
-    let inner = area.width.saturating_sub(4);
+    let inner = area.width.saturating_sub(3);
     let divider_width = 3u16;
     Some(match state.split_focus {
         Some(crate::tui::SplitSide::Old) => DiffColumns {

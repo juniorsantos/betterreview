@@ -4,17 +4,17 @@ expression: "redact_version(screen(&app_with_drafts(2), 50, 16))"
 ---
  betterreview  owner/repo #42 · Review terminal · 
                                                   
-┌ [3] Diff ──────────────────────────────────────┐
-│ Loa╭ Submit review · COMMENT ─────────────╮    │
-│    │ 2 drafts will be published           │    │
-│    │                                      │    │
-│    │ Summary                              │    │
-│    │ Ready to merge▌                      │    │
-│    │                                      │    │
-│    │ approve · request changes · [COMMENT]│    │
-│    │                                      │    │
-│    │Tab verdict · Enter submit · ⌥Enter ne│    │
-│    ╰──────────────────────────────────────╯    │
-│                                                │
-└────────────────────────────────────────────────┘
+│ [3] Diff                                        
+│ Loa╭ Submit review · COMMENT ─────────────╮     
+│    │ 2 drafts will be published           │     
+│    │                                      │     
+│    │ Summary                              │     
+│    │ Ready to merge▌                      │     
+│    │                                      │     
+│    │ approve · request changes · [COMMENT]│     
+│    │                                      │     
+│    │Tab verdict · Enter submit · ⌥Enter ne│     
+│    ╰──────────────────────────────────────╯     
+│                                                 
+│                                                 
  0/1 reviewed · 0/1 hunks · +1 -1 · auto · 2 draft

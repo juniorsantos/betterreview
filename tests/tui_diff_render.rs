@@ -1116,17 +1116,26 @@ fn the_background_paints_every_gutter_cell_including_the_blank_one() {
         .expect("added row rendered");
 
     let green = Some(ratatui::style::Color::Rgb(0x1c, 0x44, 0x28));
-    let plus = text.find("+added").unwrap() as u16;
-    // The empty old-number cell, the separator and the tail all carry the band.
-    for offset in [13u16, 3, 1] {
-        assert_eq!(
-            buffer.cell((plus - offset, row)).unwrap().style().bg,
-            green,
-            "column {} of the gutter is not painted",
-            plus - offset
-        );
-    }
-    assert_eq!(buffer.cell((77, row)).unwrap().style().bg, green);
+    let painted: Vec<u16> = (0..80)
+        .filter(|x| buffer.cell((*x, row)).unwrap().style().bg == green)
+        .collect();
+    let columns: Vec<char> = text.chars().collect();
+    let plus = (0..columns.len())
+        .find(|start| columns[*start..].starts_with(&['+', 'a', 'd', 'd', 'e', 'd']))
+        .expect("the added row is on screen") as u16;
+    let first = *painted.first().expect("the row carries the band");
+    let last = *painted.last().unwrap();
+
+    assert!(
+        first < plus,
+        "the band starts in the gutter, before the marker, so the blank number cell is covered"
+    );
+    assert_eq!(
+        painted.len() as u16,
+        last - first + 1,
+        "and it is unbroken from there to the edge"
+    );
+    assert_eq!(last, 78, "reaching the last column of the panel interior");
 }
 
 #[test]

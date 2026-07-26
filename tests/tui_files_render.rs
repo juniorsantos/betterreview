@@ -166,13 +166,16 @@ fn e_toggles_the_expanded_files_panel() {
         state.files_expanded = true;
         state
     });
-    let corner = |text: &str| {
+    let divider = |text: &str| {
         text.lines()
             .nth(2)
-            .map(|line| line.find('┐').unwrap_or(0))
+            .and_then(|line| line.chars().position(|c| c == '│'))
             .unwrap_or(0)
     };
-    assert!(corner(&wide) > corner(&narrow));
+    assert!(
+        divider(&wide) > divider(&narrow),
+        "expanding the panel pushes the separator right"
+    );
 }
 
 #[test]
@@ -451,8 +454,7 @@ fn a_cjk_file_name_does_not_push_the_panel_border() {
     let screen = screen(&state);
     let borders: Vec<usize> = screen
         .lines()
-        .filter(|line| line.contains('│'))
-        .filter_map(|line| line.find('│'))
+        .filter_map(|line| line.chars().position(|c| c == '│'))
         .collect();
 
     assert!(
