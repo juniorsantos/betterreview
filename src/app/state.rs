@@ -81,6 +81,7 @@ pub struct AppState {
     pub split_focus: Option<crate::tui::SplitSide>,
     pub wrap_lines: bool,
     pub tab_width: usize,
+    pub folder_selected: bool,
     pub flagged_files: std::collections::BTreeSet<crate::domain::RepoPath>,
 }
 
@@ -172,6 +173,7 @@ impl AppState {
             split_focus: None,
             wrap_lines: false,
             tab_width: 4,
+            folder_selected: false,
             flagged_files: Default::default(),
         };
         state.refresh_hunk_totals();

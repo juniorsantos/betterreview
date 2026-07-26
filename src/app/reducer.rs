@@ -617,6 +617,18 @@ fn navigate_by(state: &mut AppState, delta: i32) -> Vec<EffectEnvelope> {
     // directory stays reachable through its FIRST file (shown highlighted
     // on the directory header), so `z` can always unfold it again.
     let step = delta.signum();
+    if state.folder_selected {
+        state.folder_selected = false;
+        if step > 0 {
+            return Vec::new();
+        }
+    } else if step < 0
+        && is_directory_representative(state, state.active_file_index)
+        && !is_folded(state, state.active_file_index)
+    {
+        state.folder_selected = true;
+        return Vec::new();
+    }
     let mut index = state.active_file_index;
     loop {
         let next = move_index(index, step, count);
@@ -657,6 +669,7 @@ fn navigate_unreviewed(state: &mut AppState, delta: i32) -> Vec<EffectEnvelope> 
 
 fn activate_file(state: &mut AppState, index: usize) -> Vec<EffectEnvelope> {
     state.enter_file_at_end = false;
+    state.folder_selected = false;
     state.active_file_index = index;
     state.session.active_file = state
         .provider

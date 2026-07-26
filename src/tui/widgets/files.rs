@@ -99,7 +99,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
                 };
                 // A folded folder holding the active file carries the
                 // highlight so the current position never disappears.
-                let holds_active = folded
+                let holds_active = (folded || state.folder_selected)
                     && state
                         .provider
                         .files
@@ -287,7 +287,7 @@ fn file_item<'a>(
     ]);
     spans.extend(right);
 
-    let style = if index == state.active_file_index {
+    let style = if index == state.active_file_index && !state.folder_selected {
         Style::default()
             .bg(theme::CURSOR_LINE)
             .add_modifier(Modifier::BOLD)

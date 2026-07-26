@@ -547,3 +547,77 @@ fn an_ordinary_file_carries_no_warning() {
 
     assert!(!screen.contains('\u{26a0}'));
 }
+
+#[test]
+fn moving_up_from_the_first_file_of_a_folder_lands_on_the_folder() {
+    let mut state = app();
+    state.focus = betterreview::app::AppFocus::Files;
+    state.active_file_index = 0;
+
+    update(&mut state, AppEvent::Action(AppAction::PreviousFile));
+
+    assert!(
+        state.folder_selected,
+        "the cursor marks the folder itself, not just the file under it"
+    );
+    assert_eq!(
+        state.active_file_index, 0,
+        "the active file does not change while the folder is marked"
+    );
+
+    update(&mut state, AppEvent::Action(AppAction::NextFile));
+
+    assert!(
+        !state.folder_selected,
+        "stepping down returns to the first file of the folder"
+    );
+    assert_eq!(state.active_file_index, 0);
+}
+
+#[test]
+fn enter_on_the_marked_folder_collapses_and_expands_it() {
+    let mut state = app();
+    state.focus = betterreview::app::AppFocus::Files;
+    state.active_file_index = 0;
+    update(&mut state, AppEvent::Action(AppAction::PreviousFile));
+
+    update(&mut state, AppEvent::Action(AppAction::ToggleFold));
+    assert!(
+        state.collapsed_dirs.contains("src/app"),
+        "enter on the folder collapses it"
+    );
+
+    update(&mut state, AppEvent::Action(AppAction::ToggleFold));
+    assert!(
+        !state.collapsed_dirs.contains("src/app"),
+        "and expands it again"
+    );
+}
+
+#[test]
+fn the_marked_folder_carries_the_highlight() {
+    let mut state = app();
+    state.focus = betterreview::app::AppFocus::Files;
+    state.active_file_index = 0;
+    update(&mut state, AppEvent::Action(AppAction::PreviousFile));
+
+    let mut terminal = Terminal::new(TestBackend::new(100, 30)).unwrap();
+    terminal
+        .draw(|frame| betterreview::tui::render(frame, &state))
+        .unwrap();
+    let buffer = terminal.backend().buffer();
+    let row = (0..30)
+        .find(|y| {
+            (0..100)
+                .map(|x| buffer.cell((x, *y)).unwrap().symbol())
+                .collect::<String>()
+                .contains("src/app/")
+        })
+        .expect("the folder row rendered");
+
+    assert_eq!(
+        buffer.cell((3, row)).unwrap().style().bg,
+        Some(betterreview::tui::theme::CURSOR_LINE),
+        "the marked folder is highlighted like a marked file"
+    );
+}
