@@ -2777,7 +2777,9 @@ fn state_with_a_replacement() -> AppState {
 
 #[test]
 fn unified_layout_keeps_one_row_per_diff_line() {
-    let state = state_with_a_replacement();
+    let mut state = state_with_a_replacement();
+    state.diff_layout = DiffLayout::Unified;
+    betterreview::app::refresh_display_rows(&mut state);
 
     let diff_rows = state
         .display_rows
@@ -2892,4 +2894,40 @@ fn syncing_the_terminal_width_reflows_the_layout() {
         !betterreview::app::sync_terminal_width(&mut state, 160),
         "no reflow when the width did not change"
     );
+}
+
+#[test]
+fn auto_layout_picks_split_when_the_panel_is_wide_and_unified_when_it_is_not() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    state.diff_layout = DiffLayout::Auto;
+
+    betterreview::app::sync_terminal_width(&mut state, 200);
+    assert_eq!(
+        betterreview::app::effective_layout(&state),
+        DiffLayout::Split,
+        "a wide panel gets side-by-side without the user having to ask"
+    );
+
+    betterreview::app::sync_terminal_width(&mut state, 60);
+    assert_eq!(
+        betterreview::app::effective_layout(&state),
+        DiffLayout::Unified,
+        "and a narrow one falls back without changing what the user chose"
+    );
+    assert_eq!(
+        state.diff_layout,
+        DiffLayout::Auto,
+        "auto is a mode, not a one-way fallback"
+    );
+}
+
+#[test]
+fn the_layout_key_cycles_through_all_three_modes() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    state.diff_layout = DiffLayout::Unified;
+
+    for expected in [DiffLayout::Split, DiffLayout::Auto, DiffLayout::Unified] {
+        update(&mut state, AppEvent::Action(AppAction::ToggleDiffLayout));
+        assert_eq!(state.diff_layout, expected);
+    }
 }

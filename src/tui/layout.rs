@@ -78,7 +78,7 @@ pub(crate) fn screen_layout(area: Rect, state: &AppState) -> ScreenLayout {
 /// widget so the mouse handler can hit-test a click against the same columns
 /// the frame was drawn with.
 pub fn diff_columns(area: Rect, state: &AppState) -> Option<DiffColumns> {
-    if state.diff_layout != crate::domain::DiffLayout::Split
+    if crate::app::effective_layout(state) != crate::domain::DiffLayout::Split
         || crate::app::diff_panel_width(state) < crate::app::SPLIT_MIN_DIFF_WIDTH
     {
         return None;

@@ -409,7 +409,7 @@ pub fn diff_panel_width(state: &AppState) -> u16 {
 }
 
 fn fold_split_rows(state: &mut AppState) {
-    if state.diff_layout != crate::domain::DiffLayout::Split
+    if effective_layout(state) != crate::domain::DiffLayout::Split
         || diff_panel_width(state) < SPLIT_MIN_DIFF_WIDTH
     {
         return;
@@ -544,6 +544,19 @@ fn place(
     match anchor.and_then(|position| find_anchor_row(rendered, &position)) {
         Some(row_index) => anchored.entry(row_index).or_default().push(block),
         None => orphans.push(block),
+    }
+}
+
+pub fn effective_layout(state: &AppState) -> crate::domain::DiffLayout {
+    match state.diff_layout {
+        crate::domain::DiffLayout::Auto => {
+            if diff_panel_width(state) >= SPLIT_MIN_DIFF_WIDTH {
+                crate::domain::DiffLayout::Split
+            } else {
+                crate::domain::DiffLayout::Unified
+            }
+        }
+        chosen => chosen,
     }
 }
 

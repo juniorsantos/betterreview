@@ -22,11 +22,11 @@ const REVIEW_HINTS: [(&str, &str); 12] = [
     ("R", "submit"),
     ("?", "help"),
     ("f", "files"),
+    ("q", "quit"),
     ("\\", "layout"),
     ("|", "side"),
     ("w", "wrap"),
     ("Q", "list"),
-    ("q", "quit"),
 ];
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
@@ -98,6 +98,9 @@ fn summary(state: &AppState, reviewed: usize) -> String {
         parts.push(format!("{hunks_done}/{hunks_total} hunks"));
     }
     parts.push(format!("+{additions} -{deletions}"));
+    if state.diff_layout == crate::domain::DiffLayout::Auto {
+        parts.push("auto".to_owned());
+    }
     if !state.provider.drafts.is_empty() {
         parts.push(format!("{} drafts", state.provider.drafts.len()));
     }

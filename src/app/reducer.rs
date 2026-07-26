@@ -727,7 +727,8 @@ fn activate_file(state: &mut AppState, index: usize) -> Vec<EffectEnvelope> {
 fn toggle_diff_layout(state: &mut AppState) -> Vec<EffectEnvelope> {
     state.diff_layout = match state.diff_layout {
         DiffLayout::Unified => DiffLayout::Split,
-        DiffLayout::Split => DiffLayout::Unified,
+        DiffLayout::Split => DiffLayout::Auto,
+        DiffLayout::Auto => DiffLayout::Unified,
     };
     refresh_display_rows(state);
     if state.diff_layout == DiffLayout::Split
@@ -768,7 +769,7 @@ fn toggle_wrap(state: &mut AppState) -> Vec<EffectEnvelope> {
 }
 
 fn cycle_split_side(state: &mut AppState) -> Vec<EffectEnvelope> {
-    if state.diff_layout != DiffLayout::Split {
+    if crate::app::effective_layout(state) != DiffLayout::Split {
         push_notice(state, "expanding a side needs the split layout (\\)");
         return Vec::new();
     }

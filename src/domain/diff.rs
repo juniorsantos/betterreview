@@ -6,6 +6,7 @@ use super::RepoPath;
 #[serde(rename_all = "snake_case")]
 pub enum DiffLayout {
     #[default]
+    Auto,
     Unified,
     Split,
 }

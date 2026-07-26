@@ -250,3 +250,26 @@ fn a_narrow_status_bar_keeps_the_totals_and_drops_hints() {
         "hints are what gets dropped: {row:?}"
     );
 }
+
+#[test]
+fn the_status_bar_says_when_the_layout_was_chosen_automatically() {
+    let mut state = app();
+    state.diff_layout = betterreview::domain::DiffLayout::Auto;
+
+    let screen = screen(&state, 150, 24).join("\n");
+
+    assert!(
+        screen.contains("auto"),
+        "which layout is active is visible on screen; what is not is whether it was chosen for you:\n{screen}"
+    );
+}
+
+#[test]
+fn an_explicit_layout_choice_is_not_labelled_auto() {
+    let mut state = app();
+    state.diff_layout = betterreview::domain::DiffLayout::Unified;
+
+    let screen = screen(&state, 150, 24).join("\n");
+
+    assert!(!screen.contains("auto"));
+}
