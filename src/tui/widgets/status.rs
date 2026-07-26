@@ -70,19 +70,40 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             ratatui::style::Style::default().fg(crate::tui::theme::MUTED),
         )
     } else {
-        (
-            format!(
-                " {reviewed}/{} reviewed · {} drafts · {} operations",
-                state.provider.files.len(),
-                state.provider.drafts.len(),
-                state.busy_operations.len()
-            ),
-            ratatui::style::Style::default().fg(crate::tui::theme::MUTED),
-        )
+        (summary(state, reviewed), Style::default().fg(theme::MUTED))
     };
     let left = Line::styled(message, style);
     let line = flat_line(left, &REVIEW_HINTS, area.width);
     frame.render_widget(Paragraph::new(line), area);
+}
+
+/// The idle summary: review progress, hunk progress, and the size of the
+/// whole change request. Drafts and in-flight operations only appear while
+/// they exist, so the common case stays short.
+fn summary(state: &AppState, reviewed: usize) -> String {
+    let files = state.provider.files.len();
+    let hunks_done: usize = state
+        .session
+        .files
+        .values()
+        .map(|progress| progress.reviewed_hunks.len())
+        .sum();
+    let hunks_total: u32 = state.hunk_totals.values().sum();
+    let additions: u32 = state.provider.files.iter().map(|file| file.additions).sum();
+    let deletions: u32 = state.provider.files.iter().map(|file| file.deletions).sum();
+
+    let mut parts = vec![format!("{reviewed}/{files} reviewed")];
+    if hunks_total > 0 {
+        parts.push(format!("{hunks_done}/{hunks_total} hunks"));
+    }
+    parts.push(format!("+{additions} -{deletions}"));
+    if !state.provider.drafts.is_empty() {
+        parts.push(format!("{} drafts", state.provider.drafts.len()));
+    }
+    if !state.busy_operations.is_empty() {
+        parts.push(format!("{} operations", state.busy_operations.len()));
+    }
+    format!(" {}", parts.join(" · "))
 }
 
 /// Renders `left` followed by right-aligned `hints` (key ACCENT+BOLD, label

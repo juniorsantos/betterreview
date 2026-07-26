@@ -197,3 +197,56 @@ fn status_error_still_wins_over_hints() {
 
     assert!(row.contains("falha ao salvar"));
 }
+
+#[test]
+fn the_idle_summary_carries_the_totals_of_the_whole_review() {
+    let mut state = app();
+    state.provider.files[0].additions = 12;
+    state.provider.files[0].deletions = 3;
+    state.refresh_hunk_totals();
+
+    let lines = screen(&state, 120, 24);
+    let row = status_row(&lines);
+
+    assert!(row.contains("+12"), "additions missing: {row:?}");
+    assert!(row.contains("-3"), "deletions missing: {row:?}");
+    assert!(row.contains("reviewed"), "progress kept: {row:?}");
+}
+
+#[test]
+fn hunk_progress_joins_the_file_progress() {
+    let mut state = app();
+    let path = state.provider.files[0].path.clone();
+    state.provider.files[0].patch = betterreview::domain::PatchAvailability::Available(
+        "@@ -1 +1 @@\n-a\n+b\n@@ -9 +9 @@\n-c\n+d\n".into(),
+    );
+    state.refresh_hunk_totals();
+    state
+        .session
+        .files
+        .get_mut(&path)
+        .unwrap()
+        .reviewed_hunks
+        .insert(0);
+
+    let lines = screen(&state, 120, 24);
+    let row = status_row(&lines);
+
+    assert!(row.contains("1/2 hunks"), "got {row:?}");
+}
+
+#[test]
+fn a_narrow_status_bar_keeps_the_totals_and_drops_hints() {
+    let mut state = app();
+    state.provider.files[0].additions = 12;
+    state.provider.files[0].deletions = 3;
+
+    let lines = screen(&state, 46, 16);
+    let row = status_row(&lines);
+
+    assert!(row.contains("+12"), "totals survive truncation: {row:?}");
+    assert!(
+        !row.contains("q quit"),
+        "hints are what gets dropped: {row:?}"
+    );
+}
