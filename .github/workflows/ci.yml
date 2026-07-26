@@ -211,6 +211,7 @@ jobs:
 
             def install
               bin.install "betterreview"
+              generate_completions_from_executable(bin/"betterreview", "completions", shells: [:bash, :zsh, :fish])
             end
 
             def caveats

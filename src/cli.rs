@@ -1,4 +1,5 @@
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
+use clap_complete::Shell;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 #[value(rename_all = "lower")]
@@ -21,6 +22,7 @@ pub enum LaunchRequest {
         provider: Option<ProviderArg>,
         host: Option<String>,
     },
+    Completions(Shell),
 }
 
 #[derive(Debug, Parser)]
@@ -53,6 +55,11 @@ pub enum Command {
         #[arg(long)]
         host: Option<String>,
     },
+    /// Print a completion script for the given shell
+    Completions {
+        #[arg(value_enum)]
+        shell: Shell,
+    },
 }
 
 impl Cli {
@@ -60,6 +67,7 @@ impl Cli {
         match &self.command {
             Some(Command::Resume { session_id }) => LaunchRequest::Resume(session_id.clone()),
             Some(Command::Sessions) => LaunchRequest::Sessions,
+            Some(Command::Completions { shell }) => LaunchRequest::Completions(*shell),
             Some(Command::Doctor { provider, host }) => LaunchRequest::Doctor {
                 provider: *provider,
                 host: host.clone(),
@@ -72,4 +80,12 @@ impl Cli {
             },
         }
     }
+}
+
+pub fn completions(shell: Shell) -> String {
+    let mut command = Cli::command();
+    let name = command.get_name().to_owned();
+    let mut script = Vec::new();
+    clap_complete::generate(shell, &mut command, name, &mut script);
+    String::from_utf8_lossy(&script).into_owned()
 }

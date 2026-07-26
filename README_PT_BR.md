@@ -113,6 +113,16 @@ betterreview sessions
 betterreview doctor
 ```
 
+### Autocompletar do shell
+
+O Homebrew instala automaticamente. Para outras instalações:
+
+```sh
+betterreview completions zsh  > ~/.zfunc/_betterreview     # zsh
+betterreview completions bash > ~/.local/share/bash-completion/completions/betterreview
+betterreview completions fish > ~/.config/fish/completions/betterreview.fish
+```
+
 ### Atalhos principais
 
 | Tecla | Ação |

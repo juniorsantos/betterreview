@@ -113,6 +113,16 @@ betterreview sessions
 betterreview doctor
 ```
 
+### Shell completions
+
+Homebrew installs them automatically. For other installs:
+
+```sh
+betterreview completions zsh  > ~/.zfunc/_betterreview     # zsh
+betterreview completions bash > ~/.local/share/bash-completion/completions/betterreview
+betterreview completions fish > ~/.config/fish/completions/betterreview.fish
+```
+
 ### Main shortcuts
 
 | Key | Action |

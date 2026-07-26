@@ -284,6 +284,10 @@ pub async fn run_with(
     backend: &dyn LaunchBackend,
 ) -> Result<(), LaunchError> {
     match cli.launch_request() {
+        LaunchRequest::Completions(shell) => {
+            print!("{}", crate::cli::completions(shell));
+            Ok(())
+        }
         LaunchRequest::Doctor { provider, host } => {
             let report = Doctor::new(runner)
                 .check(provider.map(provider_kind), host.as_deref())

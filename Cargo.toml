@@ -10,6 +10,7 @@ description = "Terminal code review for GitHub and GitLab"
 ansi-to-tui = "8.0.1"
 async-trait = "0.1"
 clap = { version = "4.6.4", features = ["derive"] }
+clap_complete = "4.6.7"
 crossterm = { version = "0.29.0", features = ["event-stream"] }
 directories = "6.0.0"
 fs2 = "0.4"
