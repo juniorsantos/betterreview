@@ -676,9 +676,18 @@ fn comment_line(
         gutter,
     } = layout;
     let card_width = inner_width.saturating_sub(gutter.width()).max(4);
-    let border_style = Style::default().fg(theme::ACCENT);
+    let is_reply = matches!(
+        entry,
+        CommentEntry::Thread { comment_index, .. } if *comment_index > 0
+    );
+    let accent = if is_reply {
+        theme::ACCENT_SOFT
+    } else {
+        theme::ACCENT
+    };
+    let border_style = Style::default().fg(accent);
     let mut spans = vec![
-        gutter.bar(true),
+        Span::styled("\u{258c}", Style::default().fg(accent)),
         Span::raw(" ".repeat(gutter.width().saturating_sub(1))),
     ];
     match kind {

@@ -1307,3 +1307,48 @@ fn a_selection_reaching_past_the_rendered_diff_still_marks_what_it_can() {
         "one unresolvable end must not erase the marking on the end that does resolve:\n{screen}"
     );
 }
+
+#[test]
+fn a_reply_card_is_tinted_apart_from_the_comment_it_answers() {
+    use betterreview::domain::{ReviewComment, ReviewThread, ThreadId};
+
+    let anchor = position(DiffSide::Right, 5);
+    let comment = |id: &str, body: &str| ReviewComment {
+        id: id.into(),
+        author: "alice".into(),
+        body: body.into(),
+        position: Some(anchor.clone()),
+        pending: false,
+    };
+    let mut state = app();
+    state.provider.threads.push(ReviewThread {
+        id: ThreadId("t1".into()),
+        path: RepoPath("src/app.rs".into()),
+        resolved: false,
+        outdated: false,
+        comments: vec![comment("c1", "first"), comment("c2", "answer")],
+    });
+    refresh_display_rows(&mut state);
+
+    let terminal = draw_wide(&state);
+    let buffer = terminal.backend().buffer();
+    let corners: Vec<_> = (0..30)
+        .filter(|y| {
+            !(0..120)
+                .map(|x| buffer.cell((x, *y)).unwrap().symbol())
+                .collect::<String>()
+                .contains("[2] Files")
+        })
+        .filter_map(|y| {
+            (0..120)
+                .find(|x| buffer.cell((*x, y)).unwrap().symbol() == "\u{250c}")
+                .map(|x| buffer.cell((x, y)).unwrap().style().fg)
+        })
+        .collect();
+
+    assert_eq!(corners.len(), 2, "both cards rendered");
+    assert_ne!(
+        corners[0], corners[1],
+        "a reply has to read as an answer, not as another top-level comment"
+    );
+}
