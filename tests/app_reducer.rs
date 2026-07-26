@@ -1947,7 +1947,8 @@ fn gap_row_sits_between_the_two_hunks_with_the_right_hidden_count() {
         state.display_rows,
         vec![
             DisplayRow::FileHeader {
-                path: "src/file_0.rs".into()
+                path: "src/file_0.rs".into(),
+                previous_path: None
             },
             DisplayRow::HunkHeader { hunk: 0 },
             DisplayRow::Diff { row: 1 },
@@ -2007,7 +2008,8 @@ fn leading_gap_appears_when_the_first_hunk_starts_past_line_one() {
         state.display_rows,
         vec![
             DisplayRow::FileHeader {
-                path: "src/file_0.rs".into()
+                path: "src/file_0.rs".into(),
+                previous_path: None
             },
             DisplayRow::Gap {
                 after_new_line: 0,
@@ -2056,7 +2058,8 @@ fn trailing_gap_appears_when_the_cached_file_has_more_lines_than_the_diff() {
         state.display_rows,
         vec![
             DisplayRow::FileHeader {
-                path: "src/file_0.rs".into()
+                path: "src/file_0.rs".into(),
+                previous_path: None
             },
             DisplayRow::Diff { row: 0 },
             DisplayRow::Gap {
@@ -2088,7 +2091,8 @@ fn expanded_gap_emits_context_rows_from_the_cached_file() {
         state.display_rows,
         vec![
             DisplayRow::FileHeader {
-                path: "src/file_0.rs".into()
+                path: "src/file_0.rs".into(),
+                previous_path: None
             },
             DisplayRow::HunkHeader { hunk: 0 },
             DisplayRow::Diff { row: 1 },

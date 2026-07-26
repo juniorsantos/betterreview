@@ -27,6 +27,7 @@ pub enum CommentRowKind {
 pub enum DisplayRow {
     FileHeader {
         path: String,
+        previous_path: Option<String>,
     },
     Diff {
         row: usize,
@@ -199,6 +200,12 @@ pub fn refresh_display_rows(state: &mut AppState) {
             0,
             DisplayRow::FileHeader {
                 path: parsed.path.0.clone(),
+                previous_path: state
+                    .provider
+                    .files
+                    .get(state.active_file_index)
+                    .and_then(|file| file.previous_path.as_ref())
+                    .map(|previous| previous.0.clone()),
             },
         );
     }

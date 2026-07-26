@@ -244,6 +244,39 @@ fn pinned_line(state: &AppState) -> Line<'static> {
     Line::from(spans)
 }
 
+fn file_header_line(path: &str, previous_path: Option<&str>) -> Line<'static> {
+    let strong = Style::default()
+        .fg(theme::ACCENT)
+        .add_modifier(Modifier::BOLD);
+    let Some(previous) = previous_path else {
+        return Line::styled(path.to_owned(), strong);
+    };
+    let shared = shared_prefix(previous, path);
+    let dim = Style::default().fg(theme::MUTED);
+    let mut spans = Vec::new();
+    if shared > 0 {
+        spans.push(Span::styled(previous[..shared].to_owned(), dim));
+    }
+    spans.push(Span::styled(previous[shared..].to_owned(), dim));
+    spans.push(Span::styled(" \u{2192} ", dim));
+    if shared > 0 {
+        spans.push(Span::styled(path[..shared].to_owned(), dim));
+    }
+    spans.push(Span::styled(path[shared..].to_owned(), strong));
+    Line::from(spans)
+}
+
+/// Bytes the two paths share, cut back to the last `/` so a partially
+/// matching segment is emphasised whole rather than split mid-name.
+fn shared_prefix(previous: &str, path: &str) -> usize {
+    let common = previous
+        .bytes()
+        .zip(path.bytes())
+        .take_while(|(a, b)| a == b)
+        .count();
+    previous[..common].rfind('/').map_or(0, |slash| slash + 1)
+}
+
 fn section_of(state: &AppState, hunk: u32) -> Option<String> {
     state
         .parsed_diff
@@ -320,12 +353,10 @@ fn render_display_row(
             inner_width,
             gutter,
         ),
-        DisplayRow::FileHeader { path } => Line::styled(
-            path.clone(),
-            Style::default()
-                .fg(theme::ACCENT)
-                .add_modifier(Modifier::BOLD),
-        ),
+        DisplayRow::FileHeader {
+            path,
+            previous_path,
+        } => file_header_line(path, previous_path.as_deref()),
         DisplayRow::OrphanHeader => {
             Line::styled("— outdated comments —", Style::default().fg(theme::MUTED))
         }

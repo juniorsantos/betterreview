@@ -980,6 +980,32 @@ fn the_hunk_header_names_the_section_it_sits_in() {
 }
 
 #[test]
+fn a_renamed_file_header_shows_where_it_came_from() {
+    let mut state = app_with_two_hunk_headers();
+    state.provider.files[0].status = FileStatus::Renamed;
+    state.provider.files[0].previous_path = Some(RepoPath("src/old_app.rs".into()));
+    refresh_display_rows(&mut state);
+
+    let screen = screen_wide(&draw_wide(&state));
+
+    assert!(
+        screen.contains("src/old_app.rs \u{2192} src/app.rs"),
+        "moved-versus-moved-and-edited decides whether the file needs reading:\n{screen}"
+    );
+}
+
+#[test]
+fn a_file_that_was_not_renamed_shows_one_path() {
+    let screen = screen_wide(&draw_wide(&app_with_two_hunk_headers()));
+
+    assert!(screen.contains("src/app.rs"));
+    assert!(
+        !screen.contains('\u{2192}'),
+        "no arrow when there is nothing to point from"
+    );
+}
+
+#[test]
 fn the_gutter_widens_with_the_highest_line_number_in_the_file() {
     let mut state = app();
     state.rendered_diff = Some(RenderedDiff {
