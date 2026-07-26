@@ -3,6 +3,20 @@
 All notable changes to this project are documented in this file, generated
 from conventional commits by [release-please](https://github.com/googleapis/release-please).
 
+## [0.4.0](https://github.com/juniorsantos/betterreview/compare/v0.3.0...v0.4.0) (2026-07-26)
+
+
+### Features
+
+* hide the files panel with f and track the real terminal width (closes [#19](https://github.com/juniorsantos/betterreview/issues/19)) ([1961cf6](https://github.com/juniorsantos/betterreview/commit/1961cf64fa093d786c9f50bea14c6b6a199bb2e4))
+* optional side-by-side diff layout toggled with backslash (closes [#5](https://github.com/juniorsantos/betterreview/issues/5)) ([f29169e](https://github.com/juniorsantos/betterreview/commit/f29169e7194460c5d4fc5d7e78641a38ed7b3b19))
+
+
+### Bug Fixes
+
+* draw a large block banner on the splash screen (closes [#17](https://github.com/juniorsantos/betterreview/issues/17)) ([48f31e3](https://github.com/juniorsantos/betterreview/commit/48f31e377e6b0cc2eff036c17c7117301d802978))
+* keep the config out of the session directory and read it from ~/.config (closes [#20](https://github.com/juniorsantos/betterreview/issues/20)) ([9937792](https://github.com/juniorsantos/betterreview/commit/993779209bf08b804199e9fee2da148f67d0c445))
+
 ## [0.3.0](https://github.com/juniorsantos/betterreview/compare/v0.2.0...v0.3.0) (2026-07-26)
 
 
