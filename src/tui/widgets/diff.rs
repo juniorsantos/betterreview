@@ -21,6 +21,13 @@ const SIDE_GUTTER_WIDTH: usize = 6;
 const MIN_GUTTER_DIGITS: usize = 2;
 
 #[derive(Clone, Copy)]
+struct CardLayout {
+    inner_width: usize,
+    gutter: Gutter,
+    focused: bool,
+}
+
+#[derive(Clone, Copy)]
 struct Gutter {
     digits: usize,
 }
@@ -335,6 +342,13 @@ fn render_display_row(
     columns: Option<crate::tui::DiffColumns>,
     gutter: Gutter,
 ) -> Line<'static> {
+    let cursor_on_block = match display_row {
+        DisplayRow::Comment { entry, .. } => matches!(
+            state.display_rows.get(state.display_cursor),
+            Some(DisplayRow::Comment { entry: current, .. }) if current == entry
+        ),
+        _ => false,
+    };
     let mut line = match display_row {
         DisplayRow::Diff { row } => diff_line(diff, *row, inner_width, gutter, state.tab_width),
         DisplayRow::Comment {
@@ -348,8 +362,11 @@ fn render_display_row(
             *kind,
             text,
             author.as_deref(),
-            inner_width,
-            gutter,
+            CardLayout {
+                inner_width,
+                gutter,
+                focused: cursor_on_block,
+            },
         ),
         DisplayRow::FileHeader {
             path,
@@ -395,14 +412,6 @@ fn render_display_row(
         let end = anchor.max(state.session.cursor_row);
         (start..=end).contains(row)
     }));
-
-    let cursor_on_block = match display_row {
-        DisplayRow::Comment { entry, .. } => matches!(
-            state.display_rows.get(state.display_cursor),
-            Some(DisplayRow::Comment { entry: current, .. }) if current == entry
-        ),
-        _ => false,
-    };
 
     let style = if index == state.display_cursor || cursor_on_block {
         Some(
@@ -619,18 +628,25 @@ fn comment_line(
     kind: CommentRowKind,
     text: &str,
     author: Option<&str>,
-    inner_width: usize,
-    gutter: Gutter,
+    layout: CardLayout,
 ) -> Line<'static> {
-    let card_width = inner_width.saturating_sub(gutter.width()).max(4);
+    let CardLayout {
+        inner_width,
+        gutter,
+        focused,
+    } = layout;
+    let card_width = inner_width.saturating_sub(gutter.width() + 1).max(4);
     let border_style = Style::default().fg(theme::COMMENT);
-    let mut spans = vec![gutter.blank()];
+    let mut spans = vec![
+        gutter.blank(),
+        Span::styled("\u{258d}", Style::default().fg(theme::COMMENT)),
+    ];
     match kind {
         CommentRowKind::Header => {
             let author_label = author.map_or_else(|| "you".to_owned(), str::to_owned);
             let (marker_text, marker_color) =
                 marker(state, entry).unwrap_or(("comment", theme::MUTED));
-            spans.push(Span::styled("╭─ ", border_style));
+            spans.push(Span::styled("┌─ ", border_style));
             spans.push(Span::styled(
                 format!("@{author_label}"),
                 Style::default().fg(theme::ACCENT),
@@ -644,7 +660,7 @@ fn comment_line(
             let used = 3 + 1 + display_width(&author_label) + 3 + display_width(marker_text) + 1;
             let dashes = card_width.saturating_sub(used + 1);
             spans.push(Span::styled("─".repeat(dashes), border_style));
-            spans.push(Span::styled("╮", border_style));
+            spans.push(Span::styled("┐", border_style));
         }
         CommentRowKind::Body => {
             spans.push(Span::styled("│   ", border_style));
@@ -658,35 +674,36 @@ fn comment_line(
             spans.push(Span::styled("│", border_style));
         }
         CommentRowKind::Footer => {
-            let hints: &[(&str, &str)] = match entry {
-                CommentEntry::Draft { .. } => &[("e", "edit"), ("x", "delete")],
-                CommentEntry::Thread { .. } => &[("r", "reply")],
-            };
-            spans.push(Span::styled("╰─ ", border_style));
-            let mut used = 3;
-            for (index, (key, label)) in hints.iter().enumerate() {
-                if index > 0 {
-                    spans.push(Span::styled(" · ", border_style));
-                    used += 3;
+            spans.push(Span::styled(
+                "└".to_owned() + &"─".repeat(card_width.saturating_sub(2)),
+                border_style,
+            ));
+            spans.push(Span::styled("┘", border_style));
+        }
+        CommentRowKind::Actions => {
+            if focused {
+                let hints: &[(&str, &str)] = match entry {
+                    CommentEntry::Draft { .. } => &[("e", "edit"), ("x", "delete")],
+                    CommentEntry::Thread { .. } => &[("r", "reply")],
+                };
+                spans.push(Span::raw("  "));
+                for (index, (key, label)) in hints.iter().enumerate() {
+                    if index > 0 {
+                        spans.push(Span::styled(" · ", Style::default().fg(theme::BORDER)));
+                    }
+                    spans.push(Span::styled(
+                        (*key).to_owned(),
+                        Style::default()
+                            .fg(theme::ACCENT)
+                            .add_modifier(Modifier::BOLD),
+                    ));
+                    spans.push(Span::raw(" "));
+                    spans.push(Span::styled(
+                        (*label).to_owned(),
+                        Style::default().fg(theme::MUTED),
+                    ));
                 }
-                spans.push(Span::styled(
-                    (*key).to_owned(),
-                    Style::default()
-                        .fg(theme::ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ));
-                spans.push(Span::raw(" "));
-                spans.push(Span::styled(
-                    (*label).to_owned(),
-                    Style::default().fg(theme::MUTED),
-                ));
-                used += display_width(key) + 1 + display_width(label);
             }
-            spans.push(Span::raw(" "));
-            used += 1;
-            let dashes = card_width.saturating_sub(used + 1);
-            spans.push(Span::styled("─".repeat(dashes), border_style));
-            spans.push(Span::styled("╯", border_style));
         }
     }
     Line::from(spans)
