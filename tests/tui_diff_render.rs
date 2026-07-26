@@ -1135,7 +1135,15 @@ fn the_background_paints_every_gutter_cell_including_the_blank_one() {
         last - first + 1,
         "and it is unbroken from there to the edge"
     );
-    assert_eq!(last, 78, "reaching the last column of the panel interior");
+    let right_edge = (0..80)
+        .rev()
+        .find(|x| buffer.cell((*x, row)).unwrap().symbol() == "\u{2502}")
+        .expect("the panel has a right edge");
+    assert_eq!(
+        last,
+        right_edge - 2,
+        "reaching the last content column, the border and its padding aside"
+    );
 }
 
 #[test]

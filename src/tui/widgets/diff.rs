@@ -92,20 +92,16 @@ impl Gutter {
 }
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
+    let border = if state.focus == AppFocus::Diff {
+        theme::ACCENT
+    } else {
+        theme::BORDER
+    };
     let block = Block::default()
-        .title(Span::styled(
-            " [3] Diff ".to_owned(),
-            if state.focus == AppFocus::Diff {
-                Style::default()
-                    .fg(theme::ACCENT)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(theme::MUTED)
-            },
-        ))
-        .borders(Borders::LEFT)
+        .title(" [3] Diff ")
+        .borders(Borders::ALL)
         .padding(ratatui::widgets::Padding::horizontal(1))
-        .border_style(Style::default().fg(theme::BORDER));
+        .border_style(Style::default().fg(border));
     let inner = block.inner(area);
     let inner_width = inner.width as usize;
     let columns = crate::tui::diff_columns(area, state);

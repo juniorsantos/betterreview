@@ -352,21 +352,14 @@ fn maps_prefixed_hunk_and_comment_navigation() {
 }
 
 #[test]
-fn the_review_regions_have_no_frames_only_a_separator() {
+fn the_review_regions_keep_their_frames() {
     let state = app();
     let screen = screen(&state, 120, 36);
 
     assert!(
-        !screen.contains('\u{250c}') && !screen.contains('\u{2510}'),
-        "a region is not a box; the frame costs two columns and two rows it does not earn:\n{screen}"
+        screen.contains('\u{250c}') && screen.contains('\u{2510}'),
+        "the panels are boxed:\n{screen}"
     );
-    assert!(
-        screen.contains("[2] Files"),
-        "the panel still names itself, and the number teaches the focus key"
-    );
+    assert!(screen.contains("[2] Files"));
     assert!(screen.contains("[3] Diff"));
-    assert!(
-        screen.contains('\u{2502}'),
-        "one separator divides the two regions"
-    );
 }

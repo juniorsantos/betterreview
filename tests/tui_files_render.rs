@@ -166,15 +166,15 @@ fn e_toggles_the_expanded_files_panel() {
         state.files_expanded = true;
         state
     });
-    let divider = |text: &str| {
+    let corner = |text: &str| {
         text.lines()
             .nth(2)
-            .and_then(|line| line.chars().position(|c| c == '│'))
+            .and_then(|line| line.chars().position(|c| c == '┐'))
             .unwrap_or(0)
     };
     assert!(
-        divider(&wide) > divider(&narrow),
-        "expanding the panel pushes the separator right"
+        corner(&wide) > corner(&narrow),
+        "expanding the panel pushes its right edge out"
     );
 }
 
