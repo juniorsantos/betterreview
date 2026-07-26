@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "release/**"]
   pull_request:
 
 permissions:
@@ -71,8 +71,10 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   release:
-    name: PR de release
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    name: PR de release (${{ github.ref_name }})
+    if: >-
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
     needs: [quality, test]
     runs-on: ubuntu-latest
     permissions:
@@ -89,6 +91,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           release-type: rust
+          target-branch: ${{ github.ref_name }}
 
   build:
     name: Binário ${{ matrix.target }}
@@ -139,17 +142,33 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.release.outputs.tag }}
+          fetch-depth: 0
       - uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
+      - name: Decidir se a tag é a versão mais alta
+        id: newest
+        env:
+          TAG: ${{ needs.release.outputs.tag }}
+        run: |
+          HIGHEST=$(git tag --list 'v*' | sort -V | tail -1)
+          if [ "${HIGHEST}" = "${TAG}" ]; then
+            echo "is_newest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_newest=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::${TAG} é anterior a ${HIGHEST}: release marcada como não-latest e tap preservado"
+          fi
       - name: Anexar binários à release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.release.outputs.tag }}
-        run: gh release upload "${TAG}" artifacts/*.tar.gz --clobber
+          IS_NEWEST: ${{ steps.newest.outputs.is_newest }}
+        run: |
+          gh release upload "${TAG}" artifacts/*.tar.gz --clobber
+          gh release edit "${TAG}" --latest="${IS_NEWEST}"
       - name: Atualizar formula no Homebrew tap
-        if: env.TAP_DEPLOY_KEY != ''
+        if: env.TAP_DEPLOY_KEY != '' && steps.newest.outputs.is_newest == 'true'
         env:
           TAG: ${{ needs.release.outputs.tag }}
           VERSION: ${{ needs.release.outputs.version }}
