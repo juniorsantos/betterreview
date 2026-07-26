@@ -14,7 +14,7 @@ pub enum SelectionError {
     NotCommentable,
     #[error("a range must stay on one diff side")]
     DifferentSides,
-    #[error("a seleção precisa ficar dentro de um único hunk")]
+    #[error("the selection must stay inside a single hunk")]
     DifferentHunks,
     #[error("the selected range contains a row with no position on this side")]
     MissingSidePosition,

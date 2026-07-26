@@ -17,5 +17,5 @@ fn splash_shows_name_version_and_loading() {
 
     assert!(screen.contains("betterreview"));
     assert!(screen.contains(env!("CARGO_PKG_VERSION")));
-    assert!(screen.contains("carregando"));
+    assert!(screen.contains("loading"));
 }

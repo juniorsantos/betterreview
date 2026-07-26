@@ -293,7 +293,7 @@ fn loaded_update(
 
 fn reload_update(state: &mut PickerState, mut items: Vec<PickerItem>) {
     if items.is_empty() {
-        state.error_banner = Some("nenhum review aberto".into());
+        state.error_banner = Some("no open reviews".into());
         return;
     }
     pin_current_branch(&mut items);
@@ -337,11 +337,11 @@ pub fn mark_items(
 
 /// Right-side hints for the picker's flat status bar (transversal rule 1).
 const PICKER_HINTS: [(&str, &str); 5] = [
-    ("j/k", "mover"),
-    ("Tab", "foco"),
-    ("Enter", "abrir"),
-    ("r", "recarregar"),
-    ("q", "sair"),
+    ("j/k", "move"),
+    ("Tab", "focus"),
+    ("Enter", "open"),
+    ("r", "reload"),
+    ("q", "quit"),
 ];
 
 /// Below this many total rows the description panel is hidden entirely and
@@ -416,7 +416,7 @@ fn panel_border_style(focused: bool) -> Style {
 fn render_panel(frame: &mut Frame, area: Rect, state: &PickerState, focused: bool) {
     let block = Block::default()
         .padding(ratatui::widgets::Padding::horizontal(1))
-        .title(" [0] Revisões abertas ")
+        .title(" [0] Open reviews ")
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(panel_border_style(focused));
@@ -450,7 +450,7 @@ fn counter_line(state: &PickerState, width: u16) -> Line<'static> {
     let text = if state.items.len() == 50 {
         "50 mais recentes".to_string()
     } else {
-        format!("{} revisões abertas", state.items.len())
+        format!("{} open reviews", state.items.len())
     };
     let used = text.chars().count() + 1;
     let pad = (width as usize).saturating_sub(used);
@@ -475,8 +475,8 @@ const AUTHOR_DOT_WIDTH: usize = 2;
 const AUTHOR_TEXT_WIDTH: usize = 14;
 const AUTHOR_WIDTH: usize = AUTHOR_DOT_WIDTH + AUTHOR_TEXT_WIDTH;
 const BRANCH_WIDTH: usize = 20;
-const QUANDO_WIDTH: usize = 8;
-/// Room reserved after QUANDO for the ragged " draft"/" sessão" badges, so
+const WHEN_WIDTH: usize = 8;
+/// Room reserved after WHEN for the ragged " draft"/" session" badges, so
 /// they never get clipped by the panel's right edge.
 const BADGE_RESERVE: usize = 14;
 /// Below this inner width the BRANCH column is dropped so the title keeps
@@ -488,7 +488,7 @@ const NARROW_AUTHOR_THRESHOLD: usize = 50;
 fn columns_for(width: usize) -> Columns {
     let show_branch = width >= NARROW_BRANCH_THRESHOLD;
     let show_author = width >= NARROW_AUTHOR_THRESHOLD;
-    let mut reserved = CURSOR_WIDTH + PR_WIDTH + QUANDO_WIDTH + BADGE_RESERVE;
+    let mut reserved = CURSOR_WIDTH + PR_WIDTH + WHEN_WIDTH + BADGE_RESERVE;
     if show_author {
         reserved += AUTHOR_WIDTH;
     }
@@ -524,7 +524,7 @@ fn render_list(frame: &mut Frame, area: Rect, state: &PickerState) {
     frame.render_widget(Paragraph::new(lines).scroll((scroll, 0)), area);
 }
 
-/// The `PR TÍTULO AUTOR BRANCH QUANDO` column header: MUTED BOLD uppercase,
+/// The `PR TITLE AUTHOR BRANCH WHEN` column header: MUTED BOLD uppercase,
 /// aligned to the same column widths as the item rows below it.
 fn header_line(columns: Columns) -> Line<'static> {
     let style = Style::default()
@@ -533,15 +533,15 @@ fn header_line(columns: Columns) -> Line<'static> {
     let mut text = format!(
         "  {}{}",
         pad_cell("PR", PR_WIDTH),
-        pad_cell("TÍTULO", columns.title_width)
+        pad_cell("TITLE", columns.title_width)
     );
     if columns.show_author {
-        text.push_str(&pad_cell("AUTOR", AUTHOR_WIDTH));
+        text.push_str(&pad_cell("AUTHOR", AUTHOR_WIDTH));
     }
     if columns.show_branch {
         text.push_str(&pad_cell("BRANCH", BRANCH_WIDTH));
     }
-    text.push_str("QUANDO");
+    text.push_str("WHEN");
     Line::styled(text, style)
 }
 
@@ -549,7 +549,7 @@ fn header_line(columns: Columns) -> Line<'static> {
 /// highlighted (transversal rule 2), otherwise a plain two-space indent.
 /// Number BOLD, title FG (truncated with `…`), AUTOR/BRANCH/QUANDO MUTED,
 /// `●` ACCENT before the author for the current-branch item, and badges
-/// after QUANDO: `draft` MUTED, `sessão` WARNING.
+/// after WHEN: `draft` MUTED, `session` WARNING.
 fn item_line(
     item: &PickerItem,
     now: OffsetDateTime,
@@ -571,7 +571,7 @@ fn item_line(
         if item.current_branch {
             spans.push(Span::styled("● ", Style::default().fg(theme::ACCENT)));
             spans.push(Span::styled(
-                pad_cell("você", AUTHOR_TEXT_WIDTH),
+                pad_cell("you", AUTHOR_TEXT_WIDTH),
                 Style::default().fg(theme::MUTED),
             ));
         } else {
@@ -596,7 +596,10 @@ fn item_line(
         spans.push(Span::styled(" draft", Style::default().fg(theme::MUTED)));
     }
     if item.has_session {
-        spans.push(Span::styled(" sessão", Style::default().fg(theme::WARNING)));
+        spans.push(Span::styled(
+            " session",
+            Style::default().fg(theme::WARNING),
+        ));
     }
 
     let mut line = Line::from(spans);
@@ -646,7 +649,7 @@ fn pad_cell(text: &str, width: usize) -> String {
 fn render_detail(frame: &mut Frame, area: Rect, state: &PickerState, focused: bool) {
     let block = Block::default()
         .padding(ratatui::widgets::Padding::horizontal(1))
-        .title(" [1] Descrição — Tab/1 foco · j/k rolar ")
+        .title(" [1] Description — Tab/1 focus · j/k scroll ")
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(panel_border_style(focused));
@@ -691,7 +694,7 @@ fn render_detail(frame: &mut Frame, area: Rect, state: &PickerState, focused: bo
     if item.summary.description.is_empty() {
         frame.render_widget(
             Paragraph::new(Line::styled(
-                "sem descrição",
+                "no description",
                 Style::default().fg(theme::MUTED),
             )),
             body_area,
@@ -1093,7 +1096,7 @@ mod tests {
     fn clicking_the_column_header_row_is_ignored() {
         let state = PickerState::new(items(3), "owner/repo".into());
 
-        // Row 4 is the "PR TÍTULO ..." header, not an item.
+        // Row 4 is the "PR TITLE ..." header, not an item.
         let event = click_event(&state, TERMINAL_SIZE, left_click(5, 4));
 
         assert!(event.is_none());

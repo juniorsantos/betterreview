@@ -120,7 +120,7 @@ fn renders_the_current_branch_dot_before_the_author() {
         .expect("pinned row rendered");
 
     assert!(pinned_row.contains('●'));
-    assert!(pinned_row.contains("você"));
+    assert!(pinned_row.contains("you"));
 }
 
 #[test]
@@ -165,7 +165,7 @@ fn list_panel_has_a_rounded_border_and_a_title() {
     let screen = screen(&draw(&picker));
 
     assert!(screen.contains('╭'), "expected a rounded top-left corner");
-    assert!(screen.contains("[0] Revisões abertas"));
+    assert!(screen.contains("[0] Open reviews"));
 }
 
 #[test]
@@ -175,10 +175,10 @@ fn list_panel_shows_the_table_header() {
     let screen = screen(&draw(&picker));
 
     assert!(screen.contains("PR"));
-    assert!(screen.contains("TÍTULO"));
-    assert!(screen.contains("AUTOR"));
+    assert!(screen.contains("TITLE"));
+    assert!(screen.contains("AUTHOR"));
     assert!(screen.contains("BRANCH"));
-    assert!(screen.contains("QUANDO"));
+    assert!(screen.contains("WHEN"));
 }
 
 #[test]
@@ -219,7 +219,7 @@ fn narrow_terminal_hides_the_branch_column() {
     let terminal = draw_sized(&picker, 60, 30);
     let list_lines: Vec<String> = screen_sized(&terminal, 60, 30)
         .lines()
-        .take_while(|line| !line.contains("[1] Descrição"))
+        .take_while(|line| !line.contains("[1] Description"))
         .map(str::to_owned)
         .collect();
     let list_screen = list_lines.join("\n");
@@ -294,7 +294,7 @@ fn panel_shows_the_open_review_counter() {
 
     let screen = screen(&draw(&picker));
 
-    assert!(screen.contains("2 revisões abertas"));
+    assert!(screen.contains("2 open reviews"));
 }
 
 #[test]
@@ -321,7 +321,7 @@ fn detail_panel_shows_the_highlighted_items_description() {
 
     let screen = screen(&draw(&picker));
 
-    assert!(screen.contains("[1] Descrição"));
+    assert!(screen.contains("[1] Description"));
     assert!(screen.contains("Body of the second review."));
     assert!(!screen.contains("Body of the first review."));
 }
@@ -332,7 +332,7 @@ fn detail_panel_shows_an_empty_description_placeholder() {
 
     let screen = screen(&draw(&picker));
 
-    assert!(screen.contains("sem descrição"));
+    assert!(screen.contains("no description"));
 }
 
 #[test]
@@ -345,7 +345,7 @@ fn detail_panel_is_hidden_on_very_short_terminals() {
     let terminal = draw_sized(&picker, 100, 13);
     let screen = screen_sized(&terminal, 100, 13);
 
-    assert!(!screen.contains("[1] Descrição"));
+    assert!(!screen.contains("[1] Description"));
     assert!(!screen.contains("hidden body text"));
 }
 
@@ -360,7 +360,7 @@ fn tab_moves_the_accent_border_to_the_focused_panel() {
 
     let list_border_row = screen
         .lines()
-        .position(|line| line.contains("[0] Revisões abertas"))
+        .position(|line| line.contains("[0] Open reviews"))
         .expect("list panel title rendered");
     let list_border_col = char_offset(screen.lines().nth(list_border_row).unwrap(), "╭").unwrap();
     let list_cell = buffer
@@ -370,7 +370,7 @@ fn tab_moves_the_accent_border_to_the_focused_panel() {
 
     let detail_border_row = screen
         .lines()
-        .position(|line| line.contains("[1] Descrição"))
+        .position(|line| line.contains("[1] Description"))
         .expect("detail panel title rendered");
     let detail_border_col =
         char_offset(screen.lines().nth(detail_border_row).unwrap(), "╭").unwrap();
@@ -389,11 +389,11 @@ fn status_line_shows_flat_hints_on_the_right_with_accent_keys() {
     let buffer = terminal.backend().buffer();
 
     let status_row = screen.lines().last().unwrap();
-    assert!(status_row.contains("mover"));
-    assert!(status_row.contains("foco"));
-    assert!(status_row.contains("abrir"));
-    assert!(status_row.contains("recarregar"));
-    assert!(status_row.contains("sair"));
+    assert!(status_row.contains("move"));
+    assert!(status_row.contains("focus"));
+    assert!(status_row.contains("open"));
+    assert!(status_row.contains("reload"));
+    assert!(status_row.contains("quit"));
 
     let key_col = char_offset(status_row, "j/k").expect("j/k hint present");
     let cell = buffer.cell((key_col as u16, 29)).unwrap();

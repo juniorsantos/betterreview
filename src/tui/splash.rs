@@ -30,7 +30,7 @@ pub fn splash(frame: &mut Frame) {
         )),
         Line::raw(""),
         Line::from(Span::styled(
-            "⠋ carregando…",
+            "⠋ loading…",
             Style::default().fg(theme::MUTED),
         )),
     ];

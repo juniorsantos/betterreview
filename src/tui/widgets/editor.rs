@@ -13,25 +13,16 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         return;
     };
     let (title, hints) = if editor.stale {
-        (
-            " Draft antigo (head mudou) ",
-            "c novo comentário · Esc fechar",
-        )
+        (" Stale draft (head changed) ", "c new comment · Esc close")
     } else if state.editing_draft.is_some() {
         (
-            " Editando draft ",
-            "Enter salvar · Alt+Enter nova linha · Esc fechar",
+            " Editing draft ",
+            "Enter save · Alt+Enter new line · Esc close",
         )
     } else if state.replying_thread.is_some() {
-        (
-            " Respondendo ",
-            "Enter enviar · Alt+Enter nova linha · Esc fechar",
-        )
+        (" Replying ", "Enter send · Alt+Enter new line · Esc close")
     } else {
-        (
-            " Comentário ",
-            "Enter salvar · Alt+Enter nova linha · Esc fechar",
-        )
+        (" Comment ", "Enter save · Alt+Enter new line · Esc close")
     };
     let body: Vec<Line> = editor
         .lines

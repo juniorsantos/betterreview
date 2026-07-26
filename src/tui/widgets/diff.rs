@@ -73,17 +73,16 @@ fn render_display_row(
                 .fg(theme::ACCENT)
                 .add_modifier(Modifier::BOLD),
         ),
-        DisplayRow::OrphanHeader => Line::styled(
-            "— comentários desatualizados —",
-            Style::default().fg(theme::MUTED),
-        ),
+        DisplayRow::OrphanHeader => {
+            Line::styled("— outdated comments —", Style::default().fg(theme::MUTED))
+        }
         DisplayRow::Gap { hidden, .. } => Line::from(vec![
             Span::raw(GUTTER),
             Span::styled(
                 if *hidden == 0 {
-                    "· · · z carrega o restante do arquivo · · ·".to_owned()
+                    "· · · z loads the rest of the file · · ·".to_owned()
                 } else {
-                    format!("· · · {hidden} linhas ocultas · · · — z expandir")
+                    format!("· · · {hidden} hidden lines · · · — z expand")
                 },
                 Style::default().fg(theme::MUTED),
             ),
@@ -150,9 +149,9 @@ fn hunk_header_line(state: &AppState, hunk: u32) -> Line<'static> {
         .and_then(|file| state.session.files.get(&file.path))
         .is_some_and(|progress| progress.reviewed_hunks.contains(&hunk));
     let (marker, marker_color) = if reviewed {
-        ("✓ revisado", theme::SUCCESS)
+        ("✓ reviewed", theme::SUCCESS)
     } else {
-        ("M marcar", theme::MUTED)
+        ("M mark", theme::MUTED)
     };
     Line::from(vec![
         Span::raw(GUTTER),
@@ -213,9 +212,9 @@ fn comment_line(
     match kind {
         CommentRowKind::Header => {
             // ╭─ @autor · marcador ─────╮
-            let author_label = author.map_or_else(|| "você".to_owned(), str::to_owned);
+            let author_label = author.map_or_else(|| "you".to_owned(), str::to_owned);
             let (marker_text, marker_color) =
-                marker(state, entry).unwrap_or(("comentário", theme::MUTED));
+                marker(state, entry).unwrap_or(("comment", theme::MUTED));
             spans.push(Span::styled("╭─ ", border_style));
             spans.push(Span::styled(
                 format!("@{author_label}"),
@@ -247,8 +246,8 @@ fn comment_line(
         CommentRowKind::Footer => {
             // ╰─ e editar · x excluir ──╯  (teclas em accent bold)
             let hints: &[(&str, &str)] = match entry {
-                CommentEntry::Draft { .. } => &[("e", "editar"), ("x", "excluir")],
-                CommentEntry::Thread { .. } => &[("r", "responder")],
+                CommentEntry::Draft { .. } => &[("e", "edit"), ("x", "delete")],
+                CommentEntry::Thread { .. } => &[("r", "reply")],
             };
             spans.push(Span::styled("╰─ ", border_style));
             let mut used = 3;
@@ -298,13 +297,13 @@ fn marker(state: &AppState, entry: &CommentEntry) -> Option<(&'static str, ratat
 
 fn unavailable_reason(state: &AppState) -> String {
     let Some(file) = state.provider.files.get(state.active_file_index) else {
-        return "Nenhum arquivo alterado".into();
+        return "No changed files".into();
     };
     match &file.patch {
-        PatchAvailability::Available(_) => "Carregando diff…".into(),
-        PatchAvailability::Binary => "Arquivo binário: revisão inline indisponível".into(),
-        PatchAvailability::TooLarge => "Diff grande demais para revisão inline".into(),
-        PatchAvailability::Collapsed => "Diff recolhido pelo provider".into(),
-        PatchAvailability::Truncated { reason } => format!("Diff indisponível: {reason}"),
+        PatchAvailability::Available(_) => "Loading diff…".into(),
+        PatchAvailability::Binary => "Binary file: inline review unavailable".into(),
+        PatchAvailability::TooLarge => "Diff too large for inline review".into(),
+        PatchAvailability::Collapsed => "Diff collapsed by the provider".into(),
+        PatchAvailability::Truncated { reason } => format!("Diff unavailable: {reason}"),
     }
 }

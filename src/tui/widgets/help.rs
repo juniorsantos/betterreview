@@ -25,34 +25,34 @@ const COLUMN_WIDTH: usize = 22;
 
 const COLUMNS: [Column; 3] = [
     Column {
-        title: "Navegação",
+        title: "Navigation",
         rows: &[
-            ("j/k", "mover"),
-            ("Tab/h/l", "foco"),
-            ("]f / [f", "arquivo"),
-            ("]u / [u", "não revisado"),
+            ("j/k", "move"),
+            ("Tab/h/l", "focus"),
+            ("]f / [f", "file"),
+            ("]u / [u", "unreviewed"),
             ("]h / [h", "hunk"),
-            ("]c / [c", "comentário"),
-            ("/", "buscar"),
-            ("n / N", "próx./ant. resultado"),
-            ("2 / 3", "focar painel"),
+            ("]c / [c", "comment"),
+            ("/", "search"),
+            ("n / N", "next/prev match"),
+            ("2 / 3", "focus panel"),
         ],
     },
     Column {
-        title: "Arquivos",
+        title: "Files",
         rows: &[
-            ("e", "expandir painel"),
-            ("z", "recolher pasta"),
-            ("m", "arquivo revisado"),
-            ("M", "hunk revisado"),
+            ("e", "expand panel"),
+            ("z", "collapse folder"),
+            ("m", "file reviewed"),
+            ("M", "hunk reviewed"),
         ],
     },
     Column {
-        title: "Revisão",
+        title: "Review",
         rows: &[
-            ("v", "seleção"),
-            ("c", "comentar"),
-            ("s", "sugestão"),
+            ("v", "selection"),
+            ("c", "comment"),
+            ("s", "suggestion"),
             ("t", "threads"),
         ],
     },
@@ -66,9 +66,9 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         frame,
         area,
         Dialog {
-            title: Line::raw(" Ajuda "),
+            title: Line::raw(" Help "),
             body: body_lines(),
-            hints: "Esc fechar",
+            hints: "Esc close",
             width: 72,
             height: 17,
         },
@@ -108,20 +108,20 @@ fn body_lines() -> Vec<Line<'static>> {
 
     lines.push(Line::raw(""));
     lines.push(group_line(
-        "Comentários:",
+        "Comments:",
         &[
-            ("e", "editar"),
-            ("x", "excluir"),
-            ("r", "responder"),
-            ("T", "ocultar/mostrar"),
+            ("e", "edit"),
+            ("x", "delete"),
+            ("r", "reply"),
+            ("T", "hide/show"),
         ],
     ));
     lines.push(group_line(
         "Editor:",
         &[
-            ("Enter", "salvar"),
-            ("Alt+Enter", "nova linha"),
-            ("Esc", "fechar"),
+            ("Enter", "save"),
+            ("Alt+Enter", "new line"),
+            ("Esc", "close"),
         ],
     ));
     lines.push(group_line(

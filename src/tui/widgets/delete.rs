@@ -5,7 +5,7 @@ use crate::{
     tui::widgets::dialog::{Dialog, menu_line, render_dialog},
 };
 
-const OPTIONS: [&str; 2] = ["Excluir", "Cancelar"];
+const OPTIONS: [&str; 2] = ["Delete", "Cancel"];
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let body: Vec<Line> = OPTIONS
@@ -17,9 +17,9 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         frame,
         area,
         Dialog {
-            title: Line::raw(" Excluir comentário "),
+            title: Line::raw(" Delete comment "),
             body,
-            hints: "j/k mover · Enter confirmar · Esc cancelar",
+            hints: "j/k move · Enter confirm · Esc cancel",
             width: 52,
             height: 6,
         },

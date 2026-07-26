@@ -40,7 +40,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         .collect::<Vec<_>>();
     frame.render_widget(Clear, popup);
     frame.render_widget(
-        List::new(items).block(Block::default().title(" Conversas ").borders(Borders::ALL)),
+        List::new(items).block(Block::default().title(" Threads ").borders(Borders::ALL)),
         popup,
     );
 }

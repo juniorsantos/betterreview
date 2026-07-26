@@ -193,8 +193,8 @@ fn renders_wide_file_panel_canonical_diff_and_shortcuts() {
     assert!(screen.contains("    8 -old"));
     assert!(screen.contains("    8 +new"));
     assert!(screen.contains("R"));
-    assert!(screen.contains("enviar"));
-    assert!(screen.contains("ajuda"));
+    assert!(screen.contains("submit"));
+    assert!(screen.contains("help"));
 }
 
 #[test]

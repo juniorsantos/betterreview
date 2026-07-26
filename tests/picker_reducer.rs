@@ -309,7 +309,7 @@ fn reload_with_no_items_reports_a_banner_and_keeps_previous_items() {
 
     update(&mut state, PickerEvent::ListReloaded { items: Vec::new() });
 
-    assert_eq!(state.error_banner, Some("nenhum review aberto".to_string()));
+    assert_eq!(state.error_banner, Some("no open reviews".to_string()));
     assert_eq!(state.items.len(), 2);
 }
 

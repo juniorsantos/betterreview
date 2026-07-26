@@ -113,7 +113,7 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
                 Some(DisplayRow::Diff { .. })
             );
             if !on_diff_row && state.selection_anchor.is_none() {
-                push_notice(state, "mova para uma linha de código");
+                push_notice(state, "move to a code line");
                 return Vec::new();
             }
             state.selection_anchor = match state.selection_anchor {
@@ -197,7 +197,7 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             if let Support::Unsupported { reason } =
                 state.provider.capabilities.for_outcome(outcome)
             {
-                push_notice(state, format!("indisponível: {reason}"));
+                push_notice(state, format!("unavailable: {reason}"));
                 return Vec::new();
             }
             let request = SubmitRequest {
@@ -298,7 +298,7 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             if state.focus != AppFocus::Files {
                 push_notice(
                     state,
-                    "z expande as lacunas `· · ·` do diff; para pastas, foque o painel [2]",
+                    "z expands the diff's `· · ·` gaps; for folders, focus panel [2]",
                 );
                 return Vec::new();
             }
@@ -387,7 +387,7 @@ fn jump_to_match(
             })
             .or_else(|| matches.last())
     }) else {
-        push_notice(state, "sem resultados");
+        push_notice(state, "no matches");
         return Vec::new();
     };
     land_on_display_row(state, target);
@@ -518,7 +518,7 @@ fn find_display_row(
 /// left to go, or when the diff has not parsed yet.
 fn jump_hunk(state: &mut AppState, step: i32) -> Vec<EffectEnvelope> {
     if state.parsed_diff.is_none() {
-        push_notice(state, "diff ainda carregando");
+        push_notice(state, "diff is still loading");
         return Vec::new();
     }
     let target = find_display_row(&state.display_rows, state.display_cursor, step, |row| {
@@ -529,9 +529,9 @@ fn jump_hunk(state: &mut AppState, step: i32) -> Vec<EffectEnvelope> {
         None => push_notice(
             state,
             if step > 0 {
-                "não há próximo hunk"
+                "no next hunk"
             } else {
-                "não há hunk anterior"
+                "no previous hunk"
             },
         ),
     }
@@ -555,9 +555,9 @@ fn jump_comment(state: &mut AppState, step: i32) -> Vec<EffectEnvelope> {
         None => push_notice(
             state,
             if step > 0 {
-                "não há próximo comentário"
+                "no next comment"
             } else {
-                "não há comentário anterior"
+                "no previous comment"
             },
         ),
     }
@@ -704,9 +704,9 @@ fn toggle_reviewed(state: &mut AppState) -> Vec<EffectEnvelope> {
     push_notice(
         state,
         if reviewed {
-            "✓ arquivo marcado como revisado"
+            "✓ file marked as reviewed"
         } else {
-            "arquivo desmarcado"
+            "file unmarked"
         },
     );
     effects
@@ -776,7 +776,7 @@ fn hunk_at_cursor(state: &AppState) -> Option<u32> {
 
 fn toggle_hunk_reviewed(state: &mut AppState) -> Vec<EffectEnvelope> {
     let Some(hunk) = hunk_at_cursor(state) else {
-        push_notice(state, "nenhum hunk sob o cursor");
+        push_notice(state, "no hunk under the cursor");
         return Vec::new();
     };
     let Some(path) = active_path(state) else {
@@ -800,11 +800,11 @@ fn toggle_hunk_reviewed(state: &mut AppState) -> Vec<EffectEnvelope> {
         set_file_reviewed(state, &path, complete, None)
     };
     let message = if complete {
-        format!("✓ arquivo revisado ({done}/{total} hunks)")
+        format!("✓ file reviewed ({done}/{total} hunks)")
     } else if marked {
-        format!("✓ hunk {} revisado ({done}/{total})", hunk + 1)
+        format!("✓ hunk {} reviewed ({done}/{total})", hunk + 1)
     } else {
-        format!("hunk {} desmarcado ({done}/{total})", hunk + 1)
+        format!("hunk {} unmarked ({done}/{total})", hunk + 1)
     };
     push_notice(state, message);
     effects
@@ -854,7 +854,7 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
         .as_ref()
         .is_some_and(|generation| generation != &state.provider.head)
     {
-        push_notice(state, "operação antiga ignorada (head mudou)");
+        push_notice(state, "stale operation ignored (head changed)");
         return Vec::new();
     }
     match result.outcome {
@@ -1004,7 +1004,7 @@ fn open_editor(state: &mut AppState, suggestion: bool) {
         )
     );
     if blocks_editor {
-        push_notice(state, "mova para uma linha de código");
+        push_notice(state, "move to a code line");
         return;
     }
     if let Some(editor) = &state.session.editor {
@@ -1076,7 +1076,7 @@ fn edit_comment(state: &mut AppState, id: DraftId) {
     {
         push_notice(
             state,
-            "você tem um comentário não salvo; salve (c → Enter) ou descarte antes de editar",
+            "you have an unsaved comment; save it (c → Enter) or discard it before editing",
         );
         return;
     }
@@ -1120,7 +1120,7 @@ fn reply_comment(state: &mut AppState, thread: ThreadId) {
     {
         push_notice(
             state,
-            "você tem um comentário não salvo; salve (c → Enter) ou descarte antes de responder",
+            "you have an unsaved comment; save it (c → Enter) or discard it before replying",
         );
         return;
     }
@@ -1175,13 +1175,13 @@ fn placeholder_selection(state: &AppState) -> DiffSelection {
 /// Human-facing label for effects whose progress the status bar reports.
 fn effect_label(effect: &AppEffect) -> Option<&'static str> {
     match effect {
-        AppEffect::CreateDraft { .. } => Some("salvando comentário…"),
-        AppEffect::UpdateDraft { .. } => Some("atualizando comentário…"),
-        AppEffect::DeleteDraft { .. } => Some("excluindo comentário…"),
-        AppEffect::Reply { .. } => Some("respondendo…"),
-        AppEffect::SubmitReview { .. } => Some("enviando revisão…"),
-        AppEffect::RefreshSnapshot => Some("atualizando…"),
-        AppEffect::LoadFileContext { .. } => Some("carregando contexto…"),
+        AppEffect::CreateDraft { .. } => Some("saving comment…"),
+        AppEffect::UpdateDraft { .. } => Some("updating comment…"),
+        AppEffect::DeleteDraft { .. } => Some("deleting comment…"),
+        AppEffect::Reply { .. } => Some("replying…"),
+        AppEffect::SubmitReview { .. } => Some("submitting review…"),
+        AppEffect::RefreshSnapshot => Some("refreshing…"),
+        AppEffect::LoadFileContext { .. } => Some("loading context…"),
         _ => None,
     }
 }

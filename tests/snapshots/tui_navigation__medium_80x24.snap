@@ -4,7 +4,7 @@ expression: "redact_version(screen(&app(), 80, 24))"
 ---
  betterreview  owner/repo #42 · Add terminal review · @developer         vX.Y.Z
 
-┌ [2] Arquivos — e expandir /┐┌ [3] Diff ──────────────────────────────────────┐
+┌ [2] Files ─────────────────┐┌ [3] Diff ──────────────────────────────────────┐
 │ ▾ src/                     ││     8 -old                                     │
 │ [x] M app.rs     1/1 +1 -1 ││     8 +new                                     │
 │ [~] A new.rs            +1 ││                                                │
@@ -25,4 +25,4 @@ expression: "redact_version(screen(&app(), 80, 24))"
 │                            ││                                                │
 │                            ││                                                │
 └────────────────────────────┘└────────────────────────────────────────────────┘
- 1/2 revisados · 0 drafts · 0 operações          j/k · ]h hunk · ]c comentário …
+ 1/2 reviewed · 0 drafts · 0 operations  j/k · ]h hunk · ]c comment · / search …

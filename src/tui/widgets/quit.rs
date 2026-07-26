@@ -6,9 +6,9 @@ use crate::{
 };
 
 const OPTIONS: [&str; 3] = [
-    "Sair mantendo o rascunho",
-    "Sair descartando o rascunho",
-    "Cancelar",
+    "Quit keeping the draft",
+    "Quit discarding the draft",
+    "Cancel",
 ];
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
@@ -21,9 +21,9 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         frame,
         area,
         Dialog {
-            title: Line::raw(" Sair da revisão "),
+            title: Line::raw(" Quit review "),
             body,
-            hints: "j/k mover · Enter confirmar · Esc cancelar",
+            hints: "j/k move · Enter confirm · Esc cancel",
             width: 52,
             height: 7,
         },

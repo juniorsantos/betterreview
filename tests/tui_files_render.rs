@@ -105,7 +105,7 @@ fn screen(state: &AppState) -> String {
 fn files_panel_groups_entries_by_directory() {
     let screen = screen(&app());
 
-    assert!(screen.contains("[2] Arquivos"));
+    assert!(screen.contains("[2] Files"));
     assert!(screen.contains("▾ src/app/"));
     assert!(screen.contains("▾ docs/"));
     assert!(screen.contains("docs/"));

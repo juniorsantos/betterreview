@@ -119,7 +119,7 @@ where
         // surface that in the submit modal instead of failing at submit.
         if viewer_login.as_deref() == Some(author.as_str()) {
             let own = crate::domain::Support::Unsupported {
-                reason: "o GitHub não permite no próprio pull request".into(),
+                reason: "GitHub does not allow it on your own pull request".into(),
             };
             capabilities.approve = own.clone();
             capabilities.request_changes = own;

@@ -19,9 +19,9 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         return;
     };
     let draft_label = if state.provider.drafts.len() == 1 {
-        "1 draft será publicado".to_owned()
+        "1 draft will be published".to_owned()
     } else {
-        format!("{} drafts serão publicados", state.provider.drafts.len())
+        format!("{} drafts will be published", state.provider.drafts.len())
     };
 
     let mut body = vec![Line::raw(draft_label), Line::raw("")];
@@ -31,7 +31,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     if let Support::Unsupported { reason } = state.provider.capabilities.for_outcome(modal.outcome)
     {
         body.push(Line::styled(
-            format!("indisponível: {reason}"),
+            format!("unavailable: {reason}"),
             Style::default().fg(theme::WARNING),
         ));
     }
@@ -43,7 +43,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         Dialog {
             title: title_line(modal.outcome),
             body,
-            hints: "Tab veredito · Enter enviar · ⌥Enter nova linha · Esc cancelar",
+            hints: "Tab verdict · Enter submit · ⌥Enter new line · Esc cancel",
             width: 70,
             height,
         },
@@ -52,7 +52,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
 
 fn title_line(outcome: ReviewOutcome) -> Line<'static> {
     Line::from(vec![
-        Span::raw(" Enviar revisão "),
+        Span::raw(" Submit review "),
         Span::styled("· ", Style::default().fg(theme::BORDER)),
         Span::styled(
             format!("{} ", label(outcome)),
@@ -76,7 +76,10 @@ fn summary_lines(summary: &str) -> Vec<Line<'static>> {
                 .add_modifier(Modifier::BOLD),
         ));
     }
-    lines.insert(0, Line::styled("Resumo", Style::default().fg(theme::MUTED)));
+    lines.insert(
+        0,
+        Line::styled("Summary", Style::default().fg(theme::MUTED)),
+    );
     lines
 }
 
@@ -121,9 +124,9 @@ fn shortcut_line(state: &AppState, active: ReviewOutcome) -> Line<'static> {
 
 fn label(outcome: ReviewOutcome) -> &'static str {
     match outcome {
-        ReviewOutcome::Comment => "COMENTAR",
-        ReviewOutcome::Approve => "APROVAR",
-        ReviewOutcome::RequestChanges => "PEDIR MUDANÇAS",
+        ReviewOutcome::Comment => "COMMENT",
+        ReviewOutcome::Approve => "APPROVE",
+        ReviewOutcome::RequestChanges => "REQUEST CHANGES",
     }
 }
 

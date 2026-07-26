@@ -332,7 +332,7 @@ fn ignores_effect_result_from_old_head_generation() {
         state
             .notices
             .iter()
-            .any(|notice| notice.contains("operação antiga ignorada"))
+            .any(|notice| notice.contains("stale operation ignored"))
     );
 }
 
@@ -884,7 +884,7 @@ fn selection_refused_on_comment_rows() {
         state
             .notices
             .iter()
-            .any(|notice| notice.contains("mova para uma linha de código"))
+            .any(|notice| notice.contains("move to a code line"))
     );
 }
 
@@ -1064,7 +1064,7 @@ fn edit_refuses_when_a_fresh_draft_is_parked() {
         state
             .notices
             .iter()
-            .any(|notice| notice.contains("comentário não salvo")),
+            .any(|notice| notice.contains("unsaved comment")),
         "expected a notice about the unsaved draft, got {:?}",
         state.notices
     );
@@ -1130,7 +1130,7 @@ fn reply_refuses_when_a_fresh_draft_is_parked() {
         state
             .notices
             .iter()
-            .any(|notice| notice.contains("comentário não salvo")),
+            .any(|notice| notice.contains("unsaved comment")),
         "expected a notice about the unsaved draft, got {:?}",
         state.notices
     );
@@ -1264,14 +1264,14 @@ fn scheduling_a_draft_registers_a_pending_label() {
     assert_eq!(effects.len(), 1);
     assert_eq!(
         state.pending_labels.get(&effects[0].id).copied(),
-        Some("salvando comentário…")
+        Some("saving comment…")
     );
 }
 
 #[test]
 fn finished_effect_clears_its_label_and_tick_spins_while_busy() {
     let mut state = app_with_reviewed_pattern([false; 4]);
-    state.pending_labels.insert(7, "salvando comentário…");
+    state.pending_labels.insert(7, "saving comment…");
     state.busy_operations.insert(7);
 
     let frame_before = state.spinner_frame;
@@ -1412,7 +1412,7 @@ fn hunk_jump_clamps_at_the_last_hunk() {
         state
             .notices
             .iter()
-            .any(|notice| notice.contains("não há próximo hunk"))
+            .any(|notice| notice.contains("no next hunk"))
     );
 }
 
@@ -1488,7 +1488,7 @@ fn bracket_c_jumps_between_comment_blocks() {
         state
             .notices
             .iter()
-            .any(|notice| notice.contains("não há próximo comentário"))
+            .any(|notice| notice.contains("no next comment"))
     );
 
     update(&mut state, AppEvent::Action(AppAction::PreviousComment));
@@ -1598,7 +1598,7 @@ fn search_with_no_matches_leaves_a_notice() {
         state
             .notices
             .iter()
-            .any(|notice| notice.contains("sem resultados"))
+            .any(|notice| notice.contains("no matches"))
     );
 }
 
@@ -1655,7 +1655,7 @@ fn toggling_reviewed_from_the_diff_shows_a_notice() {
         state
             .notices
             .last()
-            .is_some_and(|notice| notice.contains("revisado"))
+            .is_some_and(|notice| notice.contains("reviewed"))
     );
 
     update(&mut state, AppEvent::Action(AppAction::ToggleReviewed));
@@ -1663,7 +1663,7 @@ fn toggling_reviewed_from_the_diff_shows_a_notice() {
         state
             .notices
             .last()
-            .is_some_and(|notice| notice.contains("desmarcado"))
+            .is_some_and(|notice| notice.contains("unmarked"))
     );
 }
 
@@ -1899,7 +1899,7 @@ fn a_created_draft_appears_as_an_inline_card() {
 fn submitting_an_unsupported_outcome_is_refused_with_a_notice() {
     let mut state = app_with_reviewed_pattern([false; 4]);
     state.provider.capabilities.approve = Support::Unsupported {
-        reason: "o GitHub não permite no próprio pull request".into(),
+        reason: "GitHub does not allow it on your own pull request".into(),
     };
     state.submission_modal = Some(betterreview::app::SubmissionModal {
         summary: "ok".into(),
@@ -1920,7 +1920,7 @@ fn submitting_an_unsupported_outcome_is_refused_with_a_notice() {
         state
             .notices
             .last()
-            .is_some_and(|notice| notice.contains("não permite"))
+            .is_some_and(|notice| notice.contains("does not allow"))
     );
 }
 
@@ -2123,7 +2123,7 @@ fn z_on_an_uncached_gap_schedules_load_file_context_and_labels_it() {
     assert_eq!(state.pending_gap, Some(1));
     assert_eq!(
         state.pending_labels.get(&effects[0].id),
-        Some(&"carregando contexto…")
+        Some(&"loading context…")
     );
 }
 
@@ -2234,7 +2234,7 @@ fn selection_is_refused_on_a_gap_row() {
         state
             .notices
             .iter()
-            .any(|notice| notice == "mova para uma linha de código")
+            .any(|notice| notice == "move to a code line")
     );
 }
 
@@ -2250,7 +2250,7 @@ fn opening_a_comment_is_refused_on_a_gap_row() {
         state
             .notices
             .iter()
-            .any(|notice| notice == "mova para uma linha de código")
+            .any(|notice| notice == "move to a code line")
     );
 }
 

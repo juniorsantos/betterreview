@@ -110,7 +110,7 @@ fn dialog_shows_its_title_on_the_border() {
 
     let (screen, _) = screen(&app, 80, 24);
 
-    assert!(screen.contains("Sair da revisão"));
+    assert!(screen.contains("Quit review"));
 }
 
 #[test]
@@ -131,19 +131,19 @@ fn dialog_places_hints_as_the_last_inner_line_with_key_styling() {
         .expect("dialog has a bottom border");
     let hint_row = bottom_row - 1;
     assert!(
-        lines[hint_row].contains("j/k mover"),
+        lines[hint_row].contains("j/k move"),
         "expected the hints line directly above the bottom border, got: {:?}",
         lines[hint_row]
     );
-    assert!(lines[hint_row].contains("Esc cancelar"));
+    assert!(lines[hint_row].contains("Esc cancel"));
 
     // Keys render in accent bold, labels in muted — the shared key-hint
     // styling rule.
-    let byte_offset = lines[hint_row].find("j/k mover").unwrap();
+    let byte_offset = lines[hint_row].find("j/k move").unwrap();
     let key_x = lines[hint_row][..byte_offset].chars().count() as u16;
     let key_cell = buffer.cell((key_x, hint_row as u16)).unwrap();
     assert_eq!(key_cell.fg, betterreview::tui::theme::ACCENT);
-    let label_x = key_x + 4; // first char of "mover"
+    let label_x = key_x + 4; // first char of "move"
     let label_cell = buffer.cell((label_x, hint_row as u16)).unwrap();
     assert_eq!(label_cell.fg, betterreview::tui::theme::MUTED);
 }
@@ -167,7 +167,7 @@ fn dialog_hints_line_is_horizontally_centered() {
     let box_left = box_chars.iter().position(|&c| c == '╭').unwrap();
     let box_right = box_chars.iter().rposition(|&c| c == '╮').unwrap();
 
-    let hint_text = "j/k mover · Enter confirmar · Esc cancelar";
+    let hint_text = "j/k move · Enter confirm · Esc cancel";
     let hint_row = bottom_row - 1;
     let hint_chars: Vec<char> = lines[hint_row].chars().collect();
     let hint_start = hint_chars
@@ -197,15 +197,15 @@ fn dialog_selected_menu_row_gets_a_filled_background_and_the_new_marker() {
     let buffer = terminal.backend().buffer().clone();
     let (screen, lines) = screen(&app, 80, 24);
 
-    assert!(screen.contains("▶ Sair mantendo o rascunho"));
+    assert!(screen.contains("▶ Quit keeping the draft"));
     assert!(
-        !screen.contains("▸ Sair mantendo o rascunho"),
+        !screen.contains("▸ Quit keeping the draft"),
         "old marker must be gone"
     );
 
     let selected_row = lines
         .iter()
-        .position(|line| line.contains("▶ Sair mantendo o rascunho"))
+        .position(|line| line.contains("▶ Quit keeping the draft"))
         .expect("selected row rendered");
 
     // Derive the dialog's left/right columns from the rounded top border
@@ -232,9 +232,9 @@ fn dialog_selected_menu_row_gets_a_filled_background_and_the_new_marker() {
 
     let unselected_row = lines
         .iter()
-        .position(|line| line.contains("Sair descartando o rascunho"))
+        .position(|line| line.contains("Quit discarding the draft"))
         .expect("unselected row rendered");
-    assert!(lines[unselected_row].contains("  Sair descartando o rascunho"));
+    assert!(lines[unselected_row].contains("  Quit discarding the draft"));
     let cell = buffer
         .cell((box_left as u16 + 1, unselected_row as u16))
         .unwrap();

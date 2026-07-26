@@ -4,20 +4,20 @@ expression: "redact_version(screen(&app_with_drafts(3), 80, 24))"
 ---
  betterreview  owner/repo #42 · Review terminal · @dev                   vX.Y.Z 
                                                                                 
-┌ [2] Arquivos — e expandir /┐┌ [3] Diff ──────────────────────────────────────┐
-│ ▾ src/                     ││ Carregando diff…                               │
+┌ [2] Files ─────────────────┐┌ [3] Diff ──────────────────────────────────────┐
+│ ▾ src/                     ││ Loading diff…                                  │
 │ [ ] M app.rs     0/1 +1 -1 ││                                                │
 │                            ││                                                │
 │                            ││                                                │
-│       ╭ Enviar revisão · COMENTAR ───────────────────────────────────╮       │
-│       │ 3 drafts serão publicados                                    │       │
+│       ╭ Submit review · COMMENT ─────────────────────────────────────╮       │
+│       │ 3 drafts will be published                                   │       │
 │       │                                                              │       │
-│       │ Resumo                                                       │       │
+│       │ Summary                                                      │       │
 │       │ Ready to merge▌                                              │       │
 │       │                                                              │       │
-│       │ aprovar · pedir mudanças · [COMENTAR]                        │       │
+│       │ approve · request changes · [COMMENT]                        │       │
 │       │                                                              │       │
-│       │Tab veredito · Enter enviar · ⌥Enter nova linha · Esc cancelar│       │
+│       │  Tab verdict · Enter submit · ⌥Enter new line · Esc cancel   │       │
 │       ╰──────────────────────────────────────────────────────────────╯       │
 │                            ││                                                │
 │                            ││                                                │
@@ -25,4 +25,4 @@ expression: "redact_version(screen(&app_with_drafts(3), 80, 24))"
 │                            ││                                                │
 │                            ││                                                │
 └────────────────────────────┘└────────────────────────────────────────────────┘
- 0/1 revisados · 3 drafts · 0 operações          j/k · ]h hunk · ]c comentário …
+ 0/1 reviewed · 3 drafts · 0 operations  j/k · ]h hunk · ]c comment · / search …

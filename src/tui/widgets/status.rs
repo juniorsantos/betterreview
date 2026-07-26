@@ -14,11 +14,11 @@ use crate::{app::AppState, tui::theme};
 const REVIEW_HINTS: [(&str, &str); 7] = [
     ("j/k", ""),
     ("]h", "hunk"),
-    ("]c", "comentário"),
-    ("/", "buscar"),
-    ("R", "enviar"),
-    ("?", "ajuda"),
-    ("q", "sair"),
+    ("]c", "comment"),
+    ("/", "search"),
+    ("R", "submit"),
+    ("?", "help"),
+    ("q", "quit"),
 ];
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
@@ -59,13 +59,13 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             .position(|&index| index == state.display_cursor)
             .map_or(0, |position| position + 1);
         (
-            format!("\u{201c}{query}\u{201d} {current}/{total}  n/N navega  Esc limpa"),
+            format!("\u{201c}{query}\u{201d} {current}/{total}  n/N navigate  Esc clear"),
             ratatui::style::Style::default().fg(crate::tui::theme::MUTED),
         )
     } else {
         (
             format!(
-                " {reviewed}/{} revisados · {} drafts · {} operações",
+                " {reviewed}/{} reviewed · {} drafts · {} operations",
                 state.provider.files.len(),
                 state.provider.drafts.len(),
                 state.busy_operations.len()

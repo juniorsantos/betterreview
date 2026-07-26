@@ -14,7 +14,7 @@ use ratatui::{
 use crate::tui::theme;
 
 pub(in crate::tui) struct Dialog<'a> {
-    /// e.g. " Excluir comentário "
+    /// e.g. " Delete comment "
     pub title: Line<'a>,
     /// Content lines, NOT including the hints footer.
     pub body: Vec<Line<'a>>,

@@ -265,8 +265,8 @@ fn unreviewed_hunk_header_shows_its_position_and_the_marking_key() {
     let state = app_with_two_hunk_headers();
     let screen = screen_wide(&draw_wide(&state));
 
-    assert!(screen.contains("hunk 1/2 · M marcar"));
-    assert!(screen.contains("hunk 2/2 · M marcar"));
+    assert!(screen.contains("hunk 1/2 · M mark"));
+    assert!(screen.contains("hunk 2/2 · M mark"));
     assert!(!screen.contains("@@ -3,1 +1,1 @@"));
 }
 
@@ -283,8 +283,8 @@ fn reviewed_hunk_header_says_so() {
         .insert(1);
     let screen = screen_wide(&draw_wide(&state));
 
-    assert!(screen.contains("hunk 1/2 · M marcar"));
-    assert!(screen.contains("hunk 2/2 · ✓ revisado"));
+    assert!(screen.contains("hunk 1/2 · M mark"));
+    assert!(screen.contains("hunk 2/2 · ✓ reviewed"));
 }
 
 #[test]
@@ -344,7 +344,7 @@ fn gap_row_shows_the_hidden_count_and_the_expand_hint() {
     let state = app_with_gap();
     let screen = screen_wide(&draw_wide(&state));
 
-    assert!(screen.contains("· · · 3 linhas ocultas · · · — z expandir"));
+    assert!(screen.contains("· · · 3 hidden lines · · · — z expand"));
 }
 
 #[test]
@@ -369,7 +369,7 @@ fn expanded_gap_shows_the_cached_context_lines_and_hides_the_gap_hint() {
     assert!(screen.contains("    2 line two"));
     assert!(screen.contains("    3 line three"));
     assert!(screen.contains("    4 line four"));
-    assert!(!screen.contains("linhas ocultas"));
+    assert!(!screen.contains("hidden lines"));
 }
 
 fn draw(state: &AppState) -> Terminal<TestBackend> {
@@ -471,7 +471,7 @@ fn comment_box_renders_under_its_line() {
         .position(|line| line.contains("+added"))
         .expect("anchored diff row rendered");
     // Card: top border with the meta, body line, bottom border with hints.
-    assert!(lines[anchor + 1].contains("╭─ @você · draft"));
+    assert!(lines[anchor + 1].contains("╭─ @you · draft"));
     assert!(
         lines[anchor + 2].trim().starts_with('│'),
         "a blank padding row separates the border from the text"
@@ -525,30 +525,30 @@ fn toggle_hides_comment_rows() {
 #[test]
 fn status_shows_spinner_while_saving() {
     let mut state = app();
-    state.pending_labels.insert(3, "salvando comentário…");
+    state.pending_labels.insert(3, "saving comment…");
     state.busy_operations.insert(3);
     let terminal = draw(&state);
     let screen = screen(&terminal);
 
-    assert!(screen.contains("salvando comentário…"));
+    assert!(screen.contains("saving comment…"));
 }
 
 #[test]
 fn status_shows_the_latest_notice() {
     let mut state = app();
     state.notices.push("primeiro aviso".into());
-    state.notices.push("mova para uma linha de código".into());
+    state.notices.push("move to a code line".into());
     state.notice_ttl = 5;
     let notice_screen = screen(&draw(&state));
 
-    assert!(notice_screen.contains("mova para uma linha de código"));
+    assert!(notice_screen.contains("move to a code line"));
     assert!(!notice_screen.contains("primeiro aviso"));
 
     // A notice loses to an active error banner.
     state.error_banner = Some("falha ao salvar".into());
     let banner_screen = screen(&draw(&state));
     assert!(banner_screen.contains("falha ao salvar"));
-    assert!(!banner_screen.contains("mova para uma linha de código"));
+    assert!(!banner_screen.contains("move to a code line"));
 }
 
 #[test]
@@ -568,10 +568,10 @@ fn comment_block_renders_as_a_card_with_action_hints() {
     let terminal = draw_wide(&state);
     let screen = screen_wide(&terminal);
 
-    assert!(screen.contains("╭─ @você · draft"));
+    assert!(screen.contains("╭─ @you · draft"));
     assert!(screen.contains("│   corpo do comentário"));
     assert!(screen.contains("│   segunda linha"));
-    assert!(screen.contains("╰─ e editar · x excluir"));
+    assert!(screen.contains("╰─ e edit · x delete"));
 }
 
 #[test]
@@ -594,8 +594,8 @@ fn status_shows_query_and_match_count_for_an_active_search() {
 
     assert!(screen.contains("e"), "sanity: screen renders at all");
     assert!(screen.contains("1/3"));
-    assert!(screen.contains("n/N navega"));
-    assert!(screen.contains("Esc limpa"));
+    assert!(screen.contains("n/N navigate"));
+    assert!(screen.contains("Esc clear"));
 }
 
 #[test]
@@ -679,7 +679,7 @@ fn comment_card_border_uses_the_comment_color() {
             (0..120)
                 .map(|x| buffer.cell((x, *y)).unwrap().symbol())
                 .collect::<String>()
-                .contains("╭─ @você")
+                .contains("╭─ @you")
         })
         .expect("card header rendered");
     let x = (0..120)

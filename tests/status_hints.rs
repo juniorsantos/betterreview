@@ -112,7 +112,7 @@ fn footer_row_is_gone_and_the_layout_is_three_rows() {
         })
         .collect::<Vec<_>>()
         .join("\n");
-    assert!(!full.contains("Tab/h/l foco"));
+    assert!(!full.contains("Tab/h/l focus"));
 }
 
 #[test]
@@ -122,11 +122,11 @@ fn status_right_side_shows_key_accent_hints() {
     let row = status_row(&lines);
 
     assert!(row.contains("hunk"), "expected hunk hint, got: {row:?}");
-    assert!(row.contains("enviar"), "expected enviar hint, got: {row:?}");
-    assert!(row.contains("comentário"));
-    assert!(row.contains("sair"), "expected sair hint, got: {row:?}");
-    assert!(row.contains("buscar"), "expected buscar hint, got: {row:?}");
-    assert!(row.contains("ajuda"), "expected ajuda hint, got: {row:?}");
+    assert!(row.contains("submit"), "expected submit hint, got: {row:?}");
+    assert!(row.contains("comment"));
+    assert!(row.contains("quit"), "expected quit hint, got: {row:?}");
+    assert!(row.contains("search"), "expected search hint, got: {row:?}");
+    assert!(row.contains("help"), "expected help hint, got: {row:?}");
 }
 
 #[test]
@@ -146,7 +146,7 @@ fn status_hint_keys_render_in_accent_bold() {
     assert_eq!(cell.style().fg, Some(theme::ACCENT));
     assert!(cell.style().add_modifier.contains(Modifier::BOLD));
 
-    let label_offset = char_offset(&line, "enviar").expect("enviar label present");
+    let label_offset = char_offset(&line, "submit").expect("submit label present");
     let label_cell = buffer.cell((label_offset as u16, row)).unwrap();
     assert_eq!(label_cell.style().fg, Some(theme::MUTED));
 }
