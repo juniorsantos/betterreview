@@ -680,7 +680,7 @@ fn diff_line_background_extends_to_the_panel_edge() {
 }
 
 #[test]
-fn comment_card_border_uses_the_comment_color() {
+fn comment_card_border_uses_the_accent_colour() {
     let mut state = app();
     state.provider.drafts.push(draft_at_line_5());
     refresh_display_rows(&mut state);
@@ -700,7 +700,7 @@ fn comment_card_border_uses_the_comment_color() {
         .unwrap();
     assert_eq!(
         buffer.cell((x, row)).unwrap().style().fg,
-        Some(theme::COMMENT),
+        Some(theme::ACCENT),
         "card borders must use the comment color"
     );
 }
@@ -1139,4 +1139,49 @@ fn the_background_paints_every_gutter_cell_including_the_blank_one() {
         );
     }
     assert_eq!(buffer.cell((77, row)).unwrap().style().bg, green);
+}
+
+#[test]
+fn the_cursor_is_visible_even_on_an_added_row() {
+    let green = ratatui::style::Style::default().bg(ratatui::style::Color::Rgb(0x1c, 0x44, 0x28));
+    let mut state = app();
+    state.rendered_diff = Some(RenderedDiff {
+        rows: vec![
+            RenderedRow {
+                text: Line::from(ratatui::text::Span::styled("+first", green)),
+                binding: RowBinding {
+                    row_index: 0,
+                    left: None,
+                    right: Some(position(DiffSide::Right, 5)),
+                },
+            },
+            RenderedRow {
+                text: Line::from(ratatui::text::Span::styled("+second", green)),
+                binding: RowBinding {
+                    row_index: 1,
+                    left: None,
+                    right: Some(position(DiffSide::Right, 6)),
+                },
+            },
+        ],
+    });
+    state.session.cursor_row = 0;
+    refresh_display_rows(&mut state);
+
+    let screen = screen(&draw(&state));
+    let bar_on = |needle: &str| {
+        screen
+            .lines()
+            .find(|line| line.contains(needle))
+            .is_some_and(|line| line.contains('\u{258c}'))
+    };
+
+    assert!(
+        bar_on("+first"),
+        "the diff background must not be able to swallow the cursor:\n{screen}"
+    );
+    assert!(
+        !bar_on("+second"),
+        "and the row the cursor is not on carries no bar:\n{screen}"
+    );
 }

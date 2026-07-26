@@ -16,7 +16,7 @@ use crate::{
     },
 };
 
-const GUTTER_SPANS: usize = 2;
+const GUTTER_SPANS: usize = 3;
 const SIDE_GUTTER_WIDTH: usize = 6;
 const MIN_GUTTER_DIGITS: usize = 2;
 
@@ -59,11 +59,19 @@ impl Gutter {
     }
 
     fn width(self) -> usize {
-        self.digits * 2 + 4
+        self.digits * 2 + 5
     }
 
     fn blank(self) -> Span<'static> {
         Span::raw(" ".repeat(self.width()))
+    }
+
+    fn bar(self, on_cursor: bool) -> Span<'static> {
+        if on_cursor {
+            Span::styled("\u{258c}", Style::default().fg(theme::ACCENT))
+        } else {
+            Span::raw(" ")
+        }
     }
 
     fn cells(self, old: Option<u32>, new: Option<u32>) -> String {
@@ -350,7 +358,14 @@ fn render_display_row(
         _ => false,
     };
     let mut line = match display_row {
-        DisplayRow::Diff { row } => diff_line(diff, *row, inner_width, gutter, state.tab_width),
+        DisplayRow::Diff { row } => diff_line(
+            diff,
+            *row,
+            inner_width,
+            gutter,
+            state.tab_width,
+            index == state.display_cursor,
+        ),
         DisplayRow::Comment {
             entry,
             kind,
@@ -481,6 +496,7 @@ fn diff_line(
     inner_width: usize,
     gutter: Gutter,
     tab_width: usize,
+    on_cursor: bool,
 ) -> Line<'static> {
     let Some(rendered_row): Option<&RenderedRow> = diff.rows.get(row) else {
         return Line::default();
@@ -489,6 +505,7 @@ fn diff_line(
         position.as_ref().map(|position| position.line)
     };
     let mut spans = vec![
+        gutter.bar(on_cursor),
         Span::styled(
             gutter.cells(
                 line_of(&rendered_row.binding.left),
@@ -506,7 +523,7 @@ fn diff_line(
         .skip(GUTTER_SPANS)
         .find_map(|span| span.style.bg)
     {
-        for span in line.spans.iter_mut().take(GUTTER_SPANS) {
+        for span in line.spans.iter_mut().take(GUTTER_SPANS).skip(1) {
             span.style = span.style.bg(bg);
         }
         let text_width = line.width();
@@ -636,10 +653,10 @@ fn comment_line(
         focused,
     } = layout;
     let card_width = inner_width.saturating_sub(gutter.width() + 1).max(4);
-    let border_style = Style::default().fg(theme::COMMENT);
+    let border_style = Style::default().fg(theme::ACCENT);
     let mut spans = vec![
         gutter.blank(),
-        Span::styled("\u{258d}", Style::default().fg(theme::COMMENT)),
+        Span::styled("\u{258d}", Style::default().fg(theme::ACCENT)),
     ];
     match kind {
         CommentRowKind::Header => {
