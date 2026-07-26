@@ -751,8 +751,8 @@ fn a_line_missing_on_one_side_is_hatched() {
         .join("\n");
 
     assert!(
-        screen.contains('░'),
-        "the added line has no counterpart on the old side"
+        screen.contains('╱'),
+        "the added line has no counterpart on the old side, and the gap is hatched"
     );
 }
 

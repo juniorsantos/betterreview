@@ -40,7 +40,15 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         .collect::<Vec<_>>();
     frame.render_widget(Clear, popup);
     frame.render_widget(
-        List::new(items).block(Block::default().title(" Threads ").borders(Borders::ALL)),
+        List::new(items).block(
+            Block::default()
+                .title(crate::tui::text::panel_title(
+                    "Threads",
+                    Some(&state.provider.threads.len().to_string()),
+                    popup.width,
+                ))
+                .borders(Borders::ALL),
+        ),
         popup,
     );
 }

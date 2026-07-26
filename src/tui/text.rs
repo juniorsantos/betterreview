@@ -5,6 +5,16 @@ pub fn display_width(text: &str) -> usize {
     UnicodeWidthStr::width(text)
 }
 
+pub fn panel_title(name: &str, count: Option<&str>, width: u16) -> String {
+    if let Some(count) = count {
+        let full = format!(" {name} ({count}) ");
+        if display_width(&full) <= width as usize {
+            return full;
+        }
+    }
+    format!(" {name} ")
+}
+
 pub fn expand_tabs(text: &str, tab_width: usize, start_column: usize) -> String {
     if !text.contains('\t') {
         return text.to_owned();

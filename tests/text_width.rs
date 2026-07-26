@@ -1,4 +1,6 @@
-use betterreview::tui::{abbreviate_path, display_width, expand_tabs, truncate_to_width};
+use betterreview::tui::{
+    abbreviate_path, display_width, expand_tabs, panel_title, truncate_to_width,
+};
 
 #[test]
 fn width_counts_terminal_cells_not_characters() {
@@ -131,4 +133,20 @@ fn a_tab_advances_to_the_next_stop_not_a_fixed_number_of_spaces() {
         "the starting column shifts where the stop falls"
     );
     assert_eq!(expand_tabs("no tabs", 4, 0), "no tabs");
+}
+
+#[test]
+fn a_panel_title_drops_its_count_before_it_drops_its_name() {
+    assert_eq!(panel_title("Files", Some("4/12"), 20), " Files (4/12) ");
+    assert_eq!(
+        panel_title("Files", Some("4/12"), 10),
+        " Files ",
+        "the count is what yields when the border is narrow"
+    );
+    assert_eq!(panel_title("Files", None, 20), " Files ");
+    assert_eq!(
+        panel_title("Files", Some("4/12"), 3),
+        " Files ",
+        "the name survives even when nothing fits: a nameless panel is useless"
+    );
 }

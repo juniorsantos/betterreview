@@ -11,7 +11,7 @@ use crate::{
     domain::{ChangedFile, FileStatus},
     state::ReviewSync,
     tui::{
-        text::{abbreviate_path, display_width},
+        text::{abbreviate_path, display_width, panel_title},
         theme, viewport,
     },
 };
@@ -138,13 +138,30 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     frame.render_widget(
         List::new(items).block(
             Block::default()
-                .title(" [2] Files ")
+                .title(files_title(state, area.width))
                 .borders(Borders::ALL)
                 .padding(ratatui::widgets::Padding::horizontal(1))
                 .border_style(Style::default().fg(border)),
         ),
         area,
     );
+}
+
+fn files_title(state: &AppState, width: u16) -> String {
+    let total = state.provider.files.len();
+    let reviewed = state
+        .provider
+        .files
+        .iter()
+        .filter(|file| {
+            state
+                .session
+                .files
+                .get(&file.path)
+                .is_some_and(|progress| progress.reviewed)
+        })
+        .count();
+    panel_title("[2] Files", Some(&format!("{reviewed}/{total}")), width)
 }
 
 fn file_item<'a>(

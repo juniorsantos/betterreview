@@ -518,3 +518,13 @@ fn a_nested_directory_shows_only_its_own_segment_indented_under_its_parent() {
         "the nested folder sits to the right of its parent:\n{screen}"
     );
 }
+
+#[test]
+fn the_files_panel_title_carries_how_many_files_and_how_many_are_done() {
+    let screen = screen(&app());
+
+    assert!(
+        screen.contains("[2] Files (0/3)"),
+        "the panel says how much is in it without being opened:\n{screen}"
+    );
+}

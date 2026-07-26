@@ -503,7 +503,7 @@ fn side_spans(
 ) -> Vec<Span<'static>> {
     let Some(rendered) = row.and_then(|row| diff.rows.get(row)) else {
         return vec![Span::styled(
-            "\u{2591}".repeat(width),
+            "\u{2571}".repeat(width),
             Style::default().fg(theme::FILLER),
         )];
     };
