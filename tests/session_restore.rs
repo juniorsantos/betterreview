@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use betterreview::{
     domain::{
@@ -70,6 +70,7 @@ fn progress(path: &str, base: Option<&str>, head: Option<&str>, sync: ReviewSync
             head_blob: head.map(str::to_owned),
         },
         reviewed: true,
+        reviewed_hunks: BTreeSet::from([0]),
         sync,
     }
 }
@@ -346,4 +347,67 @@ fn missing_blob_identity_resets_reviewed_progress() {
     assert!(restored.notices.contains(&RestoreNotice::FileReset {
         path: RepoPath("src/lib.rs".into())
     }));
+}
+
+#[test]
+fn reviewed_hunks_survive_a_new_head_when_the_file_is_untouched() {
+    let mut saved = saved_session(ProviderKind::GitHub, "head-old");
+    saved.files = BTreeMap::from([
+        (
+            RepoPath("untouched.rs".into()),
+            progress("untouched.rs", None, Some("h1"), ReviewSync::Synced),
+        ),
+        (
+            RepoPath("rewritten.rs".into()),
+            progress("rewritten.rs", None, Some("h2"), ReviewSync::Synced),
+        ),
+    ]);
+    let fresh = provider_snapshot(
+        ProviderKind::GitHub,
+        "head-new",
+        vec![
+            changed_file("untouched.rs", None, Some("h1"), None),
+            changed_file("rewritten.rs", None, Some("h2-new"), None),
+        ],
+    );
+
+    let restored = SessionRestorer::restore(saved, &fresh);
+
+    assert_eq!(
+        restored.snapshot.files[&RepoPath("untouched.rs".into())].reviewed_hunks,
+        BTreeSet::from([0])
+    );
+    assert!(
+        restored.snapshot.files[&RepoPath("rewritten.rs".into())]
+            .reviewed_hunks
+            .is_empty(),
+        "a rewritten file starts over, hunks included"
+    );
+}
+
+#[test]
+fn a_reviewed_file_from_an_older_session_adopts_all_its_hunks() {
+    let mut saved = saved_session(ProviderKind::GitHub, "head-a");
+    saved
+        .files
+        .get_mut(&RepoPath("src/lib.rs".into()))
+        .unwrap()
+        .reviewed_hunks
+        .clear();
+    let fresh = provider_snapshot(
+        ProviderKind::GitHub,
+        "head-a",
+        vec![changed_file(
+            "src/lib.rs",
+            Some("base-1"),
+            Some("head-1"),
+            Some(true),
+        )],
+    );
+
+    let restored = SessionRestorer::restore(saved, &fresh);
+
+    let progress = &restored.snapshot.files[&RepoPath("src/lib.rs".into())];
+    assert!(progress.reviewed);
+    assert_eq!(progress.reviewed_hunks, BTreeSet::from([0]));
 }

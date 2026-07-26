@@ -53,10 +53,10 @@ async fn invokes_delta_with_structure_preserving_arguments() {
             "--max-line-length=0",
             "--true-color=always",
             "--no-gitconfig",
-            "--plus-style=syntax #0e2919",
-            "--minus-style=syntax #2f1a1d",
-            "--plus-emph-style=syntax #1a4c2a",
-            "--minus-emph-style=syntax #58212a",
+            "--plus-style=syntax #1c4428",
+            "--minus-style=syntax #5c2124",
+            "--plus-emph-style=syntax #2d7a4a",
+            "--minus-emph-style=syntax #8b2f38",
         ]
         .into_iter()
         .map(OsString::from)

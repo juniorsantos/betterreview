@@ -75,9 +75,31 @@ pub struct AppState {
     /// The gap key awaiting its `LoadFileContext` result, so the response can
     /// be folded straight into `expanded_gaps` once the fetch completes.
     pub pending_gap: Option<u32>,
+    pub hunk_totals: BTreeMap<RepoPath, u32>,
 }
 
 impl AppState {
+    pub fn hunk_total(&self, path: &RepoPath) -> u32 {
+        self.hunk_totals.get(path).copied().unwrap_or(0)
+    }
+
+    pub fn active_hunk_total(&self) -> u32 {
+        self.provider
+            .files
+            .get(self.active_file_index)
+            .map(|file| self.hunk_total(&file.path))
+            .unwrap_or(0)
+    }
+
+    pub fn refresh_hunk_totals(&mut self) {
+        self.hunk_totals = self
+            .provider
+            .files
+            .iter()
+            .map(|file| (file.path.clone(), crate::diff::count_hunks(file)))
+            .collect();
+    }
+
     pub fn new(provider: ProviderSnapshot, session: SessionSnapshot) -> Self {
         let editor_open = session.editor.is_some();
         let active_file_index = session
@@ -85,7 +107,7 @@ impl AppState {
             .as_ref()
             .and_then(|path| provider.files.iter().position(|file| &file.path == path))
             .unwrap_or(0);
-        Self {
+        let mut state = Self {
             provider,
             session,
             parsed_diff: None,
@@ -125,6 +147,9 @@ impl AppState {
             file_contexts: BTreeMap::new(),
             expanded_gaps: BTreeSet::new(),
             pending_gap: None,
-        }
+            hunk_totals: BTreeMap::new(),
+        };
+        state.refresh_hunk_totals();
+        state
     }
 }

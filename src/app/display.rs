@@ -58,6 +58,9 @@ pub enum DisplayRow {
         new_line: u32,
         text: String,
     },
+    HunkHeader {
+        hunk: u32,
+    },
 }
 
 /// A comment block waiting to be placed into the display, either right after
@@ -184,24 +187,29 @@ pub fn display_rows(state: &AppState) -> Vec<DisplayRow> {
 /// a later mutation such as a new draft or thread update.
 pub fn refresh_display_rows(state: &mut AppState) {
     state.display_rows = display_rows(state);
-    // File headers and metadata (diff --git, index, ---/+++) are noise in a
-    // panel that already names the file; keep only hunk headers and code.
     if let Some(parsed) = state.parsed_diff.as_ref() {
-        let hidden: Vec<bool> = parsed
-            .rows
+        let kinds: Vec<crate::diff::DiffRowKind> = parsed.rows.iter().map(|row| row.kind).collect();
+        let hunk_ids: BTreeMap<usize, u32> = parsed
+            .hunks
             .iter()
-            .map(|row| {
-                matches!(
-                    row.kind,
-                    crate::diff::DiffRowKind::Header
-                        | crate::diff::DiffRowKind::Metadata
-                        | crate::diff::DiffRowKind::HunkHeader
-                )
+            .filter_map(|hunk| Some((hunk.row_range.start.checked_sub(1)?, hunk.id)))
+            .collect();
+        let rows = std::mem::take(&mut state.display_rows);
+        state.display_rows = rows
+            .into_iter()
+            .filter_map(|row| match row {
+                DisplayRow::Diff { row: index } => match kinds.get(index) {
+                    Some(crate::diff::DiffRowKind::HunkHeader) => hunk_ids
+                        .get(&index)
+                        .map(|hunk| DisplayRow::HunkHeader { hunk: *hunk }),
+                    Some(crate::diff::DiffRowKind::Header | crate::diff::DiffRowKind::Metadata) => {
+                        None
+                    }
+                    _ => Some(DisplayRow::Diff { row: index }),
+                },
+                other => Some(other),
             })
             .collect();
-        state
-            .display_rows
-            .retain(|row| !matches!(row, DisplayRow::Diff { row } if hidden.get(*row).copied().unwrap_or(false)));
         state.display_rows.insert(
             0,
             DisplayRow::FileHeader {
@@ -278,12 +286,20 @@ fn insert_gap_rows(state: &mut AppState) {
         let Some(new_line) = new_lines.get(*parsed_index).copied().flatten() else {
             continue;
         };
+        let anchor = match display_index.checked_sub(1) {
+            Some(previous)
+                if matches!(state.display_rows[previous], DisplayRow::HunkHeader { .. }) =>
+            {
+                previous
+            }
+            _ => display_index,
+        };
         match last_new_line {
             None if new_line > 1 => {
-                insert_before.insert(display_index, (0, (new_line - 1) as usize));
+                insert_before.insert(anchor, (0, (new_line - 1) as usize));
             }
             Some(prev) if new_line > prev + 1 => {
-                insert_before.insert(display_index, (prev, (new_line - prev - 1) as usize));
+                insert_before.insert(anchor, (prev, (new_line - prev - 1) as usize));
             }
             _ => {}
         }
@@ -422,7 +438,10 @@ fn row_search_text(state: &AppState, row: &DisplayRow) -> Option<String> {
             .map(|rendered| line_text(&rendered.text)),
         DisplayRow::Comment { text, .. } => Some(text.clone()),
         DisplayRow::Context { text, .. } => Some(text.clone()),
-        DisplayRow::FileHeader { .. } | DisplayRow::OrphanHeader | DisplayRow::Gap { .. } => None,
+        DisplayRow::FileHeader { .. }
+        | DisplayRow::OrphanHeader
+        | DisplayRow::Gap { .. }
+        | DisplayRow::HunkHeader { .. } => None,
     }
 }
 

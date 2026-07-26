@@ -21,7 +21,7 @@ pub const SELECTION: Color = Color::Rgb(0x14, 0x3d, 0x79);
 
 /// Diff line backgrounds handed to delta (hex, without the leading `#`
 /// escaping) — keep in sync with the constants above.
-pub const DELTA_PLUS_BG: &str = "#0e2919";
-pub const DELTA_MINUS_BG: &str = "#2f1a1d";
-pub const DELTA_PLUS_EMPH_BG: &str = "#1a4c2a";
-pub const DELTA_MINUS_EMPH_BG: &str = "#58212a";
+pub const DELTA_PLUS_BG: &str = "#1c4428";
+pub const DELTA_MINUS_BG: &str = "#5c2124";
+pub const DELTA_PLUS_EMPH_BG: &str = "#2d7a4a";
+pub const DELTA_MINUS_EMPH_BG: &str = "#8b2f38";

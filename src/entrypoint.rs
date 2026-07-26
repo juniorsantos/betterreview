@@ -1,5 +1,9 @@
 use async_trait::async_trait;
-use std::{collections::BTreeMap, env, sync::Arc};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    env,
+    sync::Arc,
+};
 
 use crate::{
     cli::{Cli, LaunchRequest, ProviderArg},
@@ -317,6 +321,11 @@ fn fresh_session(snapshot: &crate::domain::ProviderSnapshot) -> SessionSnapshot 
                         head_blob: file.head_blob.clone(),
                     },
                     reviewed,
+                    reviewed_hunks: if reviewed {
+                        (0..crate::diff::count_hunks(file)).collect()
+                    } else {
+                        BTreeSet::new()
+                    },
                     sync: match snapshot.key.provider {
                         ProviderKind::GitHub => ReviewSync::Synced,
                         ProviderKind::GitLab => ReviewSync::LocalOnly,

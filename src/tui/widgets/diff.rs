@@ -88,6 +88,7 @@ fn render_display_row(
                 Style::default().fg(theme::MUTED),
             ),
         ]),
+        DisplayRow::HunkHeader { hunk } => hunk_header_line(state, *hunk),
         DisplayRow::Context { new_line, text } => Line::from(vec![
             Span::styled(format!("{new_line:>5} "), Style::default().fg(theme::MUTED)),
             Span::styled(text.clone(), Style::default().fg(theme::FG)),
@@ -140,6 +141,32 @@ fn render_display_row(
     line
 }
 
+fn hunk_header_line(state: &AppState, hunk: u32) -> Line<'static> {
+    let total = state.active_hunk_total();
+    let reviewed = state
+        .provider
+        .files
+        .get(state.active_file_index)
+        .and_then(|file| state.session.files.get(&file.path))
+        .is_some_and(|progress| progress.reviewed_hunks.contains(&hunk));
+    let (marker, marker_color) = if reviewed {
+        ("✓ revisado", theme::SUCCESS)
+    } else {
+        ("M marcar", theme::MUTED)
+    };
+    Line::from(vec![
+        Span::raw(GUTTER),
+        Span::styled(
+            format!("hunk {}/{total}", hunk + 1),
+            Style::default()
+                .fg(theme::ACCENT)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(" · ", Style::default().fg(theme::MUTED)),
+        Span::styled(marker.to_owned(), Style::default().fg(marker_color)),
+    ])
+}
+
 fn diff_line(diff: &RenderedDiff, row: usize, inner_width: usize) -> Line<'static> {
     let Some(rendered_row): Option<&RenderedRow> = diff.rows.get(row) else {
         return Line::default();
@@ -159,10 +186,8 @@ fn diff_line(diff: &RenderedDiff, row: usize, inner_width: usize) -> Line<'stati
     )];
     spans.extend(rendered_row.text.spans.clone());
     let mut line = Line::from(spans);
-    // GitHub paints added/removed line backgrounds edge to edge; extend
-    // delta's per-character background across the remaining panel width
-    // (the number gutter stays neutral).
     if let Some(bg) = line.spans.iter().skip(1).find_map(|span| span.style.bg) {
+        line.spans[0].style = line.spans[0].style.bg(bg);
         let text_width = line.width();
         if text_width < inner_width {
             line.spans.push(Span::styled(

@@ -1,5 +1,7 @@
+use std::collections::BTreeSet;
+
 use crate::{
-    diff::{DiffCursor, DiffRowKind, validate_selection},
+    diff::{DiffCursor, validate_selection},
     domain::{
         DiffPosition, DiffSelection, DiffSide, DraftId, ProviderKind, ReviewOutcome, SubmitMode,
         SubmitRequest, SubmitResult, Support, ThreadId,
@@ -104,6 +106,7 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
         }
         AppAction::JumpToDisplayRow(index) => jump_to_display_row(state, index),
         AppAction::ToggleReviewed => toggle_reviewed(state),
+        AppAction::ToggleHunkReviewed => toggle_hunk_reviewed(state),
         AppAction::ToggleSelection => {
             let on_diff_row = matches!(
                 state.display_rows.get(state.display_cursor),
@@ -484,6 +487,7 @@ fn is_display_stop(row: &DisplayRow) -> bool {
             }
             | DisplayRow::Gap { .. }
             | DisplayRow::Context { .. }
+            | DisplayRow::HunkHeader { .. }
     )
 }
 
@@ -514,15 +518,12 @@ fn find_display_row(
 /// last hunk — no wraparound — and leaves a notice when there is nowhere
 /// left to go, or when the diff has not parsed yet.
 fn jump_hunk(state: &mut AppState, step: i32) -> Vec<EffectEnvelope> {
-    let Some(diff) = state.parsed_diff.as_ref() else {
+    if state.parsed_diff.is_none() {
         push_notice(state, "diff ainda carregando");
         return Vec::new();
-    };
-    // The raw `@@` rows are hidden from the display; a hunk's landing spot
-    // is its first code row (the one right after the parsed HunkHeader).
+    }
     let target = find_display_row(&state.display_rows, state.display_cursor, step, |row| {
-        matches!(row, DisplayRow::Diff { row } if *row > 0
-                && diff.rows.get(*row - 1).is_some_and(|prev| prev.kind == DiffRowKind::HunkHeader))
+        matches!(row, DisplayRow::HunkHeader { .. })
     });
     match target {
         Some(index) => land_on_display_row(state, index),
@@ -679,33 +680,61 @@ fn activate_file(state: &mut AppState, index: usize) -> Vec<EffectEnvelope> {
     ]
 }
 
-fn toggle_reviewed(state: &mut AppState) -> Vec<EffectEnvelope> {
-    let Some(path) = state
+fn active_path(state: &AppState) -> Option<crate::domain::RepoPath> {
+    state
         .provider
         .files
         .get(state.active_file_index)
         .map(|file| file.path.clone())
-    else {
+}
+
+fn toggle_reviewed(state: &mut AppState) -> Vec<EffectEnvelope> {
+    let Some(path) = active_path(state) else {
         return Vec::new();
     };
-    let Some(progress) = state.session.files.get_mut(&path) else {
+    let Some(progress) = state.session.files.get(&path) else {
         return Vec::new();
     };
     let reviewed = !progress.reviewed;
-    progress.reviewed = reviewed;
-    let message = if reviewed {
-        "✓ arquivo marcado como revisado"
+    let hunks = if reviewed {
+        (0..state.hunk_total(&path)).collect()
     } else {
-        "arquivo desmarcado"
+        BTreeSet::new()
     };
+    let effects = set_file_reviewed(state, &path, reviewed, Some(hunks));
+    push_notice(
+        state,
+        if reviewed {
+            "✓ arquivo marcado como revisado"
+        } else {
+            "arquivo desmarcado"
+        },
+    );
+    effects
+}
+
+fn set_file_reviewed(
+    state: &mut AppState,
+    path: &crate::domain::RepoPath,
+    reviewed: bool,
+    hunks: Option<BTreeSet<u32>>,
+) -> Vec<EffectEnvelope> {
     let remote_supported = matches!(
         state.provider.capabilities.mark_file_reviewed,
         Support::Supported
     );
-    progress.sync = match (state.provider.key.provider, remote_supported) {
+    let sync = match (state.provider.key.provider, remote_supported) {
         (ProviderKind::GitHub, true) => ReviewSync::Pending { desired: reviewed },
         _ => ReviewSync::LocalOnly,
     };
+    let Some(progress) = state.session.files.get_mut(path) else {
+        return Vec::new();
+    };
+    progress.reviewed = reviewed;
+    if let Some(hunks) = hunks {
+        progress.reviewed_hunks = hunks;
+    }
+    progress.sync = sync;
     let mut effects = Vec::new();
     if remote_supported {
         let generation = Some(state.provider.head.clone());
@@ -718,13 +747,66 @@ fn toggle_reviewed(state: &mut AppState) -> Vec<EffectEnvelope> {
             },
         ));
     }
-    effects.push(envelope(
+    effects.push(save_session(state));
+    effects
+}
+
+fn save_session(state: &mut AppState) -> EffectEnvelope {
+    envelope(
         state,
         None,
         AppEffect::SaveSession {
             snapshot: Box::new(state.session.clone()),
         },
-    ));
+    )
+}
+
+fn hunk_at_cursor(state: &AppState) -> Option<u32> {
+    match state.display_rows.get(state.display_cursor)? {
+        DisplayRow::HunkHeader { hunk } => Some(*hunk),
+        DisplayRow::Diff { row } => state
+            .parsed_diff
+            .as_ref()?
+            .hunks
+            .iter()
+            .find(|hunk| hunk.row_range.contains(row))
+            .map(|hunk| hunk.id),
+        _ => None,
+    }
+}
+
+fn toggle_hunk_reviewed(state: &mut AppState) -> Vec<EffectEnvelope> {
+    let Some(hunk) = hunk_at_cursor(state) else {
+        push_notice(state, "nenhum hunk sob o cursor");
+        return Vec::new();
+    };
+    let Some(path) = active_path(state) else {
+        return Vec::new();
+    };
+    let total = state.hunk_total(&path);
+    let Some(progress) = state.session.files.get_mut(&path) else {
+        return Vec::new();
+    };
+    let marked = !progress.reviewed_hunks.remove(&hunk);
+    if marked {
+        progress.reviewed_hunks.insert(hunk);
+    }
+    let done = progress.reviewed_hunks.len() as u32;
+    let complete = total > 0 && done == total;
+    let was_reviewed = progress.reviewed;
+
+    let effects = if complete == was_reviewed {
+        vec![save_session(state)]
+    } else {
+        set_file_reviewed(state, &path, complete, None)
+    };
+    let message = if complete {
+        format!("✓ arquivo revisado ({done}/{total} hunks)")
+    } else if marked {
+        format!("✓ hunk {} revisado ({done}/{total})", hunk + 1)
+    } else {
+        format!("hunk {} desmarcado ({done}/{total})", hunk + 1)
+    };
     push_notice(state, message);
     effects
 }
@@ -818,6 +900,7 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
         EffectOutcome::SnapshotRefreshed(result) => match *result {
             Ok(snapshot) => {
                 state.provider = snapshot;
+                state.refresh_hunk_totals();
                 refresh_display_rows(state);
             }
             Err(message) => state.error_banner = Some(message),
@@ -914,7 +997,12 @@ fn set_error(state: &mut AppState, result: Result<(), String>) {
 fn open_editor(state: &mut AppState, suggestion: bool) {
     let blocks_editor = matches!(
         state.display_rows.get(state.display_cursor),
-        Some(DisplayRow::Comment { .. } | DisplayRow::Gap { .. } | DisplayRow::Context { .. })
+        Some(
+            DisplayRow::Comment { .. }
+                | DisplayRow::Gap { .. }
+                | DisplayRow::Context { .. }
+                | DisplayRow::HunkHeader { .. }
+        )
     );
     if blocks_editor {
         push_notice(state, "mova para uma linha de código");

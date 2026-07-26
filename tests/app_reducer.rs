@@ -47,6 +47,7 @@ fn app_with_reviewed_pattern(pattern: [bool; 4]) -> AppState {
                         head_blob: file.head_blob.clone(),
                     },
                     reviewed,
+                    reviewed_hunks: Default::default(),
                     sync: ReviewSync::Synced,
                 },
             )
@@ -114,6 +115,7 @@ fn app_with_paths_all_unreviewed(paths: &[&str]) -> AppState {
                         head_blob: file.head_blob.clone(),
                     },
                     reviewed: false,
+                    reviewed_hunks: Default::default(),
                     sync: ReviewSync::Synced,
                 },
             )
@@ -1292,11 +1294,14 @@ fn finished_effect_clears_its_label_and_tick_spins_while_busy() {
 }
 
 /// Two hunks of two rows each: `[HunkHeader, Context, HunkHeader, Context]`.
-/// Comments are absent, so display rows mirror the parsed/rendered rows
-/// one-to-one (`Diff{0}..Diff{3}`).
+/// Comments are absent, so the display rows are
+/// `[FileHeader, HunkHeader{0}, Diff{1}, Gap, HunkHeader{1}, Diff{3}, Gap]`.
 fn state_with_two_hunks() -> AppState {
     let mut state = app_with_reviewed_pattern([false; 4]);
     let path = RepoPath("src/file_0.rs".into());
+    state.provider.files[0].patch =
+        PatchAvailability::Available("@@ -1 +1 @@\n context\n@@ -5 +5 @@\n context\n".into());
+    state.refresh_hunk_totals();
     state.parsed_diff = Some(ParsedFileDiff {
         path: path.clone(),
         head: CommitOid("new-head".into()),
@@ -1334,7 +1339,24 @@ fn state_with_two_hunks() -> AppState {
                 right: Some(comment_pos(&path, DiffSide::Right, 5)),
             },
         ],
-        hunks: Vec::new(),
+        hunks: vec![
+            betterreview::diff::DiffHunk {
+                id: 0,
+                old_start: 1,
+                old_count: 1,
+                new_start: 1,
+                new_count: 1,
+                row_range: 1..2,
+            },
+            betterreview::diff::DiffHunk {
+                id: 1,
+                old_start: 5,
+                old_count: 1,
+                new_start: 5,
+                new_count: 1,
+                row_range: 3..4,
+            },
+        ],
     });
     state.rendered_diff = Some(RenderedDiff {
         rows: (0..4).map(|index| diff_row(index, None, None)).collect(),
@@ -1344,29 +1366,47 @@ fn state_with_two_hunks() -> AppState {
 }
 
 #[test]
+fn each_hunk_gets_a_header_row_in_place_of_its_raw_at_line() {
+    let state = state_with_two_hunks();
+
+    assert_eq!(state.display_rows[1], DisplayRow::HunkHeader { hunk: 0 });
+    assert_eq!(state.display_rows[2], DisplayRow::Diff { row: 1 });
+    assert_eq!(state.display_rows[4], DisplayRow::HunkHeader { hunk: 1 });
+    assert_eq!(state.display_rows[5], DisplayRow::Diff { row: 3 });
+    assert!(
+        matches!(state.display_rows[3], DisplayRow::Gap { .. }),
+        "the hidden-lines gap sits above the header it precedes, not below it"
+    );
+}
+
+#[test]
 fn bracket_h_jumps_to_the_next_hunk_header() {
     let mut state = state_with_two_hunks();
-    assert_eq!(state.display_cursor, 1, "starts on the first hunk header");
+    assert_eq!(state.display_cursor, 2, "starts on the first hunk's code");
 
     update(&mut state, AppEvent::Action(AppAction::NextHunk));
 
+    assert_eq!(state.display_cursor, 4, "lands on the second hunk's header");
     assert_eq!(
-        state.display_cursor, 3,
-        "lands on the second hunk's first row"
+        state.session.cursor_row, 1,
+        "a header is not a code row; the code cursor stays put"
     );
-    assert_eq!(state.session.cursor_row, 3);
+
+    update(&mut state, AppEvent::Action(AppAction::PreviousHunk));
+
+    assert_eq!(state.display_cursor, 1, "back to the first hunk's header");
 }
 
 #[test]
 fn hunk_jump_clamps_at_the_last_hunk() {
     let mut state = state_with_two_hunks();
-    state.display_cursor = 3;
-    state.session.cursor_row = 2;
+    state.display_cursor = 5;
+    state.session.cursor_row = 3;
 
     update(&mut state, AppEvent::Action(AppAction::NextHunk));
 
     assert_eq!(
-        state.display_cursor, 3,
+        state.display_cursor, 5,
         "clamped, no wrap past the last hunk"
     );
     assert!(
@@ -1906,11 +1946,13 @@ fn gap_row_sits_between_the_two_hunks_with_the_right_hidden_count() {
             DisplayRow::FileHeader {
                 path: "src/file_0.rs".into()
             },
+            DisplayRow::HunkHeader { hunk: 0 },
             DisplayRow::Diff { row: 1 },
             DisplayRow::Gap {
                 after_new_line: 1,
                 hidden: 3
             },
+            DisplayRow::HunkHeader { hunk: 1 },
             DisplayRow::Diff { row: 3 },
             DisplayRow::Gap {
                 after_new_line: 5,
@@ -2045,6 +2087,7 @@ fn expanded_gap_emits_context_rows_from_the_cached_file() {
             DisplayRow::FileHeader {
                 path: "src/file_0.rs".into()
             },
+            DisplayRow::HunkHeader { hunk: 0 },
             DisplayRow::Diff { row: 1 },
             DisplayRow::Context {
                 new_line: 2,
@@ -2058,6 +2101,7 @@ fn expanded_gap_emits_context_rows_from_the_cached_file() {
                 new_line: 4,
                 text: "four".into()
             },
+            DisplayRow::HunkHeader { hunk: 1 },
             DisplayRow::Diff { row: 3 },
         ]
     );
@@ -2315,4 +2359,124 @@ fn jump_to_display_row_clamps_past_the_end_of_the_display_rows() {
     );
 
     assert_eq!(state.display_cursor, last);
+}
+
+// --- Hunk-level review progress ---
+
+fn reviewed_hunks(state: &AppState) -> Vec<u32> {
+    state.session.files[&RepoPath("src/file_0.rs".into())]
+        .reviewed_hunks
+        .iter()
+        .copied()
+        .collect()
+}
+
+fn file_reviewed(state: &AppState) -> bool {
+    state.session.files[&RepoPath("src/file_0.rs".into())].reviewed
+}
+
+fn set_file_reviewed_effects(effects: &[betterreview::app::EffectEnvelope]) -> Vec<bool> {
+    effects
+        .iter()
+        .filter_map(|envelope| match &envelope.effect {
+            AppEffect::SetFileReviewed { reviewed, .. } => Some(*reviewed),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn shift_m_marks_the_hunk_under_the_cursor_and_saves_the_session() {
+    let mut state = state_with_two_hunks();
+    assert_eq!(
+        state.display_cursor, 2,
+        "cursor sits on the first hunk's code"
+    );
+
+    let effects = update(&mut state, AppEvent::Action(AppAction::ToggleHunkReviewed));
+
+    assert_eq!(reviewed_hunks(&state), vec![0]);
+    assert!(!file_reviewed(&state), "one hunk of two is not the file");
+    assert!(
+        effects
+            .iter()
+            .any(|envelope| matches!(envelope.effect, AppEffect::SaveSession { .. }))
+    );
+}
+
+#[test]
+fn shift_m_on_a_header_row_marks_that_hunk() {
+    let mut state = state_with_two_hunks();
+    state.display_cursor = 4;
+
+    update(&mut state, AppEvent::Action(AppAction::ToggleHunkReviewed));
+
+    assert_eq!(reviewed_hunks(&state), vec![1]);
+}
+
+#[test]
+fn shift_m_twice_unmarks_the_hunk() {
+    let mut state = state_with_two_hunks();
+
+    update(&mut state, AppEvent::Action(AppAction::ToggleHunkReviewed));
+    update(&mut state, AppEvent::Action(AppAction::ToggleHunkReviewed));
+
+    assert!(reviewed_hunks(&state).is_empty());
+}
+
+#[test]
+fn marking_every_hunk_marks_the_file_and_syncs_it() {
+    let mut state = state_with_two_hunks();
+
+    update(&mut state, AppEvent::Action(AppAction::ToggleHunkReviewed));
+    state.display_cursor = 4;
+    let effects = update(&mut state, AppEvent::Action(AppAction::ToggleHunkReviewed));
+
+    assert_eq!(reviewed_hunks(&state), vec![0, 1]);
+    assert!(file_reviewed(&state));
+    assert_eq!(set_file_reviewed_effects(&effects), vec![true]);
+    assert_eq!(
+        state.session.files[&RepoPath("src/file_0.rs".into())].sync,
+        ReviewSync::Pending { desired: true }
+    );
+}
+
+#[test]
+fn unmarking_a_hunk_of_a_fully_reviewed_file_unmarks_the_file() {
+    let mut state = state_with_two_hunks();
+    update(&mut state, AppEvent::Action(AppAction::ToggleHunkReviewed));
+    state.display_cursor = 4;
+    update(&mut state, AppEvent::Action(AppAction::ToggleHunkReviewed));
+
+    let effects = update(&mut state, AppEvent::Action(AppAction::ToggleHunkReviewed));
+
+    assert_eq!(reviewed_hunks(&state), vec![0]);
+    assert!(!file_reviewed(&state));
+    assert_eq!(set_file_reviewed_effects(&effects), vec![false]);
+}
+
+#[test]
+fn m_fills_every_hunk_and_clears_them_again() {
+    let mut state = state_with_two_hunks();
+
+    update(&mut state, AppEvent::Action(AppAction::ToggleReviewed));
+    assert_eq!(reviewed_hunks(&state), vec![0, 1]);
+    assert!(file_reviewed(&state));
+
+    update(&mut state, AppEvent::Action(AppAction::ToggleReviewed));
+    assert!(reviewed_hunks(&state).is_empty());
+    assert!(!file_reviewed(&state));
+}
+
+#[test]
+fn shift_m_on_a_file_without_hunks_leaves_a_notice() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    state.provider.files[0].patch = PatchAvailability::Binary;
+    state.refresh_hunk_totals();
+
+    let effects = update(&mut state, AppEvent::Action(AppAction::ToggleHunkReviewed));
+
+    assert!(effects.is_empty());
+    assert!(reviewed_hunks(&state).is_empty());
+    assert!(state.notices.iter().any(|notice| notice.contains("hunk")));
 }

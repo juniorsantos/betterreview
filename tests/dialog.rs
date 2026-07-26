@@ -67,6 +67,7 @@ fn base_app() -> AppState {
                     head_blob: Some("head-blob".into()),
                 },
                 reviewed: false,
+                reviewed_hunks: Default::default(),
                 sync: ReviewSync::Synced,
             },
         )]),

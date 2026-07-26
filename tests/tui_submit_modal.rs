@@ -68,6 +68,7 @@ fn app_with_drafts(count: usize) -> AppState {
                     head_blob: Some("head-blob".into()),
                 },
                 reviewed: false,
+                reviewed_hunks: Default::default(),
                 sync: ReviewSync::Synced,
             },
         )]),

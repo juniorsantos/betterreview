@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use betterreview::{
     domain::{
@@ -59,6 +59,7 @@ fn snapshot(updated_at: OffsetDateTime) -> SessionSnapshot {
                     head_blob: Some("head-blob".into()),
                 },
                 reviewed: true,
+                reviewed_hunks: Default::default(),
                 sync: ReviewSync::LocalOnly,
             },
         )]),
@@ -206,6 +207,43 @@ fn schema_mismatch_is_visible() {
         store.load(&snapshot.key),
         Err(StateError::SchemaMismatch { found, .. }) if found == SESSION_SCHEMA_VERSION + 1
     ));
+}
+
+#[test]
+fn session_written_before_hunk_progress_loads_with_no_reviewed_hunks() {
+    let (_root, store) = store();
+    let path = store.paths().session_path(&key()).unwrap();
+    let mut json = serde_json::to_value(snapshot(OffsetDateTime::UNIX_EPOCH)).unwrap();
+    for progress in json["files"].as_object_mut().unwrap().values_mut() {
+        assert!(
+            progress
+                .as_object_mut()
+                .unwrap()
+                .remove("reviewed_hunks")
+                .is_some()
+        );
+    }
+    std::fs::write(&path, serde_json::to_vec(&json).unwrap()).unwrap();
+
+    let loaded = store.load(&key()).unwrap().expect("session loads");
+
+    assert_eq!(loaded.schema_version, SESSION_SCHEMA_VERSION);
+    let progress = loaded.files.values().next().unwrap();
+    assert!(progress.reviewed);
+    assert!(progress.reviewed_hunks.is_empty());
+}
+
+#[test]
+fn reviewed_hunks_round_trip_through_the_session_file() {
+    let (_root, store) = store();
+    let mut snapshot = snapshot(OffsetDateTime::UNIX_EPOCH);
+    for progress in snapshot.files.values_mut() {
+        progress.reviewed_hunks = BTreeSet::from([0, 2]);
+    }
+    let mut handle = store.open_writable(&snapshot.key).unwrap();
+    handle.save(&snapshot).unwrap();
+
+    assert_eq!(store.load(&snapshot.key).unwrap(), Some(snapshot));
 }
 
 #[test]

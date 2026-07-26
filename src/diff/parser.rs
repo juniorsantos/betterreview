@@ -88,6 +88,18 @@ pub fn parse_file_patch(file: &ChangedFile, head: &CommitOid) -> Result<ParsedFi
     })
 }
 
+pub fn count_hunks(file: &ChangedFile) -> u32 {
+    let PatchAvailability::Available(patch) = &file.patch else {
+        return 0;
+    };
+    patch
+        .split_terminator('\n')
+        .filter(|line| line.starts_with("@@"))
+        .count()
+        .try_into()
+        .unwrap_or(u32::MAX)
+}
+
 fn parse_hunk_header(line: &str) -> Result<(u32, u32, u32, u32), DiffError> {
     let body = line
         .strip_prefix("@@ ")

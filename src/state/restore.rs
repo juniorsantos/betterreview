@@ -79,6 +79,7 @@ fn reconcile_same_head(
             .unwrap_or_else(|| reset_progress(file, fresh.key.provider));
         progress.identity = identity(file);
         reconcile_remote(&path, &mut progress, file, fresh.key.provider, notices);
+        adopt_whole_file_hunks(&mut progress, file);
         files.insert(path, progress);
     }
     saved.files = files;
@@ -106,6 +107,7 @@ fn reconcile_changed_head(
         if matches {
             reconcile_remote(&path, &mut progress, file, fresh.key.provider, notices);
         }
+        adopt_whole_file_hunks(&mut progress, file);
         files.insert(path, progress);
     }
     saved.files = files;
@@ -152,10 +154,21 @@ fn identities_match(saved: &ContentIdentity, fresh: &ChangedFile) -> bool {
         && saved.head_blob == fresh.head_blob
 }
 
+fn adopt_whole_file_hunks(progress: &mut FileProgress, file: &ChangedFile) {
+    if !progress.reviewed {
+        return;
+    }
+    let total = crate::diff::count_hunks(file);
+    if total > 0 && progress.reviewed_hunks.len() as u32 != total {
+        progress.reviewed_hunks = (0..total).collect();
+    }
+}
+
 fn reset_progress(file: &ChangedFile, provider: ProviderKind) -> FileProgress {
     FileProgress {
         identity: identity(file),
         reviewed: false,
+        reviewed_hunks: Default::default(),
         sync: match provider {
             ProviderKind::GitHub => ReviewSync::Synced,
             ProviderKind::GitLab => ReviewSync::LocalOnly,

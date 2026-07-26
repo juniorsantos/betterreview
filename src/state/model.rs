@@ -1,4 +1,7 @@
-use std::{collections::BTreeMap, path::PathBuf};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::PathBuf,
+};
 
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
@@ -43,6 +46,8 @@ pub struct ContentIdentity {
 pub struct FileProgress {
     pub identity: ContentIdentity,
     pub reviewed: bool,
+    #[serde(default)]
+    pub reviewed_hunks: BTreeSet<u32>,
     pub sync: ReviewSync,
 }
 

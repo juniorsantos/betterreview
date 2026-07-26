@@ -37,6 +37,7 @@ pub enum AppAction {
     /// which can land on any drawn line, not just a navigation stop.
     JumpToDisplayRow(usize),
     ToggleReviewed,
+    ToggleHunkReviewed,
     ToggleSelection,
     OpenComment,
     OpenSuggestion,

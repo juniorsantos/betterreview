@@ -51,6 +51,7 @@ fn app() -> AppState {
                         head_blob: file.head_blob.clone(),
                     },
                     reviewed: false,
+                    reviewed_hunks: Default::default(),
                     sync: ReviewSync::Synced,
                 },
             )
@@ -198,6 +199,7 @@ fn generated_files_show_muted_marker_instead_of_status_letter() {
                         head_blob: file.head_blob.clone(),
                     },
                     reviewed: false,
+                    reviewed_hunks: Default::default(),
                     sync: ReviewSync::Synced,
                 },
             )
@@ -311,4 +313,46 @@ fn enter_toggles_the_fold_when_files_panel_is_focused() {
         event,
         Some(AppEvent::Action(AppAction::ToggleFold))
     ));
+}
+
+#[test]
+fn files_panel_shows_hunk_progress_for_every_file_with_a_patch() {
+    let mut state = app();
+    let path = RepoPath("src/app/one.rs".into());
+    state.provider.files[0].patch = PatchAvailability::Available(
+        "@@ -1 +1 @@\n-old\n+new\n@@ -9 +9 @@\n-old\n+new\n@@ -20 +20 @@\n-old\n+new\n".into(),
+    );
+    state.refresh_hunk_totals();
+    state
+        .session
+        .files
+        .get_mut(&path)
+        .unwrap()
+        .reviewed_hunks
+        .insert(0);
+    state.files_expanded = true;
+
+    let screen = screen(&state);
+
+    assert!(
+        screen.contains("1/3"),
+        "partial progress on the edited file"
+    );
+    assert!(screen.contains("0/1"), "untouched files still show a total");
+}
+
+#[test]
+fn files_panel_omits_hunk_progress_when_the_patch_is_unavailable() {
+    let mut state = app();
+    state.provider.files[0].patch = PatchAvailability::Binary;
+    state.refresh_hunk_totals();
+    state.files_expanded = true;
+
+    let screen = screen(&state);
+    let line = screen
+        .lines()
+        .find(|line| line.contains("one.rs"))
+        .expect("binary file row rendered");
+
+    assert!(!line.contains("/"), "no denominator for a patchless file");
 }

@@ -152,6 +152,19 @@ fn file_item<'a>(
     let generated = is_generated(&file.path.0);
 
     let mut right = Vec::new();
+    let total_hunks = state.hunk_total(&file.path);
+    if total_hunks > 0 {
+        let done = progress.map_or(0, |progress| progress.reviewed_hunks.len());
+        let color = match done as u32 {
+            0 => theme::MUTED,
+            done if done == total_hunks => theme::SUCCESS,
+            _ => theme::ACCENT,
+        };
+        right.push(Span::styled(
+            format!("{done}/{total_hunks} "),
+            Style::default().fg(color),
+        ));
+    }
     if notes > 0 {
         right.push(Span::styled(
             format!("*{notes} "),

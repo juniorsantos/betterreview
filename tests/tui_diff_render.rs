@@ -71,6 +71,7 @@ fn app() -> AppState {
                     head_blob: Some("head-blob".into()),
                 },
                 reviewed: false,
+                reviewed_hunks: Default::default(),
                 sync: ReviewSync::Synced,
             },
         )]),
@@ -161,6 +162,181 @@ fn app_with_gap() -> AppState {
     });
     refresh_display_rows(&mut state);
     state
+}
+
+fn app_with_two_hunk_headers() -> AppState {
+    let mut state = app();
+    let path = RepoPath("src/app.rs".into());
+    state.provider.files[0].patch =
+        PatchAvailability::Available("@@ -3,1 +1,1 @@\n context\n@@ -9,1 +9,1 @@\n+added\n".into());
+    state.refresh_hunk_totals();
+    let header = |raw: &str| DiffRow {
+        raw: raw.into(),
+        kind: DiffRowKind::HunkHeader,
+        old_line: None,
+        new_line: None,
+        left: None,
+        right: None,
+    };
+    state.parsed_diff = Some(ParsedFileDiff {
+        path: path.clone(),
+        head: CommitOid("head".into()),
+        rows: vec![
+            header("@@ -3,1 +1,1 @@"),
+            DiffRow {
+                raw: " context".into(),
+                kind: DiffRowKind::Context,
+                old_line: Some(3),
+                new_line: Some(1),
+                left: Some(position(DiffSide::Left, 3)),
+                right: Some(position(DiffSide::Right, 1)),
+            },
+            header("@@ -9,1 +9,1 @@"),
+            DiffRow {
+                raw: "+added".into(),
+                kind: DiffRowKind::Added,
+                old_line: None,
+                new_line: Some(9),
+                left: None,
+                right: Some(position(DiffSide::Right, 9)),
+            },
+        ],
+        hunks: vec![
+            betterreview::diff::DiffHunk {
+                id: 0,
+                old_start: 3,
+                old_count: 1,
+                new_start: 1,
+                new_count: 1,
+                row_range: 1..2,
+            },
+            betterreview::diff::DiffHunk {
+                id: 1,
+                old_start: 9,
+                old_count: 1,
+                new_start: 9,
+                new_count: 1,
+                row_range: 3..4,
+            },
+        ],
+    });
+    state.rendered_diff = Some(RenderedDiff {
+        rows: vec![
+            RenderedRow {
+                text: Line::raw("@@ -3,1 +1,1 @@"),
+                binding: RowBinding {
+                    row_index: 0,
+                    left: None,
+                    right: None,
+                },
+            },
+            RenderedRow {
+                text: Line::raw("context"),
+                binding: RowBinding {
+                    row_index: 1,
+                    left: Some(position(DiffSide::Left, 3)),
+                    right: Some(position(DiffSide::Right, 1)),
+                },
+            },
+            RenderedRow {
+                text: Line::raw("@@ -9,1 +9,1 @@"),
+                binding: RowBinding {
+                    row_index: 2,
+                    left: None,
+                    right: None,
+                },
+            },
+            RenderedRow {
+                text: Line::raw("+added"),
+                binding: RowBinding {
+                    row_index: 3,
+                    left: None,
+                    right: Some(position(DiffSide::Right, 9)),
+                },
+            },
+        ],
+    });
+    refresh_display_rows(&mut state);
+    state
+}
+
+#[test]
+fn unreviewed_hunk_header_shows_its_position_and_the_marking_key() {
+    let state = app_with_two_hunk_headers();
+    let screen = screen_wide(&draw_wide(&state));
+
+    assert!(screen.contains("hunk 1/2 · M marcar"));
+    assert!(screen.contains("hunk 2/2 · M marcar"));
+    assert!(!screen.contains("@@ -3,1 +1,1 @@"));
+}
+
+#[test]
+fn reviewed_hunk_header_says_so() {
+    let mut state = app_with_two_hunk_headers();
+    let path = RepoPath("src/app.rs".into());
+    state
+        .session
+        .files
+        .get_mut(&path)
+        .unwrap()
+        .reviewed_hunks
+        .insert(1);
+    let screen = screen_wide(&draw_wide(&state));
+
+    assert!(screen.contains("hunk 1/2 · M marcar"));
+    assert!(screen.contains("hunk 2/2 · ✓ revisado"));
+}
+
+#[test]
+fn added_line_background_covers_the_line_number_gutter() {
+    let mut state = app();
+    state.rendered_diff = Some(RenderedDiff {
+        rows: vec![
+            RenderedRow {
+                text: Line::raw("context"),
+                binding: RowBinding {
+                    row_index: 0,
+                    left: Some(position(DiffSide::Left, 3)),
+                    right: Some(position(DiffSide::Right, 4)),
+                },
+            },
+            RenderedRow {
+                text: Line::from(ratatui::text::Span::styled(
+                    "+added",
+                    ratatui::style::Style::default()
+                        .bg(ratatui::style::Color::Rgb(0x1c, 0x44, 0x28)),
+                )),
+                binding: RowBinding {
+                    row_index: 1,
+                    left: None,
+                    right: Some(position(DiffSide::Right, 5)),
+                },
+            },
+        ],
+    });
+    state.parsed_diff = None;
+    state.session.cursor_row = 0;
+    refresh_display_rows(&mut state);
+
+    let terminal = draw(&state);
+    let buffer = terminal.backend().buffer();
+    let (row, text) = (0..24)
+        .map(|y| {
+            (
+                y,
+                (0..80)
+                    .map(|x| buffer.cell((x, y)).unwrap().symbol())
+                    .collect::<String>(),
+            )
+        })
+        .find(|(_, text)| text.contains("+added"))
+        .expect("added row rendered");
+
+    let plus = text.find("+added").unwrap() as u16;
+    let expected = Some(ratatui::style::Color::Rgb(0x1c, 0x44, 0x28));
+    assert_eq!(buffer.cell((plus - 1, row)).unwrap().style().bg, expected);
+    assert_eq!(buffer.cell((plus - 6, row)).unwrap().style().bg, expected);
+    assert_eq!(buffer.cell((77, row)).unwrap().style().bg, expected);
 }
 
 #[test]

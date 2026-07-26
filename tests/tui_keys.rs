@@ -64,6 +64,7 @@ fn base_app() -> AppState {
                     head_blob: Some("head-blob".into()),
                 },
                 reviewed: false,
+                reviewed_hunks: Default::default(),
                 sync: ReviewSync::Synced,
             },
         )]),
@@ -570,5 +571,31 @@ fn z_still_toggles_fold_elsewhere() {
     assert!(matches!(
         event,
         Some(AppEvent::Action(AppAction::ToggleFold))
+    ));
+}
+
+#[test]
+fn shift_m_marks_the_hunk_while_m_still_marks_the_file() {
+    let mut app = base_app();
+    let mut keymap = KeyMap::default();
+
+    let hunk = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('M'), KeyModifiers::SHIFT),
+    );
+    let file = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('m'), KeyModifiers::NONE),
+    );
+
+    assert!(matches!(
+        hunk,
+        Some(AppEvent::Action(AppAction::ToggleHunkReviewed))
+    ));
+    assert!(matches!(
+        file,
+        Some(AppEvent::Action(AppAction::ToggleReviewed))
     ));
 }

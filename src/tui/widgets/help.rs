@@ -43,7 +43,8 @@ const COLUMNS: [Column; 3] = [
         rows: &[
             ("e", "expandir painel"),
             ("z", "recolher pasta"),
-            ("m", "revisado"),
+            ("m", "arquivo revisado"),
+            ("M", "hunk revisado"),
         ],
     },
     Column {
