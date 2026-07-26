@@ -40,7 +40,7 @@ const COLUMNS: [Column; 4] = [
     Column {
         title: "Review",
         rows: &[
-            ("m", "file done"),
+            ("m / space", "file done"),
             ("M", "hunk done"),
             ("v", "select"),
             ("c", "comment"),

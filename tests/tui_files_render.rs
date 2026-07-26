@@ -621,3 +621,39 @@ fn the_marked_folder_carries_the_highlight() {
         "the marked folder is highlighted like a marked file"
     );
 }
+
+#[test]
+fn space_toggles_reviewed_because_the_marker_reads_as_a_checkbox() {
+    let mut state = app();
+    state.focus = betterreview::app::AppFocus::Files;
+    let mut keymap = KeyMap::default();
+
+    let event = handle_key(
+        &mut state,
+        &mut keymap,
+        KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+    );
+
+    assert!(matches!(
+        event,
+        Some(AppEvent::Action(AppAction::ToggleReviewed))
+    ));
+}
+
+#[test]
+fn space_outside_the_files_panel_is_not_a_reviewed_toggle() {
+    let mut state = app();
+    state.focus = betterreview::app::AppFocus::Diff;
+    let mut keymap = KeyMap::default();
+
+    let event = handle_key(
+        &mut state,
+        &mut keymap,
+        KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+    );
+
+    assert!(
+        !matches!(event, Some(AppEvent::Action(AppAction::ToggleReviewed))),
+        "the checkbox reading only applies where the checkbox is drawn"
+    );
+}

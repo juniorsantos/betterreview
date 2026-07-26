@@ -206,6 +206,13 @@ pub fn handle_key(app: &mut AppState, keymap: &mut KeyMap, key: KeyEvent) -> Opt
     if app.focus == AppFocus::Files && key.code == KeyCode::Enter {
         return action(AppAction::ToggleFold);
     }
+    if app.focus == AppFocus::Files
+        && key.code == KeyCode::Char(' ')
+        && key.modifiers == KeyModifiers::NONE
+        && !app.folder_selected
+    {
+        return action(AppAction::ToggleReviewed);
+    }
     if app.focus == AppFocus::Diff {
         if let Some(event) = gap_row_key(app, key) {
             return Some(event);
