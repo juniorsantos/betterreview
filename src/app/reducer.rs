@@ -988,7 +988,17 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
             }
             Err(message) => state.error_banner = Some(message),
         },
-        EffectOutcome::Saved(result) | EffectOutcome::Completed(result) => set_error(state, result),
+        EffectOutcome::Saved(result) => set_error(state, result),
+        EffectOutcome::Completed(result) => {
+            if result.is_ok() {
+                return vec![envelope(
+                    state,
+                    Some(state.provider.head.clone()),
+                    AppEffect::RefreshSnapshot,
+                )];
+            }
+            set_error(state, result);
+        }
         EffectOutcome::FileReviewed {
             path,
             reviewed,
@@ -1053,6 +1063,11 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
                 state.editor_open = false;
                 state.replying_thread = None;
                 refresh_display_rows(state);
+                return vec![envelope(
+                    state,
+                    Some(state.provider.head.clone()),
+                    AppEffect::RefreshSnapshot,
+                )];
             }
             Err(message) => state.error_banner = Some(message),
         },

@@ -1292,7 +1292,18 @@ fn finished_effect_clears_its_label_and_tick_spins_while_busy() {
             outcome: EffectOutcome::Completed(Ok(())),
         })),
     );
-    assert!(state.pending_labels.is_empty());
+    assert!(
+        !state.pending_labels.contains_key(&7),
+        "the finished operation drops its own label"
+    );
+    assert!(
+        state
+            .pending_labels
+            .values()
+            .all(|label| *label == "refreshing…"),
+        "and only the refetch it scheduled is still pending: {:?}",
+        state.pending_labels
+    );
 }
 
 /// Two hunks of two rows each: `[HunkHeader, Context, HunkHeader, Context]`.
@@ -2980,4 +2991,76 @@ fn commenting_a_downward_selection_anchors_on_the_line_the_cursor_ended_on() {
         selection.end.line, 4,
         "and the card hangs off the line the cursor ended on, not the one it started from"
     );
+}
+
+#[test]
+fn a_finished_reply_refetches_so_a_pending_answer_is_not_lost() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let thread = betterreview::domain::ReviewThread {
+        id: betterreview::domain::ThreadId("t1".into()),
+        path: RepoPath("src/file_0.rs".into()),
+        resolved: false,
+        outdated: false,
+        comments: Vec::new(),
+    };
+
+    let head = state.provider.head.clone();
+    let effects = update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: 1,
+            generation: Some(head),
+            outcome: EffectOutcome::ThreadUpdated(Ok(thread)),
+        })),
+    );
+
+    assert!(
+        effects
+            .iter()
+            .any(|envelope| matches!(envelope.effect, AppEffect::RefreshSnapshot)),
+        "a reply that lands as pending becomes a draft, which the thread payload does not carry"
+    );
+}
+
+#[test]
+fn a_finished_write_that_changed_the_provider_refetches_it() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let head = state.provider.head.clone();
+
+    let effects = update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: 1,
+            generation: Some(head),
+            outcome: EffectOutcome::Completed(Ok(())),
+        })),
+    );
+
+    assert!(
+        effects
+            .iter()
+            .any(|envelope| matches!(envelope.effect, AppEffect::RefreshSnapshot)),
+        "resolving a thread changes provider state; the screen has to follow"
+    );
+}
+
+#[test]
+fn a_failed_write_reports_the_error_instead_of_refetching() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let head = state.provider.head.clone();
+
+    let effects = update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: 1,
+            generation: Some(head),
+            outcome: EffectOutcome::Completed(Err("nope".into())),
+        })),
+    );
+
+    assert!(
+        effects.is_empty(),
+        "nothing changed remotely, nothing to reload"
+    );
+    assert_eq!(state.error_banner.as_deref(), Some("nope"));
 }
