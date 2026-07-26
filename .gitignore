@@ -2,6 +2,7 @@
 *.corrupt-*
 .DS_Store
 /.superpowers/
+/.codegraph/
 /.agents/
 /.codex/
 /.claude/
