@@ -568,11 +568,14 @@ pub fn commented_rows(state: &AppState) -> std::collections::BTreeSet<usize> {
         let Some(selection) = draft.selection.as_ref() else {
             continue;
         };
-        if let (Some(first), Some(last)) = (
-            find_anchor_row(rendered, &selection.start),
-            find_anchor_row(rendered, &selection.end),
-        ) {
-            rows.extend(first.min(last)..=first.max(last));
+        let first = find_anchor_row(rendered, &selection.start);
+        let last = find_anchor_row(rendered, &selection.end);
+        match (first, last) {
+            (Some(first), Some(last)) => rows.extend(first.min(last)..=first.max(last)),
+            (Some(only), None) | (None, Some(only)) => {
+                rows.insert(only);
+            }
+            (None, None) => {}
         }
     }
     for thread in state

@@ -1281,3 +1281,29 @@ fn the_card_keys_stay_visible_when_the_cursor_moves_away() {
         "the keys belong to the card, not to the cursor:\n{screen}"
     );
 }
+
+#[test]
+fn a_selection_reaching_past_the_rendered_diff_still_marks_what_it_can() {
+    let mut state = app();
+    state.provider.drafts.push(DraftComment {
+        id: DraftId("d1".into()),
+        body: "spans into a truncated region".into(),
+        selection: Some(DiffSelection {
+            start: position(DiffSide::Right, 5),
+            end: position(DiffSide::Right, 9_999),
+        }),
+        thread_id: None,
+    });
+    refresh_display_rows(&mut state);
+    state.display_cursor = state.display_rows.len() - 1;
+
+    let screen = screen_wide(&draw_wide(&state));
+
+    assert!(
+        screen
+            .lines()
+            .find(|line| line.contains("+added"))
+            .is_some_and(|line| line.contains('\u{258c}')),
+        "one unresolvable end must not erase the marking on the end that does resolve:\n{screen}"
+    );
+}
