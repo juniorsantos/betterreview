@@ -115,7 +115,7 @@ impl SessionStore for JsonSessionStore {
         let mut summaries = Vec::new();
         for entry in fs::read_dir(self.paths.root())? {
             let path = entry?.path();
-            if path.extension().and_then(|value| value.to_str()) != Some("json") {
+            if !is_session_file(&path) {
                 continue;
             }
             if let Some(snapshot) = self.read_path(&path)? {
@@ -173,6 +173,15 @@ impl SessionStore for JsonSessionStore {
             Err(error) => Err(error.into()),
         }
     }
+}
+
+fn is_session_file(path: &Path) -> bool {
+    if path.extension().and_then(|value| value.to_str()) != Some("json") {
+        return false;
+    }
+    path.file_stem()
+        .and_then(|stem| stem.to_str())
+        .is_some_and(|stem| stem.len() == 64 && stem.bytes().all(|byte| byte.is_ascii_hexdigit()))
 }
 
 fn validate_schema(snapshot: &SessionSnapshot) -> Result<(), StateError> {

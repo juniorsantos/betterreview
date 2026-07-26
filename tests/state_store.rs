@@ -267,3 +267,26 @@ fn corrupt_json_is_quarantined() {
         other => panic!("unexpected error: {other}"),
     }
 }
+
+#[test]
+fn a_stray_file_in_the_state_directory_is_ignored_instead_of_quarantined() {
+    let (_root, store) = store();
+    let snapshot = snapshot(OffsetDateTime::UNIX_EPOCH);
+    store
+        .open_writable(&snapshot.key)
+        .unwrap()
+        .save(&snapshot)
+        .unwrap();
+    let stray = store.paths().root().join("config.json");
+    std::fs::write(&stray, br#"{"diff_layout":"split"}"#).unwrap();
+
+    let summaries = store.list().unwrap();
+
+    assert_eq!(summaries.len(), 1, "only the real session is listed");
+    assert!(stray.exists(), "the config file survives listing");
+    assert_eq!(
+        std::fs::read_to_string(&stray).unwrap(),
+        r#"{"diff_layout":"split"}"#,
+        "and is left untouched"
+    );
+}

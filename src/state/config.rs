@@ -1,4 +1,7 @@
-use std::{fs, io, path::PathBuf};
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -15,12 +18,15 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    pub fn load(paths: &StatePaths) -> Self {
-        Self::read(&Self::path(paths)).unwrap_or_default()
+    pub fn load(state: &StatePaths) -> Self {
+        if let Some(config) = Self::read(&Self::path()) {
+            return config;
+        }
+        Self::read(&legacy_path(state)).unwrap_or_default()
     }
 
-    pub fn save(&self, paths: &StatePaths) -> Result<(), StateError> {
-        let path = Self::path(paths);
+    pub fn save(&self, _state: &StatePaths) -> Result<(), StateError> {
+        let path = Self::path();
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -28,15 +34,26 @@ impl AppConfig {
         Ok(())
     }
 
-    fn path(paths: &StatePaths) -> PathBuf {
-        paths.root().join("config.json")
+    pub fn path() -> PathBuf {
+        if let Some(dir) = std::env::var_os("BETTERREVIEW_CONFIG_DIR") {
+            return PathBuf::from(dir).join("config.json");
+        }
+        let base = std::env::var_os("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .or_else(|| directories::BaseDirs::new().map(|dirs| dirs.home_dir().join(".config")))
+            .unwrap_or_else(|| PathBuf::from(".config"));
+        base.join("betterreview").join("config.json")
     }
 
-    fn read(path: &PathBuf) -> Option<Self> {
+    fn read(path: &Path) -> Option<Self> {
         match fs::read(path) {
             Ok(bytes) => serde_json::from_slice(&bytes).ok(),
             Err(error) if error.kind() == io::ErrorKind::NotFound => None,
             Err(_) => None,
         }
     }
+}
+
+fn legacy_path(state: &StatePaths) -> PathBuf {
+    state.root().join("config.json")
 }
