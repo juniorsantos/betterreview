@@ -1,7 +1,7 @@
 # Changelog
 
 All notable changes to this project are documented in this file, generated
-from conventional commits by [git-cliff](https://git-cliff.org).
+from conventional commits by [release-please](https://github.com/googleapis/release-please).
 
 ## [0.2.0] - 2026-07-26
 
