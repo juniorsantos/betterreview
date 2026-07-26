@@ -366,9 +366,12 @@ fn expanded_gap_shows_the_cached_context_lines_and_hides_the_gap_hint() {
 
     let screen = screen(&draw(&state));
 
-    assert!(screen.contains("line two"));
-    assert!(screen.contains("line three"));
-    assert!(screen.contains("line four"));
+    assert!(
+        screen.contains("          2 \u{2502}  line two"),
+        "an expanded context line keeps its new number in the gutter: {screen}"
+    );
+    assert!(screen.contains("          3 \u{2502}  line three"));
+    assert!(screen.contains("          4 \u{2502}  line four"));
     assert!(!screen.contains("hidden lines"));
 }
 
@@ -413,9 +416,18 @@ fn diff_shows_both_line_number_columns() {
     let terminal = draw(&app());
     let screen = screen(&terminal);
 
-    assert!(screen.contains("    3     4 \u{2502} context"), "{screen}");
-    assert!(screen.contains("    4       \u{2502} -removed"));
-    assert!(screen.contains("          5 \u{2502} +added"));
+    assert!(
+        screen.contains("    3     4 \u{2502} context"),
+        "a context line carries the old and the new number: {screen}"
+    );
+    assert!(
+        screen.contains("    4       \u{2502} -removed"),
+        "a removed line leaves the new cell blank"
+    );
+    assert!(
+        screen.contains("          5 \u{2502} +added"),
+        "an added line leaves the old cell blank"
+    );
 }
 
 #[test]
@@ -888,24 +900,6 @@ fn wrapping_shows_the_whole_line_across_rows() {
             .filter(|line| line.contains("xxxx"))
             .any(|line| line.contains('…')),
         "no diff row is cut when wrapping"
-    );
-}
-
-#[test]
-fn the_gutter_shows_both_line_numbers() {
-    let screen = screen(&draw(&app()));
-
-    assert!(
-        screen.contains("    3     4 │"),
-        "a context line carries the old and the new number: {screen}"
-    );
-    assert!(
-        screen.contains("    4       │ -removed"),
-        "a removed line leaves the new cell blank"
-    );
-    assert!(
-        screen.contains("          5 │ +added"),
-        "an added line leaves the old cell blank"
     );
 }
 

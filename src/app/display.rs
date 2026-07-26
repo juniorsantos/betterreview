@@ -299,12 +299,10 @@ fn insert_gap_rows(state: &mut AppState) {
         return;
     }
 
-    let parsed_hunks: Vec<crate::diff::DiffHunk> = state
-        .parsed_diff
-        .as_ref()
-        .map(|parsed| parsed.hunks.clone())
-        .unwrap_or_default();
-    let parsed_hunks = parsed_hunks.as_slice();
+    let offsets: BTreeMap<u32, Option<i64>> = insert_before
+        .values()
+        .map(|(after, _)| (*after, old_offset(&parsed.hunks, *after)))
+        .collect();
     let old_rows = std::mem::take(&mut state.display_rows);
     let old_len = old_rows.len();
     let mut new_rows = Vec::with_capacity(old_len + insert_before.len());
@@ -316,7 +314,7 @@ fn insert_gap_rows(state: &mut AppState) {
                 after,
                 hidden,
                 &active_path,
-                old_offset(parsed_hunks, after),
+                offsets.get(&after).copied().flatten(),
             );
         }
         new_rows.push(row);
@@ -328,7 +326,7 @@ fn insert_gap_rows(state: &mut AppState) {
             after,
             hidden,
             &active_path,
-            old_offset(parsed_hunks, after),
+            offsets.get(&after).copied().flatten(),
         );
     }
     state.display_rows = new_rows;
@@ -365,7 +363,10 @@ fn push_gap_row(
                     .cloned()
                     .unwrap_or_default();
                 rows.push(DisplayRow::Context {
-                    old_line: old_offset.map(|delta| (new_line as i64 + delta) as u32),
+                    old_line: old_offset
+                        .map(|delta| new_line as i64 + delta)
+                        .filter(|line| *line >= 1)
+                        .map(|line| line as u32),
                     new_line,
                     text,
                 });
