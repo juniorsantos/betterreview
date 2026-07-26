@@ -2931,3 +2931,53 @@ fn the_layout_key_cycles_through_all_three_modes() {
         assert_eq!(state.diff_layout, expected);
     }
 }
+
+#[test]
+fn commenting_a_downward_selection_anchors_on_the_line_the_cursor_ended_on() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let path = RepoPath("src/file_0.rs".into());
+    state.provider.files[0].patch =
+        PatchAvailability::Available("@@ -1,4 +1,4 @@\n+one\n+two\n+three\n+four\n".into());
+    state.refresh_hunk_totals();
+    state.parsed_diff = Some(ParsedFileDiff {
+        path: path.clone(),
+        head: CommitOid("new-head".into()),
+        rows: (1..=4)
+            .map(|line| betterreview::diff::DiffRow {
+                raw: format!("+line {line}"),
+                kind: betterreview::diff::DiffRowKind::Added,
+                old_line: None,
+                new_line: Some(line),
+                left: None,
+                right: Some(comment_pos(&path, DiffSide::Right, line)),
+            })
+            .collect(),
+        hunks: Vec::new(),
+    });
+    state.rendered_diff = Some(RenderedDiff {
+        rows: (0..4).map(|index| diff_row(index, None, None)).collect(),
+    });
+    betterreview::app::refresh_display_rows(&mut state);
+
+    state.session.cursor_row = 0;
+    update(&mut state, AppEvent::Action(AppAction::ToggleSelection));
+    state.session.cursor_row = 3;
+    update(&mut state, AppEvent::Action(AppAction::OpenComment));
+
+    let selection = &state
+        .session
+        .editor
+        .as_ref()
+        .expect("the editor opened")
+        .selection;
+
+    assert_eq!(
+        (selection.start.line, selection.end.line),
+        (1, 4),
+        "the range covers what was selected"
+    );
+    assert_eq!(
+        selection.end.line, 4,
+        "and the card hangs off the line the cursor ended on, not the one it started from"
+    );
+}
