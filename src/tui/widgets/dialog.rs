@@ -11,7 +11,7 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Clear, Paragraph},
 };
 
-use crate::tui::theme;
+use crate::tui::{text::display_width, theme};
 
 pub(in crate::tui) struct Dialog<'a> {
     /// e.g. " Delete comment "
@@ -130,7 +130,7 @@ pub(in crate::tui) fn menu_line(label: &str, selected: bool) -> Line<'static> {
 
 /// Centers `hints` horizontally within `width` columns, in `theme::MUTED`.
 fn centered_hint_line(hints: &str, width: u16) -> Line<'static> {
-    let hint_width = hints.chars().count();
+    let hint_width = display_width(hints);
     let left_pad = (width as usize).saturating_sub(hint_width) / 2;
     let mut spans = vec![Span::raw(" ".repeat(left_pad))];
     // Same key styling as everywhere else: the key in accent bold, the

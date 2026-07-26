@@ -10,7 +10,10 @@ use crate::{
     app::{AppFocus, AppState, is_generated},
     domain::{ChangedFile, FileStatus},
     state::ReviewSync,
-    tui::{theme, viewport},
+    tui::{
+        text::{abbreviate_path, display_width},
+        theme, viewport,
+    },
 };
 
 /// One row of the files panel: a directory header or a visible (unfolded)
@@ -188,13 +191,13 @@ fn file_item<'a>(
     }
 
     let left_prefix = format!("{marker} {} ", status_letter(file.status));
-    let right_width: usize = right.iter().map(|span| span.content.chars().count()).sum();
+    let right_width: usize = right.iter().map(|span| display_width(&span.content)).sum();
     let name_budget = inner_width
-        .saturating_sub(left_prefix.chars().count() + right_width + 1)
+        .saturating_sub(display_width(&left_prefix) + right_width + 1)
         .max(1);
-    let shown_name = truncate(name, name_budget);
+    let shown_name = abbreviate_path(name, name_budget);
     let padding = inner_width
-        .saturating_sub(left_prefix.chars().count() + shown_name.chars().count() + right_width);
+        .saturating_sub(display_width(&left_prefix) + display_width(&shown_name) + right_width);
 
     let status_span = if generated {
         Span::styled("\u{2298} ".to_owned(), Style::default().fg(theme::MUTED))
@@ -252,15 +255,6 @@ fn split_path(path: &str) -> (&str, &str) {
         Some((dir, name)) => (dir, name),
         None => ("", path),
     }
-}
-
-fn truncate(name: &str, budget: usize) -> String {
-    if name.chars().count() <= budget {
-        return name.to_owned();
-    }
-    let mut shown: String = name.chars().take(budget.saturating_sub(1)).collect();
-    shown.push('…');
-    shown
 }
 
 fn status_letter(status: FileStatus) -> char {

@@ -25,7 +25,9 @@ use crate::{
 };
 
 use super::{
-    TuiError, theme,
+    TuiError,
+    text::{display_width, truncate_to_width},
+    theme,
     widgets::{header, status},
 };
 
@@ -452,7 +454,7 @@ fn counter_line(state: &PickerState, width: u16) -> Line<'static> {
     } else {
         format!("{} open reviews", state.items.len())
     };
-    let used = text.chars().count() + 1;
+    let used = display_width(&text) + 1;
     let pad = (width as usize).saturating_sub(used);
     Line::styled(
         format!("{}{text} ", " ".repeat(pad)),
@@ -624,10 +626,10 @@ fn item_line(
 }
 
 fn truncate_title(title: &str, budget: usize) -> String {
-    if title.chars().count() <= budget {
+    if display_width(title) <= budget {
         return title.to_owned();
     }
-    let mut shown: String = title.chars().take(budget.saturating_sub(1)).collect();
+    let mut shown = truncate_to_width(title, budget.saturating_sub(1));
     shown.push('…');
     shown
 }
@@ -639,7 +641,7 @@ fn pad_cell(text: &str, width: usize) -> String {
     // Always keep at least one trailing space as the column gap, so a
     // full-width value never glues onto its neighbor.
     let truncated = truncate_title(text, width.saturating_sub(1));
-    let used = truncated.chars().count();
+    let used = display_width(&truncated);
     format!("{truncated}{}", " ".repeat(width.saturating_sub(used)))
 }
 
@@ -725,7 +727,7 @@ fn wrapped_line_count(text: &str, width: usize) -> u16 {
         let mut current = 0usize;
         let mut lines_in_paragraph = 1usize;
         for word in paragraph.split_whitespace() {
-            let word_len = word.chars().count();
+            let word_len = display_width(word);
             if current == 0 {
                 current = word_len;
             } else if current + 1 + word_len <= width {
@@ -749,7 +751,7 @@ fn title_meta_line(left: &str, right: &str, width: usize) -> Line<'static> {
         Style::default().add_modifier(Modifier::BOLD),
     );
     let right_span = Span::styled(right.to_owned(), Style::default().fg(theme::MUTED));
-    let used = left.chars().count() + right.chars().count();
+    let used = display_width(left) + display_width(right);
     let pad = width.saturating_sub(used).max(1);
     Line::from(vec![left_span, Span::raw(" ".repeat(pad)), right_span])
 }

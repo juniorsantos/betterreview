@@ -10,7 +10,10 @@ use crate::{
     app::{AppFocus, AppState, CommentEntry, CommentRowKind, DisplayRow},
     diff::{RenderedDiff, RenderedRow},
     domain::{DiffSide, PatchAvailability},
-    tui::{theme, viewport},
+    tui::{
+        text::{display_width, truncate_to_width},
+        theme, viewport,
+    },
 };
 
 /// Width of the gutter carried by every row: a 5-wide line number column plus
@@ -239,7 +242,7 @@ fn side_spans(
         &rendered.text.spans,
         width.saturating_sub(6),
     ));
-    let used: usize = spans.iter().map(|span| span.content.chars().count()).sum();
+    let used: usize = spans.iter().map(|span| display_width(&span.content)).sum();
     let background = rendered
         .text
         .spans
@@ -265,12 +268,12 @@ fn truncate_spans(spans: &[Span<'static>], width: usize) -> Vec<Span<'static>> {
         if taken >= width {
             break;
         }
-        let length = span.content.chars().count();
+        let length = display_width(&span.content);
         if taken + length <= width {
             out.push(span.clone());
             taken += length;
         } else {
-            let text: String = span.content.chars().take(width - taken).collect();
+            let text = truncate_to_width(&span.content, width - taken);
             out.push(Span::styled(text, span.style));
             taken = width;
         }
@@ -306,7 +309,7 @@ fn comment_line(
                 Style::default().fg(marker_color),
             ));
             spans.push(Span::raw(" "));
-            let used = 3 + 1 + author_label.chars().count() + 3 + marker_text.chars().count() + 1;
+            let used = 3 + 1 + display_width(&author_label) + 3 + display_width(marker_text) + 1;
             let dashes = card_width.saturating_sub(used + 1);
             spans.push(Span::styled("─".repeat(dashes), border_style));
             spans.push(Span::styled("╮", border_style));
@@ -318,7 +321,7 @@ fn comment_line(
                 text.to_owned(),
                 Style::default().fg(theme::FG),
             ));
-            let used = 4 + text.chars().count();
+            let used = 4 + display_width(text);
             let pad = card_width.saturating_sub(used + 1);
             spans.push(Span::raw(" ".repeat(pad)));
             spans.push(Span::styled("│", border_style));
@@ -347,7 +350,7 @@ fn comment_line(
                     (*label).to_owned(),
                     Style::default().fg(theme::MUTED),
                 ));
-                used += key.chars().count() + 1 + label.chars().count();
+                used += display_width(key) + 1 + display_width(label);
             }
             spans.push(Span::raw(" "));
             used += 1;

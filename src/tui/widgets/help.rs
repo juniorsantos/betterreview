@@ -8,6 +8,7 @@ use ratatui::{
 use crate::{
     app::AppState,
     tui::{
+        text::display_width,
         theme,
         widgets::dialog::{Dialog, render_dialog},
     },
@@ -149,7 +150,7 @@ fn entry_spans((key, desc): Entry, width: usize) -> Vec<Span<'static>> {
             .add_modifier(Modifier::BOLD),
     );
     let desc_span = Span::styled(desc, Style::default().fg(theme::FG));
-    let used = key.chars().count() + 2 + desc.chars().count();
+    let used = display_width(key) + 2 + display_width(desc);
     let mut spans = vec![key_span, Span::raw("  "), desc_span];
     if used < width {
         spans.push(Span::raw(" ".repeat(width - used)));
@@ -187,7 +188,7 @@ fn group_line(title: &'static str, entries: &[Entry]) -> Line<'static> {
 }
 
 fn pad(text: &str, width: usize) -> String {
-    let used = text.chars().count();
+    let used = display_width(text);
     if used >= width {
         return text.to_owned();
     }

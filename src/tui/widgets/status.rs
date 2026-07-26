@@ -6,7 +6,10 @@ use ratatui::{
     widgets::Paragraph,
 };
 
-use crate::{app::AppState, tui::theme};
+use crate::{
+    app::AppState,
+    tui::{text::display_width, theme},
+};
 
 /// Right-side hints for the review screen's flat status bar (transversal
 /// rule 1): key/label pairs, key ACCENT+BOLD, label MUTED. `j/k` has no
@@ -125,7 +128,7 @@ fn fit_hints(pairs: &[(&str, &str)], budget: usize) -> (Vec<Span<'static>>, usiz
         let mut spans = hint_spans(subset);
         let mut width = spans_width(&spans);
         let marker = if subset.is_empty() { "…" } else { " …" };
-        let marker_width = marker.chars().count();
+        let marker_width = display_width(marker);
         if width + marker_width <= budget {
             spans.push(Span::styled(marker, Style::default().fg(theme::MUTED)));
             width += marker_width;
@@ -136,7 +139,7 @@ fn fit_hints(pairs: &[(&str, &str)], budget: usize) -> (Vec<Span<'static>>, usiz
 }
 
 fn spans_width(spans: &[Span<'static>]) -> usize {
-    spans.iter().map(|span| span.content.chars().count()).sum()
+    spans.iter().map(|span| display_width(&span.content)).sum()
 }
 
 /// Styles `pairs` as `key label · key label · …`, key in ACCENT+BOLD, label

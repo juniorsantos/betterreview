@@ -425,3 +425,38 @@ fn the_diff_takes_the_whole_body_when_the_panel_is_hidden() {
         "the diff panel starts further left once the files panel is gone"
     );
 }
+
+#[test]
+fn a_long_path_keeps_its_file_name_in_the_panel() {
+    let mut state = app();
+    state.provider.files[0].path = RepoPath("aadfadf/bsdff/casdfdsf/config.rs".into());
+    state.session.active_file = Some(state.provider.files[0].path.clone());
+    state.refresh_hunk_totals();
+
+    let screen = screen(&state);
+
+    assert!(
+        screen.contains("config.rs"),
+        "the name identifies the file and must survive truncation"
+    );
+}
+
+#[test]
+fn a_cjk_file_name_does_not_push_the_panel_border() {
+    let mut state = app();
+    state.provider.files[0].path = RepoPath("src/app/テストファイル名前.rs".into());
+    state.session.active_file = Some(state.provider.files[0].path.clone());
+    state.refresh_hunk_totals();
+
+    let screen = screen(&state);
+    let borders: Vec<usize> = screen
+        .lines()
+        .filter(|line| line.contains('│'))
+        .filter_map(|line| line.find('│'))
+        .collect();
+
+    assert!(
+        borders.windows(2).all(|pair| pair[0] == pair[1]),
+        "every row must start the panel at the same column: {borders:?}"
+    );
+}
