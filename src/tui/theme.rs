@@ -1,14 +1,21 @@
-//! GitHub Dark High Contrast palette.
+//! GitHub Dark High Contrast palette, re-tiered by role.
 //!
-//! Values follow @primer/primitives dark_high_contrast; diff backgrounds are
-//! the muted overlay colors pre-blended onto the canvas color.
+//! Content colors follow @primer/primitives dark_high_contrast, and the diff
+//! backgrounds are its muted overlays pre-blended onto the canvas. The
+//! decoration tokens deliberately do not: that palette raises every value,
+//! including the ones whose job is to recede, and a terminal has neither
+//! whitespace nor font weight left to rebuild the hierarchy with. `BORDER`,
+//! `MUTED` and `FILLER` are therefore scaled down along their own hue until
+//! they sit at the contrast their role calls for — see `tests/theme_contrast.rs`,
+//! which enforces the tiering rather than the hex values.
 
 use ratatui::style::Color;
 
 pub const BG: Color = Color::Rgb(0x0a, 0x0c, 0x10);
 pub const FG: Color = Color::Rgb(0xf0, 0xf3, 0xf6);
-pub const MUTED: Color = Color::Rgb(0x9e, 0xa7, 0xb3);
-pub const BORDER: Color = Color::Rgb(0x7a, 0x82, 0x8e);
+pub const MUTED: Color = Color::Rgb(0x73, 0x7a, 0x83);
+pub const BORDER: Color = Color::Rgb(0x40, 0x44, 0x4b);
+pub const FILLER: Color = Color::Rgb(0x24, 0x27, 0x2b);
 pub const ACCENT: Color = Color::Rgb(0x71, 0xb7, 0xff);
 pub const SUCCESS: Color = Color::Rgb(0x26, 0xcd, 0x4d);
 pub const DANGER: Color = Color::Rgb(0xff, 0x6a, 0x69);

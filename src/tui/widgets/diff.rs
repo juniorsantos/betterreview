@@ -504,7 +504,7 @@ fn side_spans(
     let Some(rendered) = row.and_then(|row| diff.rows.get(row)) else {
         return vec![Span::styled(
             "\u{2591}".repeat(width),
-            Style::default().fg(theme::BORDER),
+            Style::default().fg(theme::FILLER),
         )];
     };
     let position = match side {
