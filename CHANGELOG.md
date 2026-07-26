@@ -3,6 +3,15 @@
 All notable changes to this project are documented in this file, generated
 from conventional commits by [git-cliff](https://git-cliff.org).
 
+## [0.2.0] - 2026-07-26
+
+### Features
+
+- Revisar por hunk com M e diff com cores mais vivas (closes #4)
+
+### Chores
+
+- Ignorar o índice local do codegraph
 ## [0.1.4] - 2026-07-24
 
 ### CI
