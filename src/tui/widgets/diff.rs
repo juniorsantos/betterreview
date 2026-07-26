@@ -16,25 +16,79 @@ use crate::{
     },
 };
 
-const GUTTER_WIDTH: usize = 14;
-const GUTTER_SPANS: usize = 3;
+const GUTTER_SPANS: usize = 2;
 const SIDE_GUTTER_WIDTH: usize = 6;
+const MIN_GUTTER_DIGITS: usize = 2;
 
-fn blank_gutter() -> Span<'static> {
-    Span::raw(" ".repeat(GUTTER_WIDTH))
+#[derive(Clone, Copy)]
+struct Gutter {
+    digits: usize,
+}
+
+impl Gutter {
+    fn for_state(state: &AppState) -> Self {
+        let highest_row = state
+            .rendered_diff
+            .iter()
+            .flat_map(|diff| diff.rows.iter())
+            .flat_map(|row| [row.binding.left.as_ref(), row.binding.right.as_ref()])
+            .flatten()
+            .map(|position| position.line)
+            .max()
+            .unwrap_or(0);
+        let highest_cached = state
+            .provider
+            .files
+            .get(state.active_file_index)
+            .and_then(|file| state.file_contexts.get(&file.path))
+            .map_or(0, |lines| lines.len() as u32);
+        Self {
+            digits: highest_row
+                .max(highest_cached)
+                .to_string()
+                .len()
+                .max(MIN_GUTTER_DIGITS),
+        }
+    }
+
+    fn width(self) -> usize {
+        self.digits * 2 + 4
+    }
+
+    fn blank(self) -> Span<'static> {
+        Span::raw(" ".repeat(self.width()))
+    }
+
+    fn cells(self, old: Option<u32>, new: Option<u32>) -> String {
+        let text = |value: Option<u32>| value.map_or_else(String::new, |line| line.to_string());
+        format!(
+            "{:>digits$} {:>digits$} ",
+            text(old),
+            text(new),
+            digits = self.digits
+        )
+    }
 }
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let inner_width = area.width.saturating_sub(4) as usize;
     let columns = crate::tui::diff_columns(area, state);
+    let gutter = Gutter::for_state(state);
     let lines = match &state.rendered_diff {
         Some(diff) => state
             .display_rows
             .iter()
             .enumerate()
             .map(|(index, display_row)| {
-                let line =
-                    render_display_row(state, diff, display_row, index, inner_width, columns);
+                let line = render_display_row(
+                    state,
+                    diff,
+                    display_row,
+                    index,
+                    inner_width,
+                    columns,
+                    gutter,
+                );
                 if state.wrap_lines {
                     line
                 } else {
@@ -158,15 +212,24 @@ fn render_display_row(
     index: usize,
     inner_width: usize,
     columns: Option<crate::tui::DiffColumns>,
+    gutter: Gutter,
 ) -> Line<'static> {
     let mut line = match display_row {
-        DisplayRow::Diff { row } => diff_line(diff, *row, inner_width),
+        DisplayRow::Diff { row } => diff_line(diff, *row, inner_width, gutter),
         DisplayRow::Comment {
             entry,
             kind,
             text,
             author,
-        } => comment_line(state, entry, *kind, text, author.as_deref(), inner_width),
+        } => comment_line(
+            state,
+            entry,
+            *kind,
+            text,
+            author.as_deref(),
+            inner_width,
+            gutter,
+        ),
         DisplayRow::FileHeader { path } => Line::styled(
             path.clone(),
             Style::default()
@@ -177,7 +240,7 @@ fn render_display_row(
             Line::styled("— outdated comments —", Style::default().fg(theme::MUTED))
         }
         DisplayRow::Gap { hidden, .. } => Line::from(vec![
-            blank_gutter(),
+            gutter.blank(),
             Span::styled(
                 if *hidden == 0 {
                     "· · · z loads the rest of the file · · ·".to_owned()
@@ -187,7 +250,7 @@ fn render_display_row(
                 Style::default().fg(theme::MUTED),
             ),
         ]),
-        DisplayRow::HunkHeader { hunk } => hunk_header_line(state, *hunk),
+        DisplayRow::HunkHeader { hunk } => hunk_header_line(state, *hunk, gutter),
         DisplayRow::SplitDiff { left, right } => split_line(diff, *left, *right, columns),
         DisplayRow::Context {
             old_line,
@@ -195,10 +258,7 @@ fn render_display_row(
             text,
         } => Line::from(vec![
             Span::styled(
-                format!(
-                    "{:>5} {new_line:>5} ",
-                    old_line.map(|line| line.to_string()).unwrap_or_default()
-                ),
+                gutter.cells(*old_line, Some(*new_line)),
                 Style::default().fg(theme::MUTED),
             ),
             Span::styled("\u{2502}  ", Style::default().fg(theme::BORDER)),
@@ -248,7 +308,7 @@ fn render_display_row(
     line
 }
 
-fn hunk_header_line(state: &AppState, hunk: u32) -> Line<'static> {
+fn hunk_header_line(state: &AppState, hunk: u32, gutter: Gutter) -> Line<'static> {
     let total = state.active_hunk_total();
     let reviewed = state
         .provider
@@ -262,7 +322,7 @@ fn hunk_header_line(state: &AppState, hunk: u32) -> Line<'static> {
         ("M mark", theme::MUTED)
     };
     Line::from(vec![
-        blank_gutter(),
+        gutter.blank(),
         Span::styled(
             format!("hunk {}/{total}", hunk + 1),
             Style::default()
@@ -274,22 +334,20 @@ fn hunk_header_line(state: &AppState, hunk: u32) -> Line<'static> {
     ])
 }
 
-fn diff_line(diff: &RenderedDiff, row: usize, inner_width: usize) -> Line<'static> {
+fn diff_line(diff: &RenderedDiff, row: usize, inner_width: usize, gutter: Gutter) -> Line<'static> {
     let Some(rendered_row): Option<&RenderedRow> = diff.rows.get(row) else {
         return Line::default();
     };
-    let number = |position: &Option<crate::domain::DiffPosition>| {
-        position
-            .as_ref()
-            .map(|position| position.line.to_string())
-            .unwrap_or_default()
+    let line_of = |position: &Option<crate::domain::DiffPosition>| {
+        position.as_ref().map(|position| position.line)
     };
-    let muted = Style::default().fg(theme::MUTED);
     let mut spans = vec![
-        Span::styled(format!("{:>5} ", number(&rendered_row.binding.left)), muted),
         Span::styled(
-            format!("{:>5} ", number(&rendered_row.binding.right)),
-            muted,
+            gutter.cells(
+                line_of(&rendered_row.binding.left),
+                line_of(&rendered_row.binding.right),
+            ),
+            Style::default().fg(theme::MUTED),
         ),
         Span::styled("\u{2502} ", Style::default().fg(theme::BORDER)),
     ];
@@ -420,10 +478,11 @@ fn comment_line(
     text: &str,
     author: Option<&str>,
     inner_width: usize,
+    gutter: Gutter,
 ) -> Line<'static> {
-    let card_width = inner_width.saturating_sub(GUTTER_WIDTH).max(4);
+    let card_width = inner_width.saturating_sub(gutter.width()).max(4);
     let border_style = Style::default().fg(theme::COMMENT);
-    let mut spans = vec![blank_gutter()];
+    let mut spans = vec![gutter.blank()];
     match kind {
         CommentRowKind::Header => {
             let author_label = author.map_or_else(|| "you".to_owned(), str::to_owned);
