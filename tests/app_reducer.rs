@@ -1349,6 +1349,7 @@ fn state_with_two_hunks() -> AppState {
                 new_start: 1,
                 new_count: 1,
                 row_range: 1..2,
+                section: None,
             },
             betterreview::diff::DiffHunk {
                 id: 1,
@@ -1357,6 +1358,7 @@ fn state_with_two_hunks() -> AppState {
                 new_start: 5,
                 new_count: 1,
                 row_range: 3..4,
+                section: None,
             },
         ],
     });
@@ -2176,6 +2178,7 @@ fn an_expanded_gap_after_an_insertion_trails_the_old_side_behind_the_new() {
                 new_start: 1,
                 new_count: 3,
                 row_range: 1..2,
+                section: None,
             },
             betterreview::diff::DiffHunk {
                 id: 1,
@@ -2184,6 +2187,7 @@ fn an_expanded_gap_after_an_insertion_trails_the_old_side_behind_the_new() {
                 new_start: 7,
                 new_count: 1,
                 row_range: 3..4,
+                section: None,
             },
         ],
     });
@@ -2241,6 +2245,7 @@ fn an_old_line_computed_below_one_is_left_blank_instead_of_wrapping() {
             new_start: 1,
             new_count: 2,
             row_range: 1..2,
+            section: None,
         }],
     });
     state.rendered_diff = Some(RenderedDiff {
@@ -2750,6 +2755,7 @@ fn state_with_a_replacement() -> AppState {
             new_start: 1,
             new_count: 3,
             row_range: 0..4,
+            section: None,
         }],
     });
     state.rendered_diff = Some(RenderedDiff {

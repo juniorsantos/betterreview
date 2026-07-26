@@ -44,6 +44,7 @@ pub struct DiffHunk {
     pub new_start: u32,
     pub new_count: u32,
     pub row_range: Range<usize>,
+    pub section: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -209,6 +209,7 @@ fn app_with_two_hunk_headers() -> AppState {
                 new_start: 1,
                 new_count: 1,
                 row_range: 1..2,
+                section: None,
             },
             betterreview::diff::DiffHunk {
                 id: 1,
@@ -217,6 +218,7 @@ fn app_with_two_hunk_headers() -> AppState {
                 new_start: 9,
                 new_count: 1,
                 row_range: 3..4,
+                section: None,
             },
         ],
     });
@@ -793,6 +795,7 @@ fn app_with_a_long_file() -> AppState {
             new_start: 1,
             new_count: 59,
             row_range: 1..60,
+            section: None,
         }],
     });
     state.rendered_diff = Some(RenderedDiff {
@@ -953,6 +956,26 @@ fn a_tab_paints_the_cells_it_occupies_instead_of_measuring_as_zero() {
     assert!(
         !screen.contains('\t'),
         "no raw tab survives into the buffer"
+    );
+}
+
+#[test]
+fn the_hunk_header_names_the_section_it_sits_in() {
+    let mut state = app_with_two_hunk_headers();
+    if let Some(parsed) = state.parsed_diff.as_mut() {
+        parsed.hunks[0].section = Some("fn resolve_remote()".into());
+    }
+    refresh_display_rows(&mut state);
+
+    let screen = screen(&draw(&state));
+
+    assert!(
+        screen.contains("hunk 1/2 \u{b7} fn resolve_remote()"),
+        "scrolled into the middle of a file, the header says what is being read:\n{screen}"
+    );
+    assert!(
+        screen.contains("hunk 2/2 \u{b7} M mark"),
+        "a hunk with no section renders as before"
     );
 }
 

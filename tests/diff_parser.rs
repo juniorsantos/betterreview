@@ -203,3 +203,39 @@ fn available_file(patch: &str) -> ChangedFile {
         remotely_reviewed: None,
     }
 }
+
+fn file_with(patch: &str) -> ChangedFile {
+    ChangedFile {
+        path: RepoPath("src/lib.rs".into()),
+        previous_path: None,
+        status: FileStatus::Modified,
+        additions: 1,
+        deletions: 1,
+        patch: PatchAvailability::Available(patch.to_owned()),
+        base_blob: None,
+        head_blob: Some("head-blob".into()),
+        remotely_reviewed: Some(false),
+    }
+}
+
+#[test]
+fn a_hunk_keeps_the_enclosing_section_git_puts_after_the_ranges() {
+    let file = file_with("@@ -1,2 +1,2 @@ fn resolve_remote()\n context\n-old\n+new\n");
+
+    let parsed = parse_file_patch(&file, &CommitOid("head-1".into())).unwrap();
+
+    assert_eq!(
+        parsed.hunks[0].section.as_deref(),
+        Some("fn resolve_remote()"),
+        "git computes the enclosing function for us; throwing it away is the bug"
+    );
+}
+
+#[test]
+fn a_hunk_without_a_section_carries_none_rather_than_an_empty_string() {
+    let file = file_with("@@ -1,2 +1,2 @@\n context\n-old\n+new\n");
+
+    let parsed = parse_file_patch(&file, &CommitOid("head-1".into())).unwrap();
+
+    assert_eq!(parsed.hunks[0].section, None);
+}

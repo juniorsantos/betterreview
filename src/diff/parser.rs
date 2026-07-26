@@ -13,6 +13,7 @@ struct ActiveHunk {
     consumed_old: u32,
     consumed_new: u32,
     row_start: usize,
+    section: Option<String>,
 }
 
 pub fn parse_file_patch(file: &ChangedFile, head: &CommitOid) -> Result<ParsedFileDiff, DiffError> {
@@ -43,7 +44,7 @@ pub fn parse_file_patch(file: &ChangedFile, head: &CommitOid) -> Result<ParsedFi
             if let Some(previous) = active.take() {
                 finish_hunk(previous, rows.len(), &mut hunks)?;
             }
-            let (old_start, old_count, new_start, new_count) = parse_hunk_header(raw)?;
+            let (old_start, old_count, new_start, new_count, section) = parse_hunk_header(raw)?;
             let id = u32::try_from(hunks.len()).map_err(|_| DiffError::LineOverflow)?;
             rows.push(empty_row(raw, DiffRowKind::HunkHeader));
             active = Some(ActiveHunk {
@@ -57,6 +58,7 @@ pub fn parse_file_patch(file: &ChangedFile, head: &CommitOid) -> Result<ParsedFi
                 consumed_old: 0,
                 consumed_new: 0,
                 row_start: rows.len(),
+                section,
             });
             continue;
         }
@@ -100,13 +102,16 @@ pub fn count_hunks(file: &ChangedFile) -> u32 {
         .unwrap_or(u32::MAX)
 }
 
-fn parse_hunk_header(line: &str) -> Result<(u32, u32, u32, u32), DiffError> {
-    let body = line
+fn parse_hunk_header(line: &str) -> Result<(u32, u32, u32, u32, Option<String>), DiffError> {
+    let (body, tail) = line
         .strip_prefix("@@ ")
-        .and_then(|line| line.split_once(" @@").map(|(body, _)| body))
+        .and_then(|line| line.split_once(" @@"))
         .ok_or_else(|| DiffError::MalformedHunk {
             line: line.to_owned(),
         })?;
+    let section = Some(tail.trim())
+        .filter(|tail| !tail.is_empty())
+        .map(str::to_owned);
     let mut ranges = body.split_whitespace();
     let old = ranges.next().ok_or_else(|| DiffError::MalformedHunk {
         line: line.to_owned(),
@@ -125,7 +130,7 @@ fn parse_hunk_header(line: &str) -> Result<(u32, u32, u32, u32), DiffError> {
     let (new_start, new_count) = parse_range(new, '+').ok_or_else(|| DiffError::MalformedHunk {
         line: line.to_owned(),
     })?;
-    Ok((old_start, old_count, new_start, new_count))
+    Ok((old_start, old_count, new_start, new_count, section))
 }
 
 fn parse_range(value: &str, prefix: char) -> Option<(u32, u32)> {
@@ -245,6 +250,7 @@ fn finish_hunk(
         new_start: hunk.new_start,
         new_count: hunk.new_count,
         row_range: hunk.row_start..row_end,
+        section: hunk.section,
     });
     Ok(())
 }

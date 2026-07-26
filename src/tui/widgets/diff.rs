@@ -236,8 +236,23 @@ fn pinned_line(state: &AppState) -> Line<'static> {
             format!("hunk {}/{}", hunk + 1, state.active_hunk_total()),
             Style::default().fg(theme::MUTED),
         ));
+        if let Some(section) = section_of(state, hunk) {
+            spans.push(Span::styled(" · ", Style::default().fg(theme::BORDER)));
+            spans.push(Span::styled(section, Style::default().fg(theme::MUTED)));
+        }
     }
     Line::from(spans)
+}
+
+fn section_of(state: &AppState, hunk: u32) -> Option<String> {
+    state
+        .parsed_diff
+        .as_ref()?
+        .hunks
+        .iter()
+        .find(|candidate| candidate.id == hunk)?
+        .section
+        .clone()
 }
 
 fn hunk_at_cursor(state: &AppState) -> Option<u32> {
@@ -401,7 +416,7 @@ fn hunk_header_line(state: &AppState, hunk: u32, gutter: Gutter) -> Line<'static
     } else {
         ("M mark", theme::MUTED)
     };
-    Line::from(vec![
+    let mut spans = vec![
         gutter.blank(),
         Span::styled(
             format!("hunk {}/{total}", hunk + 1),
@@ -409,9 +424,17 @@ fn hunk_header_line(state: &AppState, hunk: u32, gutter: Gutter) -> Line<'static
                 .fg(theme::ACCENT)
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::styled(" · ", Style::default().fg(theme::MUTED)),
-        Span::styled(marker.to_owned(), Style::default().fg(marker_color)),
-    ])
+    ];
+    if let Some(section) = section_of(state, hunk) {
+        spans.push(Span::styled(" · ", Style::default().fg(theme::MUTED)));
+        spans.push(Span::styled(section, Style::default().fg(theme::FG)));
+    }
+    spans.push(Span::styled(" · ", Style::default().fg(theme::MUTED)));
+    spans.push(Span::styled(
+        marker.to_owned(),
+        Style::default().fg(marker_color),
+    ));
+    Line::from(spans)
 }
 
 fn diff_line(
