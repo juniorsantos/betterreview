@@ -1,4 +1,4 @@
-use betterreview::tui::{abbreviate_path, display_width, truncate_to_width};
+use betterreview::tui::{abbreviate_path, display_width, expand_tabs, truncate_to_width};
 
 #[test]
 fn width_counts_terminal_cells_not_characters() {
@@ -110,4 +110,25 @@ fn a_row_taller_than_the_panel_still_scrolls_to_it() {
         32,
         "past the tall row, clamped to the end"
     );
+}
+
+#[test]
+fn a_tab_advances_to_the_next_stop_not_a_fixed_number_of_spaces() {
+    assert_eq!(expand_tabs("\tif", 4, 0), "    if");
+    assert_eq!(
+        expand_tabs("ab\tc", 4, 0),
+        "ab  c",
+        "a tab two columns in advances two, landing on the stop"
+    );
+    assert_eq!(
+        expand_tabs("abcd\te", 4, 0),
+        "abcd    e",
+        "a tab exactly on a stop advances a full width"
+    );
+    assert_eq!(
+        expand_tabs("\tx", 4, 2),
+        "  x",
+        "the starting column shifts where the stop falls"
+    );
+    assert_eq!(expand_tabs("no tabs", 4, 0), "no tabs");
 }

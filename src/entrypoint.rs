@@ -118,6 +118,7 @@ impl InstalledRuntime {
         app.diff_layout = config.diff_layout;
         app.files_hidden = config.files_hidden;
         app.wrap_lines = config.wrap_lines;
+        app.tab_width = config.tab_width;
         if read_only {
             crate::app::push_notice(&mut app, "session is open read-only");
         }

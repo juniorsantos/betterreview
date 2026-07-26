@@ -11,7 +11,7 @@ use crate::{
     diff::{RenderedDiff, RenderedRow},
     domain::{DiffSide, PatchAvailability},
     tui::{
-        text::{display_width, truncate_to_width},
+        text::{display_width, expand_tabs, truncate_to_width},
         theme, viewport,
     },
 };
@@ -140,6 +140,22 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let paragraph =
         Paragraph::new(rows.into_iter().flatten().collect::<Vec<_>>()).scroll((scroll, 0));
     frame.render_widget(paragraph, body);
+}
+
+fn expand_span_tabs(spans: &[Span<'static>], tab_width: usize) -> Vec<Span<'static>> {
+    let mut column = 0;
+    spans
+        .iter()
+        .map(|span| {
+            let expanded = expand_tabs(&span.content, tab_width, column);
+            column += display_width(&expanded);
+            if expanded == span.content {
+                span.clone()
+            } else {
+                Span::styled(expanded, span.style)
+            }
+        })
+        .collect()
 }
 
 fn wrap_with_gutter(line: Line<'static>, width: usize, gutter_width: usize) -> Vec<Line<'static>> {
@@ -274,7 +290,7 @@ fn render_display_row(
     gutter: Gutter,
 ) -> Line<'static> {
     let mut line = match display_row {
-        DisplayRow::Diff { row } => diff_line(diff, *row, inner_width, gutter),
+        DisplayRow::Diff { row } => diff_line(diff, *row, inner_width, gutter, state.tab_width),
         DisplayRow::Comment {
             entry,
             kind,
@@ -310,7 +326,9 @@ fn render_display_row(
             ),
         ]),
         DisplayRow::HunkHeader { hunk } => hunk_header_line(state, *hunk, gutter),
-        DisplayRow::SplitDiff { left, right } => split_line(diff, *left, *right, columns),
+        DisplayRow::SplitDiff { left, right } => {
+            split_line(diff, *left, *right, columns, state.tab_width)
+        }
         DisplayRow::Context {
             old_line,
             new_line,
@@ -321,7 +339,10 @@ fn render_display_row(
                 Style::default().fg(theme::MUTED),
             ),
             Span::styled("\u{2502}  ", Style::default().fg(theme::BORDER)),
-            Span::styled(text.clone(), Style::default().fg(theme::FG)),
+            Span::styled(
+                expand_tabs(text, state.tab_width, 0),
+                Style::default().fg(theme::FG),
+            ),
         ]),
     };
 
@@ -393,7 +414,13 @@ fn hunk_header_line(state: &AppState, hunk: u32, gutter: Gutter) -> Line<'static
     ])
 }
 
-fn diff_line(diff: &RenderedDiff, row: usize, inner_width: usize, gutter: Gutter) -> Line<'static> {
+fn diff_line(
+    diff: &RenderedDiff,
+    row: usize,
+    inner_width: usize,
+    gutter: Gutter,
+    tab_width: usize,
+) -> Line<'static> {
     let Some(rendered_row): Option<&RenderedRow> = diff.rows.get(row) else {
         return Line::default();
     };
@@ -410,7 +437,7 @@ fn diff_line(diff: &RenderedDiff, row: usize, inner_width: usize, gutter: Gutter
         ),
         Span::styled("\u{2502} ", Style::default().fg(theme::BORDER)),
     ];
-    spans.extend(rendered_row.text.spans.clone());
+    spans.extend(expand_span_tabs(&rendered_row.text.spans, tab_width));
     let mut line = Line::from(spans);
     if let Some(bg) = line
         .spans
@@ -437,6 +464,7 @@ fn split_line(
     left: Option<usize>,
     right: Option<usize>,
     columns: Option<crate::tui::DiffColumns>,
+    tab_width: usize,
 ) -> Line<'static> {
     let Some(columns) = columns else {
         return Line::default();
@@ -448,6 +476,7 @@ fn split_line(
             left,
             DiffSide::Left,
             columns.left.width as usize,
+            tab_width,
         ));
     }
     if columns.left.width > 0 && columns.right.width > 0 {
@@ -459,6 +488,7 @@ fn split_line(
             right,
             DiffSide::Right,
             columns.right.width as usize,
+            tab_width,
         ));
     }
     Line::from(spans)
@@ -469,6 +499,7 @@ fn side_spans(
     row: Option<usize>,
     side: DiffSide,
     width: usize,
+    tab_width: usize,
 ) -> Vec<Span<'static>> {
     let Some(rendered) = row.and_then(|row| diff.rows.get(row)) else {
         return vec![Span::styled(
@@ -488,7 +519,7 @@ fn side_spans(
         Style::default().fg(theme::MUTED),
     )];
     spans.extend(truncate_spans(
-        &rendered.text.spans,
+        &expand_span_tabs(&rendered.text.spans, tab_width),
         width.saturating_sub(SIDE_GUTTER_WIDTH),
     ));
     let used: usize = spans.iter().map(|span| display_width(&span.content)).sum();

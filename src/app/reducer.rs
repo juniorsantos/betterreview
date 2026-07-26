@@ -723,6 +723,7 @@ fn config_of(state: &AppState) -> crate::state::AppConfig {
         diff_layout: state.diff_layout,
         files_hidden: state.files_hidden,
         wrap_lines: state.wrap_lines,
+        tab_width: state.tab_width,
     }
 }
 

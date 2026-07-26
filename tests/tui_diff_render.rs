@@ -929,6 +929,34 @@ fn a_wrapped_row_keeps_its_gutter_reserved_and_wastes_no_row() {
 }
 
 #[test]
+fn a_tab_paints_the_cells_it_occupies_instead_of_measuring_as_zero() {
+    let mut state = app();
+    state.rendered_diff = Some(RenderedDiff {
+        rows: vec![RenderedRow {
+            text: Line::raw("\tif a {"),
+            binding: RowBinding {
+                row_index: 0,
+                left: Some(position(DiffSide::Left, 1)),
+                right: Some(position(DiffSide::Right, 1)),
+            },
+        }],
+    });
+    state.session.cursor_row = 0;
+    refresh_display_rows(&mut state);
+
+    let screen = screen(&draw(&state));
+
+    assert!(
+        screen.contains("\u{2502}     if a {"),
+        "a tab occupies four cells after the separator, it is not swallowed: {screen}"
+    );
+    assert!(
+        !screen.contains('\t'),
+        "no raw tab survives into the buffer"
+    );
+}
+
+#[test]
 fn the_gutter_widens_with_the_highest_line_number_in_the_file() {
     let mut state = app();
     state.rendered_diff = Some(RenderedDiff {

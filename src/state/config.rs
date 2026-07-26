@@ -9,7 +9,7 @@ use crate::domain::DiffLayout;
 
 use super::{StateError, StatePaths};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppConfig {
     #[serde(default)]
     pub diff_layout: DiffLayout,
@@ -17,6 +17,23 @@ pub struct AppConfig {
     pub files_hidden: bool,
     #[serde(default)]
     pub wrap_lines: bool,
+    #[serde(default = "default_tab_width")]
+    pub tab_width: usize,
+}
+
+const fn default_tab_width() -> usize {
+    4
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            diff_layout: DiffLayout::default(),
+            files_hidden: false,
+            wrap_lines: false,
+            tab_width: default_tab_width(),
+        }
+    }
 }
 
 impl AppConfig {

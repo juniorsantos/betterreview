@@ -5,6 +5,26 @@ pub fn display_width(text: &str) -> usize {
     UnicodeWidthStr::width(text)
 }
 
+pub fn expand_tabs(text: &str, tab_width: usize, start_column: usize) -> String {
+    if !text.contains('\t') {
+        return text.to_owned();
+    }
+    let stop = tab_width.max(1);
+    let mut out = String::with_capacity(text.len() + stop);
+    let mut column = start_column;
+    for cluster in text.graphemes(true) {
+        if cluster == "\t" {
+            let pad = stop - (column % stop);
+            out.push_str(&" ".repeat(pad));
+            column += pad;
+        } else {
+            out.push_str(cluster);
+            column += display_width(cluster);
+        }
+    }
+    out
+}
+
 pub fn truncate_to_width(text: &str, width: usize) -> String {
     if display_width(text) <= width {
         return text.to_owned();

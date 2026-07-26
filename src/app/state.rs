@@ -80,6 +80,7 @@ pub struct AppState {
     pub diff_layout: DiffLayout,
     pub split_focus: Option<crate::tui::SplitSide>,
     pub wrap_lines: bool,
+    pub tab_width: usize,
 }
 
 impl AppState {
@@ -157,6 +158,7 @@ impl AppState {
             diff_layout: DiffLayout::default(),
             split_focus: None,
             wrap_lines: false,
+            tab_width: 4,
         };
         state.refresh_hunk_totals();
         state

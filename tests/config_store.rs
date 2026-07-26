@@ -21,6 +21,7 @@ fn the_config_lives_under_the_config_directory_and_honours_the_legacy_file() {
         diff_layout: DiffLayout::Split,
         files_hidden: true,
         wrap_lines: true,
+        tab_width: 8,
     };
     config.save(&state).unwrap();
 
