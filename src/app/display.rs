@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::diff::RenderedDiff;
 use crate::domain::{DiffPosition, DraftComment, DraftId, RepoPath, ReviewThread, ThreadId};
@@ -61,6 +61,20 @@ pub enum DisplayRow {
     HunkHeader {
         hunk: u32,
     },
+    SplitDiff {
+        left: Option<usize>,
+        right: Option<usize>,
+    },
+}
+
+impl DisplayRow {
+    pub fn anchor_row(&self) -> Option<usize> {
+        match self {
+            DisplayRow::Diff { row } => Some(*row),
+            DisplayRow::SplitDiff { left, right } => right.or(*left),
+            _ => None,
+        }
+    }
 }
 
 /// A comment block waiting to be placed into the display, either right after
@@ -218,11 +232,12 @@ pub fn refresh_display_rows(state: &mut AppState) {
         );
     }
     insert_gap_rows(state);
+    fold_split_rows(state);
     let target = state.session.cursor_row;
     state.display_cursor = state
         .display_rows
         .iter()
-        .position(|row| matches!(row, DisplayRow::Diff { row } if *row == target))
+        .position(|row| row.anchor_row() == Some(target))
         .or_else(|| {
             // The row `session.cursor_row` pointed at is no longer in the
             // display (e.g. a header/metadata row hidden by a later
@@ -235,14 +250,19 @@ pub fn refresh_display_rows(state: &mut AppState) {
                 .iter()
                 .enumerate()
                 .find_map(|(index, row)| {
-                    matches!(row, DisplayRow::Diff { row } if *row >= target).then_some(index)
+                    row.anchor_row()
+                        .is_some_and(|row| row >= target)
+                        .then_some(index)
                 })
         })
         .unwrap_or(0);
-    if let Some(DisplayRow::Diff { row }) = state.display_rows.get(state.display_cursor)
-        && *row != target
+    if let Some(row) = state
+        .display_rows
+        .get(state.display_cursor)
+        .and_then(DisplayRow::anchor_row)
+        && row != target
     {
-        state.session.cursor_row = *row;
+        state.session.cursor_row = row;
         state.dirty = true;
     }
 }
@@ -369,6 +389,45 @@ fn push_gap_row(
     });
 }
 
+pub const SPLIT_MIN_TERMINAL_WIDTH: u16 = 120;
+
+fn fold_split_rows(state: &mut AppState) {
+    if state.diff_layout != crate::domain::DiffLayout::Split
+        || state.terminal_width < SPLIT_MIN_TERMINAL_WIDTH
+    {
+        return;
+    }
+    let Some(parsed) = state.parsed_diff.as_ref() else {
+        return;
+    };
+    let pairs = crate::diff::pair_rows(&parsed.rows);
+    let mut pair_of_row: BTreeMap<usize, usize> = BTreeMap::new();
+    for (index, pair) in pairs.iter().enumerate() {
+        for row in [pair.left, pair.right].into_iter().flatten() {
+            pair_of_row.insert(row, index);
+        }
+    }
+    let mut emitted: BTreeSet<usize> = BTreeSet::new();
+    let rows = std::mem::take(&mut state.display_rows);
+    state.display_rows = rows
+        .into_iter()
+        .filter_map(|row| match row {
+            DisplayRow::Diff { row: index } => {
+                let pair_index = pair_of_row.get(&index)?;
+                if !emitted.insert(*pair_index) {
+                    return None;
+                }
+                let pair = pairs[*pair_index];
+                Some(DisplayRow::SplitDiff {
+                    left: pair.left,
+                    right: pair.right,
+                })
+            }
+            other => Some(other),
+        })
+        .collect();
+}
+
 /// Display rows whose rendered text contains `state.search_query`
 /// (case-insensitive), in display order. `Diff` rows are matched against the
 /// rendered diff text; `Comment` rows (including `Body` lines) against their
@@ -430,18 +489,30 @@ fn block_header_index(rows: &[DisplayRow], index: usize) -> usize {
 
 fn row_search_text(state: &AppState, row: &DisplayRow) -> Option<String> {
     match row {
-        DisplayRow::Diff { row } => state
-            .rendered_diff
-            .as_ref()?
-            .rows
-            .get(*row)
-            .map(|rendered| line_text(&rendered.text)),
+        DisplayRow::Diff { .. } | DisplayRow::SplitDiff { .. } => {
+            let rendered = state.rendered_diff.as_ref()?;
+            let text = [row.anchor_row(), split_left(row)]
+                .into_iter()
+                .flatten()
+                .filter_map(|index| rendered.rows.get(index))
+                .map(|rendered| line_text(&rendered.text))
+                .collect::<Vec<_>>()
+                .join(" ");
+            Some(text)
+        }
         DisplayRow::Comment { text, .. } => Some(text.clone()),
         DisplayRow::Context { text, .. } => Some(text.clone()),
         DisplayRow::FileHeader { .. }
         | DisplayRow::OrphanHeader
         | DisplayRow::Gap { .. }
         | DisplayRow::HunkHeader { .. } => None,
+    }
+}
+
+fn split_left(row: &DisplayRow) -> Option<usize> {
+    match row {
+        DisplayRow::SplitDiff { left, .. } => *left,
+        _ => None,
     }
 }
 

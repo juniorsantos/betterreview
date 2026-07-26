@@ -57,6 +57,12 @@ impl Runtime {
                 .await;
                 EffectOutcome::Rendered(result)
             }
+            AppEffect::SaveConfig { config } => {
+                let result = crate::state::StatePaths::discover()
+                    .and_then(|paths| config.save(&paths))
+                    .map_err(|error| error.to_string());
+                EffectOutcome::Saved(result)
+            }
             AppEffect::SaveSession { snapshot } => {
                 let result = match &self.session {
                     Some(handle) => handle

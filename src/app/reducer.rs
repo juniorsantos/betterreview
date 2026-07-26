@@ -3,8 +3,8 @@ use std::collections::BTreeSet;
 use crate::{
     diff::{DiffCursor, validate_selection},
     domain::{
-        DiffPosition, DiffSelection, DiffSide, DraftId, ProviderKind, ReviewOutcome, SubmitMode,
-        SubmitRequest, SubmitResult, Support, ThreadId,
+        DiffLayout, DiffPosition, DiffSelection, DiffSide, DraftId, ProviderKind, ReviewOutcome,
+        SubmitMode, SubmitRequest, SubmitResult, Support, ThreadId,
     },
     state::{EditorSnapshot, PendingSubmit, ReviewSync},
 };
@@ -108,10 +108,11 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
         AppAction::ToggleReviewed => toggle_reviewed(state),
         AppAction::ToggleHunkReviewed => toggle_hunk_reviewed(state),
         AppAction::ToggleSelection => {
-            let on_diff_row = matches!(
-                state.display_rows.get(state.display_cursor),
-                Some(DisplayRow::Diff { .. })
-            );
+            let on_diff_row = state
+                .display_rows
+                .get(state.display_cursor)
+                .and_then(DisplayRow::anchor_row)
+                .is_some();
             if !on_diff_row && state.selection_anchor.is_none() {
                 push_notice(state, "move to a code line");
                 return Vec::new();
@@ -301,6 +302,7 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             }
             Vec::new()
         }
+        AppAction::ToggleDiffLayout => toggle_diff_layout(state),
         AppAction::ToggleComments => {
             state.comments_hidden = !state.comments_hidden;
             refresh_display_rows(state);
@@ -429,8 +431,12 @@ fn move_display_cursor(state: &mut AppState, delta: i32) -> Vec<EffectEnvelope> 
 /// search — funnels through here so the landing semantics stay identical.
 fn land_on_display_row(state: &mut AppState, index: usize) {
     state.display_cursor = index;
-    if let Some(DisplayRow::Diff { row }) = state.display_rows.get(index) {
-        state.session.cursor_row = *row;
+    if let Some(row) = state
+        .display_rows
+        .get(index)
+        .and_then(DisplayRow::anchor_row)
+    {
+        state.session.cursor_row = row;
     }
     state.dirty = true;
 }
@@ -471,6 +477,7 @@ fn is_display_stop(row: &DisplayRow) -> bool {
     matches!(
         row,
         DisplayRow::Diff { .. }
+            | DisplayRow::SplitDiff { .. }
             | DisplayRow::Comment {
                 kind: CommentRowKind::Header,
                 ..
@@ -670,6 +677,31 @@ fn activate_file(state: &mut AppState, index: usize) -> Vec<EffectEnvelope> {
     ]
 }
 
+fn toggle_diff_layout(state: &mut AppState) -> Vec<EffectEnvelope> {
+    state.diff_layout = match state.diff_layout {
+        DiffLayout::Unified => DiffLayout::Split,
+        DiffLayout::Split => DiffLayout::Unified,
+    };
+    refresh_display_rows(state);
+    if state.diff_layout == DiffLayout::Split
+        && state.terminal_width < crate::app::SPLIT_MIN_TERMINAL_WIDTH
+    {
+        push_notice(
+            state,
+            "side-by-side needs a wider terminal; showing unified for now",
+        );
+    }
+    vec![envelope(
+        state,
+        None,
+        AppEffect::SaveConfig {
+            config: crate::state::AppConfig {
+                diff_layout: state.diff_layout,
+            },
+        },
+    )]
+}
+
 fn leave_review(state: &mut AppState, to_picker: bool) -> Vec<EffectEnvelope> {
     state.return_to_picker = to_picker;
     if state.session.editor.is_none() {
@@ -763,17 +795,18 @@ fn save_session(state: &mut AppState) -> EffectEnvelope {
 }
 
 fn hunk_at_cursor(state: &AppState) -> Option<u32> {
-    match state.display_rows.get(state.display_cursor)? {
-        DisplayRow::HunkHeader { hunk } => Some(*hunk),
-        DisplayRow::Diff { row } => state
-            .parsed_diff
-            .as_ref()?
-            .hunks
-            .iter()
-            .find(|hunk| hunk.row_range.contains(row))
-            .map(|hunk| hunk.id),
-        _ => None,
+    let display_row = state.display_rows.get(state.display_cursor)?;
+    if let DisplayRow::HunkHeader { hunk } = display_row {
+        return Some(*hunk);
     }
+    let row = display_row.anchor_row()?;
+    state
+        .parsed_diff
+        .as_ref()?
+        .hunks
+        .iter()
+        .find(|hunk| hunk.row_range.contains(&row))
+        .map(|hunk| hunk.id)
 }
 
 fn toggle_hunk_reviewed(state: &mut AppState) -> Vec<EffectEnvelope> {

@@ -11,13 +11,14 @@ use crate::{app::AppState, tui::theme};
 /// Right-side hints for the review screen's flat status bar (transversal
 /// rule 1): key/label pairs, key ACCENT+BOLD, label MUTED. `j/k` has no
 /// label — its meaning ("move") is assumed obvious from every other screen.
-const REVIEW_HINTS: [(&str, &str); 8] = [
+const REVIEW_HINTS: [(&str, &str); 9] = [
     ("j/k", ""),
     ("]h", "hunk"),
     ("]c", "comment"),
     ("/", "search"),
     ("R", "submit"),
     ("?", "help"),
+    ("\\", "layout"),
     ("Q", "list"),
     ("q", "quit"),
 ];

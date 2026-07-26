@@ -1,8 +1,10 @@
+mod config;
 mod json_store;
 mod model;
 mod paths;
 mod restore;
 
+pub use config::AppConfig;
 pub use json_store::{JsonSessionStore, SessionAccess, SessionHandle, SessionStore, StateError};
 pub use model::{
     ContentIdentity, EditorSnapshot, FileProgress, PendingSubmit, ReviewSync,

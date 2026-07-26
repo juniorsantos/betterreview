@@ -691,3 +691,58 @@ fn comment_card_border_uses_the_comment_color() {
         "card borders must use the comment color"
     );
 }
+
+#[test]
+fn split_layout_draws_both_sides_with_their_own_line_numbers() {
+    let mut state = app_with_two_hunk_headers();
+    state.terminal_width = 150;
+    state.diff_layout = betterreview::domain::DiffLayout::Split;
+    refresh_display_rows(&mut state);
+
+    let mut terminal = Terminal::new(TestBackend::new(150, 20)).unwrap();
+    terminal.draw(|frame| render(frame, &state)).unwrap();
+    let buffer = terminal.backend().buffer();
+    let screen: String = (0..20)
+        .map(|y| {
+            (0..150)
+                .map(|x| buffer.cell((x, y)).unwrap().symbol())
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert!(screen.contains('│'), "the two columns are separated");
+    let context_row = screen
+        .lines()
+        .find(|line| line.matches("context").count() == 2)
+        .expect("a context line shows on both sides");
+    assert!(
+        context_row.contains("    3") && context_row.contains("    1"),
+        "each side keeps its own number: old 3, new 1 — got {context_row:?}"
+    );
+}
+
+#[test]
+fn a_line_missing_on_one_side_is_hatched() {
+    let mut state = app_with_two_hunk_headers();
+    state.terminal_width = 150;
+    state.diff_layout = betterreview::domain::DiffLayout::Split;
+    refresh_display_rows(&mut state);
+
+    let mut terminal = Terminal::new(TestBackend::new(150, 20)).unwrap();
+    terminal.draw(|frame| render(frame, &state)).unwrap();
+    let buffer = terminal.backend().buffer();
+    let screen: String = (0..20)
+        .map(|y| {
+            (0..150)
+                .map(|x| buffer.cell((x, y)).unwrap().symbol())
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert!(
+        screen.contains('░'),
+        "the added line has no counterpart on the old side"
+    );
+}

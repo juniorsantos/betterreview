@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
     diff::{ParsedFileDiff, RenderedDiff},
-    domain::{DraftId, ProviderSnapshot, RepoPath, ReviewOutcome, ThreadId},
+    domain::{DiffLayout, DraftId, ProviderSnapshot, RepoPath, ReviewOutcome, ThreadId},
     state::SessionSnapshot,
 };
 
@@ -76,6 +76,7 @@ pub struct AppState {
     /// be folded straight into `expanded_gaps` once the fetch completes.
     pub pending_gap: Option<u32>,
     pub hunk_totals: BTreeMap<RepoPath, u32>,
+    pub diff_layout: DiffLayout,
 }
 
 impl AppState {
@@ -149,6 +150,7 @@ impl AppState {
             expanded_gaps: BTreeSet::new(),
             pending_gap: None,
             hunk_totals: BTreeMap::new(),
+            diff_layout: DiffLayout::default(),
         };
         state.refresh_hunk_totals();
         state

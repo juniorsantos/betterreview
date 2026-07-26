@@ -54,6 +54,7 @@ const COLUMNS: [Column; 3] = [
             ("c", "comment"),
             ("s", "suggestion"),
             ("t", "threads"),
+            ("\\", "split diff"),
         ],
     },
 ];

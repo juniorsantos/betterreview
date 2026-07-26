@@ -7,10 +7,10 @@ use betterreview::{
     },
     diff::{ParsedFileDiff, RenderedDiff, RenderedRow, RowBinding},
     domain::{
-        ChangeRequestKey, ChangedFile, CommitOid, DiffPosition, DiffSelection, DiffSide,
-        DraftComment, DraftId, FileStatus, PatchAvailability, ProviderCapabilities, ProviderKind,
-        ProviderSnapshot, RepoPath, ReviewComment, ReviewOutcome, ReviewThread, SubmitMode,
-        SubmitResult, Support, ThreadId,
+        ChangeRequestKey, ChangedFile, CommitOid, DiffLayout, DiffPosition, DiffSelection,
+        DiffSide, DraftComment, DraftId, FileStatus, PatchAvailability, ProviderCapabilities,
+        ProviderKind, ProviderSnapshot, RepoPath, ReviewComment, ReviewOutcome, ReviewThread,
+        SubmitMode, SubmitResult, Support, ThreadId,
     },
     providers::DraftBody,
     state::{
@@ -2558,4 +2558,132 @@ fn editor_snapshot() -> EditorSnapshot {
         },
         stale: false,
     }
+}
+
+// --- Side-by-side layout ---
+
+fn state_with_a_replacement() -> AppState {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let path = RepoPath("src/file_0.rs".into());
+    let code = |kind, old, new| betterreview::diff::DiffRow {
+        raw: String::new(),
+        kind,
+        old_line: old,
+        new_line: new,
+        left: old.map(|line| comment_pos(&path, DiffSide::Left, line)),
+        right: new.map(|line| comment_pos(&path, DiffSide::Right, line)),
+    };
+    state.parsed_diff = Some(ParsedFileDiff {
+        path: path.clone(),
+        head: CommitOid("new-head".into()),
+        rows: vec![
+            code(betterreview::diff::DiffRowKind::Context, Some(1), Some(1)),
+            code(betterreview::diff::DiffRowKind::Removed, Some(2), None),
+            code(betterreview::diff::DiffRowKind::Added, None, Some(2)),
+            code(betterreview::diff::DiffRowKind::Added, None, Some(3)),
+        ],
+        hunks: vec![betterreview::diff::DiffHunk {
+            id: 0,
+            old_start: 1,
+            old_count: 2,
+            new_start: 1,
+            new_count: 3,
+            row_range: 0..4,
+        }],
+    });
+    state.rendered_diff = Some(RenderedDiff {
+        rows: (0..4).map(|index| diff_row(index, None, None)).collect(),
+    });
+    state.terminal_width = 160;
+    betterreview::app::refresh_display_rows(&mut state);
+    state
+}
+
+#[test]
+fn unified_layout_keeps_one_row_per_diff_line() {
+    let state = state_with_a_replacement();
+
+    let diff_rows = state
+        .display_rows
+        .iter()
+        .filter(|row| matches!(row, DisplayRow::Diff { .. }))
+        .count();
+    assert_eq!(diff_rows, 4);
+}
+
+#[test]
+fn split_layout_folds_a_replacement_into_one_row_per_pair() {
+    let mut state = state_with_a_replacement();
+    state.diff_layout = DiffLayout::Split;
+    betterreview::app::refresh_display_rows(&mut state);
+
+    let pairs: Vec<&DisplayRow> = state
+        .display_rows
+        .iter()
+        .filter(|row| matches!(row, DisplayRow::SplitDiff { .. }))
+        .collect();
+
+    assert_eq!(
+        pairs,
+        vec![
+            &DisplayRow::SplitDiff {
+                left: Some(0),
+                right: Some(0)
+            },
+            &DisplayRow::SplitDiff {
+                left: Some(1),
+                right: Some(2)
+            },
+            &DisplayRow::SplitDiff {
+                left: None,
+                right: Some(3)
+            },
+        ]
+    );
+    assert!(
+        !state
+            .display_rows
+            .iter()
+            .any(|row| matches!(row, DisplayRow::Diff { .. })),
+        "no unified row survives in split layout"
+    );
+}
+
+#[test]
+fn a_narrow_terminal_renders_unified_even_when_split_is_chosen() {
+    let mut state = state_with_a_replacement();
+    state.diff_layout = DiffLayout::Split;
+    state.terminal_width = 90;
+    betterreview::app::refresh_display_rows(&mut state);
+
+    assert!(
+        state
+            .display_rows
+            .iter()
+            .any(|row| matches!(row, DisplayRow::Diff { .. })),
+        "the choice is kept but the narrow screen falls back"
+    );
+    assert_eq!(state.diff_layout, DiffLayout::Split);
+}
+
+#[test]
+fn the_cursor_on_a_pair_points_at_the_new_side() {
+    let mut state = state_with_a_replacement();
+    state.diff_layout = DiffLayout::Split;
+    betterreview::app::refresh_display_rows(&mut state);
+
+    let pair_index = state
+        .display_rows
+        .iter()
+        .position(|row| matches!(row, DisplayRow::SplitDiff { left: Some(1), .. }))
+        .expect("replacement pair");
+    update(
+        &mut state,
+        AppEvent::Action(AppAction::JumpToDisplayRow(pair_index)),
+    );
+
+    assert_eq!(
+        state.session.cursor_row, 2,
+        "commenting a replacement targets the added line"
+    );
 }

@@ -2,6 +2,14 @@ use serde::{Deserialize, Serialize};
 
 use super::RepoPath;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DiffLayout {
+    #[default]
+    Unified,
+    Split,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DiffSide {

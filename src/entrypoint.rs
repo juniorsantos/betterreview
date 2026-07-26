@@ -114,6 +114,7 @@ impl InstalledRuntime {
         let renderer = Arc::new(DeltaRenderer::new(self.runner.clone()));
         let runtime = Arc::new(crate::app::Runtime::new(key, provider, renderer, handle));
         let mut app = crate::app::AppState::new(fresh, snapshot);
+        app.diff_layout = crate::state::AppConfig::load(store.paths()).diff_layout;
         if read_only {
             crate::app::push_notice(&mut app, "session is open read-only");
         }

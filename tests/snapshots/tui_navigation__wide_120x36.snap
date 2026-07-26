@@ -37,4 +37,4 @@ expression: "redact_version(screen(&app(), 120, 36))"
 │                            ││                                                                                        │
 │                            ││                                                                                        │
 └────────────────────────────┘└────────────────────────────────────────────────────────────────────────────────────────┘
- 1/2 reviewed · 0 drafts · 0 operations      j/k · ]h hunk · ]c comment · / search · R submit · ? help · Q list · q quit
+ 1/2 reviewed · 0 drafts · 0 operations  j/k · ]h hunk · ]c comment · / search · R submit · ? help · \ layout · Q list …

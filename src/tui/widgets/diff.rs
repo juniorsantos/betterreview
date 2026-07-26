@@ -9,7 +9,7 @@ use ratatui::{
 use crate::{
     app::{AppFocus, AppState, CommentEntry, CommentRowKind, DisplayRow},
     diff::{RenderedDiff, RenderedRow},
-    domain::PatchAvailability,
+    domain::{DiffSide, PatchAvailability},
     tui::{theme, viewport},
 };
 
@@ -88,6 +88,7 @@ fn render_display_row(
             ),
         ]),
         DisplayRow::HunkHeader { hunk } => hunk_header_line(state, *hunk),
+        DisplayRow::SplitDiff { left, right } => split_line(diff, *left, *right, inner_width),
         DisplayRow::Context { new_line, text } => Line::from(vec![
             Span::styled(format!("{new_line:>5} "), Style::default().fg(theme::MUTED)),
             Span::styled(text.clone(), Style::default().fg(theme::FG)),
@@ -196,6 +197,85 @@ fn diff_line(diff: &RenderedDiff, row: usize, inner_width: usize) -> Line<'stati
         }
     }
     line
+}
+
+fn split_line(
+    diff: &RenderedDiff,
+    left: Option<usize>,
+    right: Option<usize>,
+    inner_width: usize,
+) -> Line<'static> {
+    let column = inner_width.saturating_sub(3) / 2;
+    let mut spans = side_spans(diff, left, DiffSide::Left, column);
+    spans.push(Span::styled(" │ ", Style::default().fg(theme::BORDER)));
+    spans.extend(side_spans(diff, right, DiffSide::Right, column));
+    Line::from(spans)
+}
+
+fn side_spans(
+    diff: &RenderedDiff,
+    row: Option<usize>,
+    side: DiffSide,
+    width: usize,
+) -> Vec<Span<'static>> {
+    let Some(rendered) = row.and_then(|row| diff.rows.get(row)) else {
+        return vec![Span::styled(
+            "\u{2591}".repeat(width),
+            Style::default().fg(theme::BORDER),
+        )];
+    };
+    let position = match side {
+        DiffSide::Left => rendered.binding.left.as_ref(),
+        DiffSide::Right => rendered.binding.right.as_ref(),
+    };
+    let number = position
+        .map(|position| position.line.to_string())
+        .unwrap_or_default();
+    let mut spans = vec![Span::styled(
+        format!("{number:>5} "),
+        Style::default().fg(theme::MUTED),
+    )];
+    spans.extend(truncate_spans(
+        &rendered.text.spans,
+        width.saturating_sub(6),
+    ));
+    let used: usize = spans.iter().map(|span| span.content.chars().count()).sum();
+    let background = rendered
+        .text
+        .spans
+        .iter()
+        .find_map(|span| span.style.bg)
+        .map(|bg| Style::default().bg(bg));
+    if let Some(style) = background {
+        spans[0].style = spans[0].style.patch(style);
+    }
+    if used < width {
+        spans.push(Span::styled(
+            " ".repeat(width - used),
+            background.unwrap_or_default(),
+        ));
+    }
+    spans
+}
+
+fn truncate_spans(spans: &[Span<'static>], width: usize) -> Vec<Span<'static>> {
+    let mut taken = 0;
+    let mut out = Vec::new();
+    for span in spans {
+        if taken >= width {
+            break;
+        }
+        let length = span.content.chars().count();
+        if taken + length <= width {
+            out.push(span.clone());
+            taken += length;
+        } else {
+            let text: String = span.content.chars().take(width - taken).collect();
+            out.push(Span::styled(text, span.style));
+            taken = width;
+        }
+    }
+    out
 }
 
 fn comment_line(

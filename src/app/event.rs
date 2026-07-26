@@ -75,6 +75,7 @@ pub enum AppAction {
     ToggleFilesPanel,
     ToggleFold,
     ToggleComments,
+    ToggleDiffLayout,
     ExpandGap,
     ConfirmSearch,
     SearchNext,

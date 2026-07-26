@@ -17,6 +17,7 @@ pub struct EffectEnvelope {
 
 #[derive(Debug, Clone)]
 pub enum AppEffect {
+    SaveConfig { config: crate::state::AppConfig },
     RenderActiveFile { file: ChangedFile, width: u16 },
     SaveSession { snapshot: Box<SessionSnapshot> },
     CreateDraft { input: NewDraftComment },
