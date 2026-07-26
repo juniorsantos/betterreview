@@ -103,7 +103,7 @@ fn screen(state: &AppState, width: u16, height: u16) -> String {
 fn submission_modal_is_compact_and_has_no_pending_comment_list() {
     let screen = screen(&app_with_drafts(3), 80, 24);
 
-    assert!(screen.contains("3 drafts serão publicados"));
+    assert!(screen.contains("3 drafts will be published"));
     assert!(screen.contains("Ready to merge"));
     assert!(!screen.contains("Pending comments"));
     assert!(!screen.contains("src/app.rs:42"));
@@ -112,13 +112,13 @@ fn submission_modal_is_compact_and_has_no_pending_comment_list() {
 #[test]
 fn the_active_verdict_is_named_on_the_title_bar() {
     let mut app = app_with_drafts(1);
-    assert!(screen(&app, 80, 24).contains("Enviar revisão · COMENTAR"));
+    assert!(screen(&app, 80, 24).contains("Submit review · COMMENT"));
 
     app.submission_modal.as_mut().unwrap().outcome = ReviewOutcome::Approve;
-    assert!(screen(&app, 80, 24).contains("Enviar revisão · APROVAR"));
+    assert!(screen(&app, 80, 24).contains("Submit review · APPROVE"));
 
     app.submission_modal.as_mut().unwrap().outcome = ReviewOutcome::RequestChanges;
-    assert!(screen(&app, 80, 24).contains("Enviar revisão · PEDIR MUDANÇAS"));
+    assert!(screen(&app, 80, 24).contains("Submit review · REQUEST CHANGES"));
 }
 
 #[test]
@@ -130,13 +130,13 @@ fn the_summary_carries_a_caret_and_the_verdicts_are_shortcuts() {
         "the caret marks the focus"
     );
     assert!(
-        screen.contains("[COMENTAR]"),
+        screen.contains("[COMMENT]"),
         "the active verdict is highlighted"
     );
-    assert!(screen.contains("aprovar"));
-    assert!(screen.contains("pedir mudanças"));
+    assert!(screen.contains("approve"));
+    assert!(screen.contains("request changes"));
     assert!(
-        screen.contains("Tab veredito"),
+        screen.contains("Tab verdict"),
         "Tab always reaches the app, unlike option+letter on macOS"
     );
 }
@@ -145,9 +145,9 @@ fn the_summary_carries_a_caret_and_the_verdicts_are_shortcuts() {
 fn a_supported_outcome_leaves_no_room_for_an_availability_warning() {
     let screen = screen(&app_with_drafts(1), 80, 24);
 
-    assert!(!screen.contains("indisponível"));
+    assert!(!screen.contains("unavailable"));
     assert!(
-        !screen.contains("Comentar na revisão"),
+        !screen.contains("Comment on the review"),
         "the action line only repeated the verdict already on the title"
     );
 }
@@ -162,22 +162,20 @@ fn unsupported_outcome_stays_visible_with_its_reason() {
 
     let screen = screen(&app, 80, 24);
 
-    assert!(screen.contains("PEDIR MUDANÇAS"));
+    assert!(screen.contains("REQUEST CHANGES"));
     assert!(screen.contains("Requires GitLab 17.3 or newer"));
-    assert!(screen.contains("indisponível"));
+    assert!(screen.contains("unavailable"));
 }
 
 #[test]
 fn submission_modal_remains_usable_on_a_small_terminal() {
     let screen = screen(&app_with_drafts(2), 50, 16);
 
-    assert!(screen.contains("Enviar revisão"));
+    assert!(screen.contains("Submit review"));
     assert!(screen.contains("2 drafts"));
-    assert!(screen.contains("aprovar"));
+    assert!(screen.contains("approve"));
 }
 
-/// A versão do crate aparece no cabeçalho renderizado; sem a redação os
-/// snapshots quebrariam a cada bump automático de release.
 fn redact_version(screen: String) -> String {
     screen.replace(concat!("v", env!("CARGO_PKG_VERSION")), "vX.Y.Z")
 }
@@ -199,14 +197,14 @@ fn the_modal_grows_with_the_summary_instead_of_leaving_dead_rows() {
     let one_line = screen(&app_with_drafts(1), 80, 24);
 
     let mut app = app_with_drafts(1);
-    app.submission_modal.as_mut().unwrap().summary = "uma\nduas\ntrês".into();
+    app.submission_modal.as_mut().unwrap().summary = "one\ntwo\nthree".into();
     let three_lines = screen(&app, 80, 24);
 
     let box_height = |screen: &str| {
         let lines: Vec<&str> = screen.lines().collect();
         let top = lines
             .iter()
-            .position(|line| line.contains("╭ Enviar revisão"))
+            .position(|line| line.contains("╭ Submit review"))
             .expect("modal top border");
         let bottom = lines
             .iter()
@@ -218,5 +216,5 @@ fn the_modal_grows_with_the_summary_instead_of_leaving_dead_rows() {
         box_height(&three_lines) > box_height(&one_line),
         "a multi-line summary must make the dialog taller, not scroll away"
     );
-    assert!(three_lines.contains("trê"));
+    assert!(three_lines.contains("three"));
 }

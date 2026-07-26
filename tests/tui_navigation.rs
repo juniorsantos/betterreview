@@ -234,8 +234,6 @@ fn diff_panel_scrolls_to_keep_the_cursor_visible() {
     assert!(!rendered.contains("diff-row-00"));
 }
 
-/// A versão do crate aparece no cabeçalho renderizado; sem a redação os
-/// snapshots quebrariam a cada bump automático de release.
 fn redact_version(screen: String) -> String {
     screen.replace(concat!("v", env!("CARGO_PKG_VERSION")), "vX.Y.Z")
 }
