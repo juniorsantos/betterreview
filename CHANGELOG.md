@@ -3,6 +3,33 @@
 All notable changes to this project are documented in this file, generated
 from conventional commits by [release-please](https://github.com/googleapis/release-please).
 
+## [0.5.0](https://github.com/juniorsantos/betterreview/compare/v0.4.0...v0.5.0) (2026-07-26)
+
+
+### Features
+
+* a renamed file header points from its old path to the new one (closes [#58](https://github.com/juniorsantos/betterreview/issues/58)) ([7ed39c4](https://github.com/juniorsantos/betterreview/commit/7ed39c477be41ee238a3b9c57638924b44105962))
+* expand one side of the split and move the column geometry out of the widget (closes [#45](https://github.com/juniorsantos/betterreview/issues/45), closes [#46](https://github.com/juniorsantos/betterreview/issues/46)) ([f2a2aaf](https://github.com/juniorsantos/betterreview/commit/f2a2aaf3bce9ff61ebdefa6512235f3cc1aae596))
+* name the enclosing section in the hunk header and the pinned row (closes [#57](https://github.com/juniorsantos/betterreview/issues/57)) ([25ec0c5](https://github.com/juniorsantos/betterreview/commit/25ec0c5151f57c7dec2305e0980b06c384d00936))
+* panel titles carry their list size and the alignment gap is truly hatched (closes [#50](https://github.com/juniorsantos/betterreview/issues/50)) ([311b8d2](https://github.com/juniorsantos/betterreview/commit/311b8d2da02412a2520f9eb50a5719e464584c31))
+* pin the file and hunk header while the diff scrolls (closes [#28](https://github.com/juniorsantos/betterreview/issues/28)) ([39daf8c](https://github.com/juniorsantos/betterreview/commit/39daf8c702c8da55612fe06fe4f41cb3336e20ed))
+* re-tier the palette so frames and line numbers recede behind the code (closes [#63](https://github.com/juniorsantos/betterreview/issues/63)) ([4063e30](https://github.com/juniorsantos/betterreview/commit/4063e304adbc2565e15ee3724557c8f20bf932fc))
+* shell completions for bash, zsh and fish (closes [#40](https://github.com/juniorsantos/betterreview/issues/40)) ([c6cbdfe](https://github.com/juniorsantos/betterreview/commit/c6cbdfe2264d0d6809982056d76edd4f6e3cc45b))
+* show hunk progress and diff totals in the status bar (closes [#29](https://github.com/juniorsantos/betterreview/issues/29)) ([71789b2](https://github.com/juniorsantos/betterreview/commit/71789b2bfd71fea676b0e4c7c79e00b02fcf014a))
+* size the gutter from the file's line count (closes [#61](https://github.com/juniorsantos/betterreview/issues/61)) ([fd6cd13](https://github.com/juniorsantos/betterreview/commit/fd6cd136ae40b96ec5cf1ecdf0b46a9c3a711ba0))
+* two-column line-number gutter in the unified diff (closes [#54](https://github.com/juniorsantos/betterreview/issues/54)) ([66ef690](https://github.com/juniorsantos/betterreview/commit/66ef690e53e7beba91305b7c1308acdcf5128c18))
+* wrap long lines with w and mark truncation otherwise (closes [#21](https://github.com/juniorsantos/betterreview/issues/21)) ([8854ecb](https://github.com/juniorsantos/betterreview/commit/8854ecb305955b5c361a81f9bb0b18c389f596ca))
+
+
+### Bug Fixes
+
+* blank the expanded-gap old number when it computes below line one ([15cd5d3](https://github.com/juniorsantos/betterreview/commit/15cd5d3075e7bbd3df10f27d7ccf8ceb75a0392e))
+* expand tabs to their tab stops so they occupy the cells they paint (closes [#55](https://github.com/juniorsantos/betterreview/issues/55)) ([96b3964](https://github.com/juniorsantos/betterreview/commit/96b3964498439f719c75776e4b5132a962ba658c))
+* group help shortcuts by intent in balanced columns (closes [#53](https://github.com/juniorsantos/betterreview/issues/53)) ([e38fef5](https://github.com/juniorsantos/betterreview/commit/e38fef5f9059fae7aa13fc6c6864fd4b4419a80a))
+* indent the files tree by depth and trace each file to its folder (closes [#62](https://github.com/juniorsantos/betterreview/issues/62)) ([2fe7fa1](https://github.com/juniorsantos/betterreview/commit/2fe7fa131f76df634c145ab55c11b7883f6994d6))
+* keep the gutter reserved on wrapped rows instead of spending a row on the number (closes [#60](https://github.com/juniorsantos/betterreview/issues/60)) ([b8ac69c](https://github.com/juniorsantos/betterreview/commit/b8ac69c4182053b3a25477f5e613125ea65ca6eb))
+* measure text in terminal cells and abbreviate paths instead of cutting names (closes [#25](https://github.com/juniorsantos/betterreview/issues/25), closes [#44](https://github.com/juniorsantos/betterreview/issues/44)) ([adaf97c](https://github.com/juniorsantos/betterreview/commit/adaf97c9b30e351f4d68f54d94e60b2592df8a4a))
+
 ## [0.4.0](https://github.com/juniorsantos/betterreview/compare/v0.3.0...v0.4.0) (2026-07-26)
 
 
