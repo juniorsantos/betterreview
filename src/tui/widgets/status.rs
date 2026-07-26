@@ -14,7 +14,7 @@ use crate::{
 /// Right-side hints for the review screen's flat status bar (transversal
 /// rule 1): key/label pairs, key ACCENT+BOLD, label MUTED. `j/k` has no
 /// label — its meaning ("move") is assumed obvious from every other screen.
-const REVIEW_HINTS: [(&str, &str); 11] = [
+const REVIEW_HINTS: [(&str, &str); 12] = [
     ("j/k", ""),
     ("]h", "hunk"),
     ("]c", "comment"),
@@ -24,6 +24,7 @@ const REVIEW_HINTS: [(&str, &str); 11] = [
     ("f", "files"),
     ("\\", "layout"),
     ("|", "side"),
+    ("w", "wrap"),
     ("Q", "list"),
     ("q", "quit"),
 ];

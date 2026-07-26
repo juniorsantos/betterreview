@@ -15,6 +15,8 @@ pub struct AppConfig {
     pub diff_layout: DiffLayout,
     #[serde(default)]
     pub files_hidden: bool,
+    #[serde(default)]
+    pub wrap_lines: bool,
 }
 
 impl AppConfig {

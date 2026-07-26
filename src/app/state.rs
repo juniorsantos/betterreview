@@ -79,6 +79,7 @@ pub struct AppState {
     pub hunk_totals: BTreeMap<RepoPath, u32>,
     pub diff_layout: DiffLayout,
     pub split_focus: Option<crate::tui::SplitSide>,
+    pub wrap_lines: bool,
 }
 
 impl AppState {
@@ -155,6 +156,7 @@ impl AppState {
             hunk_totals: BTreeMap::new(),
             diff_layout: DiffLayout::default(),
             split_focus: None,
+            wrap_lines: false,
         };
         state.refresh_hunk_totals();
         state

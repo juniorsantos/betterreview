@@ -58,6 +58,7 @@ const COLUMNS: [Column; 3] = [
             ("t", "threads"),
             ("\\", "split diff"),
             ("|", "expand one side"),
+            ("w", "wrap long lines"),
         ],
     },
 ];

@@ -296,10 +296,7 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
                 state,
                 None,
                 AppEffect::SaveConfig {
-                    config: crate::state::AppConfig {
-                        diff_layout: state.diff_layout,
-                        files_hidden: state.files_hidden,
-                    },
+                    config: config_of(state),
                 },
             )]
         }
@@ -323,6 +320,7 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
         }
         AppAction::ToggleDiffLayout => toggle_diff_layout(state),
         AppAction::CycleSplitSide => cycle_split_side(state),
+        AppAction::ToggleWrap => toggle_wrap(state),
         AppAction::ToggleComments => {
             state.comments_hidden = !state.comments_hidden;
             refresh_display_rows(state);
@@ -715,10 +713,26 @@ fn toggle_diff_layout(state: &mut AppState) -> Vec<EffectEnvelope> {
         state,
         None,
         AppEffect::SaveConfig {
-            config: crate::state::AppConfig {
-                diff_layout: state.diff_layout,
-                files_hidden: state.files_hidden,
-            },
+            config: config_of(state),
+        },
+    )]
+}
+
+fn config_of(state: &AppState) -> crate::state::AppConfig {
+    crate::state::AppConfig {
+        diff_layout: state.diff_layout,
+        files_hidden: state.files_hidden,
+        wrap_lines: state.wrap_lines,
+    }
+}
+
+fn toggle_wrap(state: &mut AppState) -> Vec<EffectEnvelope> {
+    state.wrap_lines = !state.wrap_lines;
+    vec![envelope(
+        state,
+        None,
+        AppEffect::SaveConfig {
+            config: config_of(state),
         },
     )]
 }

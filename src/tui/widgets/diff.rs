@@ -31,7 +31,13 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             .iter()
             .enumerate()
             .map(|(index, display_row)| {
-                render_display_row(state, diff, display_row, index, inner_width, columns)
+                let line =
+                    render_display_row(state, diff, display_row, index, inner_width, columns);
+                if state.wrap_lines {
+                    line
+                } else {
+                    mark_if_cut(line, inner_width)
+                }
             })
             .collect(),
         None => vec![Line::raw(unavailable_reason(state))],
@@ -53,9 +59,17 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     // changes where the viewport starts — so decide with the full height and
     // only then take the row back.
     let full = inner.height as usize;
-    let pinned = viewport::start(state.display_cursor, lines.len(), full) > 0;
+    let heights: Vec<usize> = if state.wrap_lines {
+        lines
+            .iter()
+            .map(|line| viewport::wrapped_height(line.width(), inner.width as usize))
+            .collect()
+    } else {
+        vec![1; lines.len()]
+    };
+    let pinned = viewport::start_wrapped(state.display_cursor, &heights, full) > 0;
     let visible = if pinned { full.saturating_sub(1) } else { full };
-    let start = viewport::start(state.display_cursor, lines.len(), visible);
+    let start = viewport::start_wrapped(state.display_cursor, &heights, visible);
     let scroll = u16::try_from(start).unwrap_or(u16::MAX);
 
     let body = if pinned {
@@ -67,7 +81,13 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     } else {
         inner
     };
-    frame.render_widget(Paragraph::new(lines).scroll((scroll, 0)), body);
+    let paragraph = Paragraph::new(lines).scroll((scroll, 0));
+    let paragraph = if state.wrap_lines {
+        paragraph.wrap(ratatui::widgets::Wrap { trim: false })
+    } else {
+        paragraph
+    };
+    frame.render_widget(paragraph, body);
 }
 
 /// The row kept at the top while the body scrolls: the file being reviewed
@@ -106,6 +126,35 @@ fn hunk_at_cursor(state: &AppState) -> Option<u32> {
         .iter()
         .find(|hunk| hunk.row_range.contains(&row))
         .map(|hunk| hunk.id)
+}
+
+/// Replaces the tail of an over-long line with `…` so a cut is visible.
+/// Without this the paragraph simply stops drawing and the reader has no way
+/// to know content was dropped.
+fn mark_if_cut(line: Line<'static>, width: usize) -> Line<'static> {
+    if width == 0 || line.width() <= width {
+        return line;
+    }
+    let mut kept = Vec::new();
+    let mut used = 0;
+    for span in line.spans {
+        let span_width = display_width(&span.content);
+        if used + span_width <= width.saturating_sub(1) {
+            used += span_width;
+            kept.push(span);
+            continue;
+        }
+        let room = width.saturating_sub(1) - used;
+        if room > 0 {
+            kept.push(Span::styled(
+                truncate_to_width(&span.content, room),
+                span.style,
+            ));
+        }
+        break;
+    }
+    kept.push(Span::styled("…", Style::default().fg(theme::MUTED)));
+    Line::from(kept).style(line.style)
 }
 
 fn render_display_row(

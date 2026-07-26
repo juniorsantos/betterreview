@@ -842,3 +842,54 @@ fn the_top_of_the_file_shows_no_pinned_row() {
         "the real header is visible, so nothing is pinned above it"
     );
 }
+
+fn app_with_a_long_line() -> AppState {
+    let mut state = app();
+    let long = "x".repeat(200);
+    state.rendered_diff = Some(RenderedDiff {
+        rows: vec![RenderedRow {
+            text: Line::raw(format!("+{long}")),
+            binding: RowBinding {
+                row_index: 0,
+                left: None,
+                right: Some(position(DiffSide::Right, 5)),
+            },
+        }],
+    });
+    state.parsed_diff = None;
+    refresh_display_rows(&mut state);
+    state
+}
+
+#[test]
+fn a_cut_line_says_it_was_cut() {
+    let state = app_with_a_long_line();
+
+    let screen = screen(&draw(&state));
+
+    assert!(
+        screen.contains('…'),
+        "truncation must be visible, not silent"
+    );
+}
+
+#[test]
+fn wrapping_shows_the_whole_line_across_rows() {
+    let mut state = app_with_a_long_line();
+    state.wrap_lines = true;
+
+    let screen = screen(&draw(&state));
+    let body_rows = screen.lines().filter(|line| line.contains("xxxx")).count();
+
+    assert!(
+        body_rows >= 4,
+        "200 columns of content need several rows in a 48-column panel, got {body_rows}"
+    );
+    assert!(
+        !screen
+            .lines()
+            .filter(|line| line.contains("xxxx"))
+            .any(|line| line.contains('…')),
+        "no diff row is cut when wrapping"
+    );
+}
