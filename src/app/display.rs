@@ -16,9 +16,6 @@ pub enum CommentEntry {
     },
 }
 
-/// Which terminal line of a comment card a row renders: the top border with
-/// the author/state meta, a body line, or the bottom border with the key
-/// hints. Navigation stops only on `Header`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommentRowKind {
     Header,
@@ -28,8 +25,6 @@ pub enum CommentRowKind {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DisplayRow {
-    /// Single line at the top naming the file under review (replaces the
-    /// raw `diff --git`/`index` header block).
     FileHeader {
         path: String,
     },
@@ -43,18 +38,12 @@ pub enum DisplayRow {
         author: Option<String>,
     },
     OrphanHeader,
-    /// A run of unchanged lines the diff didn't show, sitting right after
-    /// new-file line `after_new_line` (`0` for a gap before the first hunk).
-    /// `hidden` is how many lines it collapses. Replaced by `Context` rows
-    /// once its key is in `AppState::expanded_gaps` and the file's contents
-    /// are cached in `AppState::file_contexts`.
     Gap {
         after_new_line: u32,
         hidden: usize,
     },
-    /// One expanded line of unchanged context, pulled from the cached file
-    /// contents at the head revision.
     Context {
+        old_line: Option<u32>,
         new_line: u32,
         text: String,
     },
@@ -77,18 +66,12 @@ impl DisplayRow {
     }
 }
 
-/// A comment block waiting to be placed into the display, either right after
-/// its anchor row or, if it has none, among the orphaned blocks at the end.
 struct PendingBlock {
     entry: CommentEntry,
     body: String,
     author: Option<String>,
 }
 
-/// Builds the flattened list of rows to render: the diff rows themselves
-/// interleaved, GitHub-style, with comment blocks anchored to the diff line
-/// they were left on. When `hidden` is true comments are omitted entirely
-/// and only the diff rows are returned, in their original order.
 pub fn build_display_rows(
     rendered: &RenderedDiff,
     threads: &[ReviewThread],
@@ -166,11 +149,6 @@ pub fn build_display_rows(
     rows
 }
 
-/// Convenience wrapper around [`build_display_rows`] that pulls its inputs
-/// straight from `AppState`: the currently rendered diff, the active
-/// change request's threads and drafts, the active file's path, and whether
-/// comments are currently hidden. Returns an empty vector when there is no
-/// rendered diff yet or no active file to anchor comments to.
 pub fn display_rows(state: &AppState) -> Vec<DisplayRow> {
     let Some(rendered) = state.rendered_diff.as_ref() else {
         return Vec::new();
@@ -192,13 +170,6 @@ pub fn display_rows(state: &AppState) -> Vec<DisplayRow> {
     )
 }
 
-/// Rebuilds `state.display_rows` from the current diff/threads/drafts/active
-/// file/comments_hidden inputs and resyncs `display_cursor` to the display
-/// row carrying `session.cursor_row` (falling back to 0 when no row
-/// matches). Call this every time one of those inputs changes: it is the
-/// single place that keeps the cached rows and the cursor consistent with
-/// each other, whether that's the first render after resuming a session or
-/// a later mutation such as a new draft or thread update.
 pub fn refresh_display_rows(state: &mut AppState) {
     state.display_rows = display_rows(state);
     if let Some(parsed) = state.parsed_diff.as_ref() {
@@ -239,12 +210,6 @@ pub fn refresh_display_rows(state: &mut AppState) {
         .iter()
         .position(|row| row.anchor_row() == Some(target))
         .or_else(|| {
-            // The row `session.cursor_row` pointed at is no longer in the
-            // display (e.g. a header/metadata row hidden by a later
-            // refresh): snap forward to the nearest Diff row that still is,
-            // and rewrite `session.cursor_row` to match so future refreshes
-            // (and the persisted session) agree with where the cursor
-            // actually landed.
             state
                 .display_rows
                 .iter()
@@ -267,12 +232,6 @@ pub fn refresh_display_rows(state: &mut AppState) {
     }
 }
 
-/// Finds runs of unchanged lines the parsed diff skipped over — between
-/// hunks, before the first hunk, and after the last one — and splices a
-/// `Gap` row (or, when the gap is expanded and the file's contents are
-/// cached, one `Context` row per hidden line) into `state.display_rows` at
-/// each spot. A no-op when there's no parsed diff or no active file, and
-/// when every consecutive pair of code rows is already contiguous.
 fn insert_gap_rows(state: &mut AppState) {
     let Some(parsed) = state.parsed_diff.as_ref() else {
         return;
@@ -292,8 +251,6 @@ fn insert_gap_rows(state: &mut AppState) {
         .get(&active_path)
         .map(|lines| lines.len() as u32);
 
-    // Keyed by the display index a gap sits *before*; `old_len` (past the
-    // last index) means "append at the very end".
     let mut insert_before: BTreeMap<usize, (u32, usize)> = BTreeMap::new();
     let mut last_new_line: Option<u32> = None;
     let mut last_diff_display_index: Option<usize> = None;
@@ -332,9 +289,6 @@ fn insert_gap_rows(state: &mut AppState) {
                 insert_before.insert(last_index + 1, (prev, (total - prev) as usize));
             }
         }
-        // File length still unknown: offer a speculative trailing gap
-        // (hidden == 0 is the "unknown" sentinel) so `z` can bootstrap the
-        // first load even in single-hunk diffs.
         (None, Some(prev), Some(last_index)) => {
             insert_before.insert(last_index + 1, (prev, 0));
         }
@@ -345,30 +299,62 @@ fn insert_gap_rows(state: &mut AppState) {
         return;
     }
 
+    let parsed_hunks: Vec<crate::diff::DiffHunk> = state
+        .parsed_diff
+        .as_ref()
+        .map(|parsed| parsed.hunks.clone())
+        .unwrap_or_default();
+    let parsed_hunks = parsed_hunks.as_slice();
     let old_rows = std::mem::take(&mut state.display_rows);
     let old_len = old_rows.len();
     let mut new_rows = Vec::with_capacity(old_len + insert_before.len());
     for (index, row) in old_rows.into_iter().enumerate() {
         if let Some((after, hidden)) = insert_before.remove(&index) {
-            push_gap_row(state, &mut new_rows, after, hidden, &active_path);
+            push_gap_row(
+                state,
+                &mut new_rows,
+                after,
+                hidden,
+                &active_path,
+                old_offset(parsed_hunks, after),
+            );
         }
         new_rows.push(row);
     }
     if let Some((after, hidden)) = insert_before.remove(&old_len) {
-        push_gap_row(state, &mut new_rows, after, hidden, &active_path);
+        push_gap_row(
+            state,
+            &mut new_rows,
+            after,
+            hidden,
+            &active_path,
+            old_offset(parsed_hunks, after),
+        );
     }
     state.display_rows = new_rows;
 }
 
-/// Pushes either a single collapsed `Gap` row, or — when `after_new_line` is
-/// in `expanded_gaps` and the file's contents are cached — one `Context` row
-/// per hidden line, numbered from `after_new_line + 1`.
+fn old_offset(hunks: &[crate::diff::DiffHunk], after_new_line: u32) -> Option<i64> {
+    if let Some(next) = hunks
+        .iter()
+        .find(|hunk| hunk.new_start as i64 > after_new_line as i64)
+    {
+        return Some(next.old_start as i64 - next.new_start as i64);
+    }
+    let last = hunks.last()?;
+    Some(
+        (last.old_start as i64 + last.old_count as i64)
+            - (last.new_start as i64 + last.new_count as i64),
+    )
+}
+
 fn push_gap_row(
     state: &AppState,
     rows: &mut Vec<DisplayRow>,
     after_new_line: u32,
     hidden: usize,
     active_path: &RepoPath,
+    old_offset: Option<i64>,
 ) {
     if state.expanded_gaps.contains(&after_new_line) {
         if let Some(lines) = state.file_contexts.get(active_path) {
@@ -378,7 +364,11 @@ fn push_gap_row(
                     .get((new_line - 1) as usize)
                     .cloned()
                     .unwrap_or_default();
-                rows.push(DisplayRow::Context { new_line, text });
+                rows.push(DisplayRow::Context {
+                    old_line: old_offset.map(|delta| (new_line as i64 + delta) as u32),
+                    new_line,
+                    text,
+                });
             }
             return;
         }
@@ -445,15 +435,6 @@ fn fold_split_rows(state: &mut AppState) {
         .collect();
 }
 
-/// Display rows whose rendered text contains `state.search_query`
-/// (case-insensitive), in display order. `Diff` rows are matched against the
-/// rendered diff text; `Comment` rows (including `Body` lines) against their
-/// own `text`, but a match inside a comment is reported at its block's
-/// `Header` row — the only row inside a comment block that is a navigation
-/// stop — with consecutive duplicates from the same block collapsed. Returns
-/// an empty vector when there is no active query. Shared by the reducer (to
-/// land on/step between matches) and the status bar (to show the match
-/// count).
 pub fn search_matches(state: &AppState) -> Vec<usize> {
     let Some(query) = state.search_query.as_deref() else {
         return Vec::new();
@@ -481,10 +462,6 @@ pub fn search_matches(state: &AppState) -> Vec<usize> {
     matches
 }
 
-/// Walks backward from `index` to the nearest `Comment` row with
-/// `CommentRowKind::Header` — the start of the block `index` belongs to.
-/// Comment blocks are always pushed contiguously (`Header`, `Body`*,
-/// `Footer`), so this always finds one for a genuine comment row.
 fn block_header_index(rows: &[DisplayRow], index: usize) -> usize {
     let mut cursor = index;
     loop {
@@ -540,9 +517,6 @@ fn line_text(line: &ratatui::text::Line<'_>) -> String {
         .collect()
 }
 
-/// A draft belongs to `active_path` when its selection targets that file, or
-/// when it has no selection at all (its file cannot be determined, so it is
-/// kept and surfaced as an orphan rather than silently dropped).
 fn draft_belongs(draft: &DraftComment, active_path: &RepoPath) -> bool {
     match &draft.selection {
         Some(selection) => &selection.end.path == active_path,
@@ -579,15 +553,12 @@ fn find_anchor_row(rendered: &RenderedDiff, target: &DiffPosition) -> Option<usi
 }
 
 fn push_block(rows: &mut Vec<DisplayRow>, block: PendingBlock) {
-    // A card is a bordered box: top border (meta), one body row per line,
-    // bottom border (key hints). Every row is one terminal line.
     rows.push(DisplayRow::Comment {
         entry: block.entry.clone(),
         kind: CommentRowKind::Header,
         text: String::new(),
         author: block.author,
     });
-    // Vertical breathing room: one blank body row against each border.
     rows.push(DisplayRow::Comment {
         entry: block.entry.clone(),
         kind: CommentRowKind::Body,

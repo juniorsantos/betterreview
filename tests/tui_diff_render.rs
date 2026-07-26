@@ -366,9 +366,9 @@ fn expanded_gap_shows_the_cached_context_lines_and_hides_the_gap_hint() {
 
     let screen = screen(&draw(&state));
 
-    assert!(screen.contains("    2 line two"));
-    assert!(screen.contains("    3 line three"));
-    assert!(screen.contains("    4 line four"));
+    assert!(screen.contains("line two"));
+    assert!(screen.contains("line three"));
+    assert!(screen.contains("line four"));
     assert!(!screen.contains("hidden lines"));
 }
 
@@ -409,16 +409,13 @@ fn screen(terminal: &Terminal<TestBackend>) -> String {
 }
 
 #[test]
-fn diff_shows_a_single_line_number_column() {
+fn diff_shows_both_line_number_columns() {
     let terminal = draw(&app());
     let screen = screen(&terminal);
 
-    // New-side numbers for context/added rows; old-side number for removed.
-    assert!(screen.contains("    4 context"));
-    assert!(screen.contains("    4 -removed"));
-    assert!(screen.contains("    5 +added"));
-    // The old two-column gutter is gone.
-    assert!(!screen.contains("   3    4 context"));
+    assert!(screen.contains("    3     4 \u{2502} context"), "{screen}");
+    assert!(screen.contains("    4       \u{2502} -removed"));
+    assert!(screen.contains("          5 \u{2502} +added"));
 }
 
 #[test]
@@ -462,7 +459,7 @@ fn comment_box_renders_under_its_line() {
     state.provider.drafts.push(draft_at_line_5());
     refresh_display_rows(&mut state);
 
-    let terminal = draw(&state);
+    let terminal = draw_wide(&state);
     let screen = screen(&terminal);
     let lines: Vec<&str> = screen.lines().collect();
 
@@ -511,13 +508,13 @@ fn toggle_hides_comment_rows() {
     let mut state = app();
     state.provider.drafts.push(draft_at_line_5());
     refresh_display_rows(&mut state);
-    let visible_screen = screen(&draw(&state));
+    let visible_screen = screen_wide(&draw_wide(&state));
     assert!(visible_screen.contains("draft"));
     assert!(visible_screen.contains("Please double-check this line"));
 
     state.comments_hidden = true;
     refresh_display_rows(&mut state);
-    let hidden_screen = screen(&draw(&state));
+    let hidden_screen = screen_wide(&draw_wide(&state));
     assert!(!hidden_screen.contains("Please double-check this line"));
     assert!(hidden_screen.contains("+added"));
 }
@@ -892,4 +889,81 @@ fn wrapping_shows_the_whole_line_across_rows() {
             .any(|line| line.contains('…')),
         "no diff row is cut when wrapping"
     );
+}
+
+#[test]
+fn the_gutter_shows_both_line_numbers() {
+    let screen = screen(&draw(&app()));
+
+    assert!(
+        screen.contains("    3     4 │"),
+        "a context line carries the old and the new number: {screen}"
+    );
+    assert!(
+        screen.contains("    4       │ -removed"),
+        "a removed line leaves the new cell blank"
+    );
+    assert!(
+        screen.contains("          5 │ +added"),
+        "an added line leaves the old cell blank"
+    );
+}
+
+#[test]
+fn the_background_paints_every_gutter_cell_including_the_blank_one() {
+    let mut state = app();
+    state.rendered_diff = Some(RenderedDiff {
+        rows: vec![
+            RenderedRow {
+                text: Line::raw("context"),
+                binding: RowBinding {
+                    row_index: 0,
+                    left: Some(position(DiffSide::Left, 3)),
+                    right: Some(position(DiffSide::Right, 4)),
+                },
+            },
+            RenderedRow {
+                text: Line::from(ratatui::text::Span::styled(
+                    "+added",
+                    ratatui::style::Style::default()
+                        .bg(ratatui::style::Color::Rgb(0x1c, 0x44, 0x28)),
+                )),
+                binding: RowBinding {
+                    row_index: 1,
+                    left: None,
+                    right: Some(position(DiffSide::Right, 5)),
+                },
+            },
+        ],
+    });
+    state.parsed_diff = None;
+    state.session.cursor_row = 0;
+    refresh_display_rows(&mut state);
+
+    let terminal = draw(&state);
+    let buffer = terminal.backend().buffer();
+    let (row, text) = (0..24)
+        .map(|y| {
+            (
+                y,
+                (0..80)
+                    .map(|x| buffer.cell((x, y)).unwrap().symbol())
+                    .collect::<String>(),
+            )
+        })
+        .find(|(_, text)| text.contains("+added"))
+        .expect("added row rendered");
+
+    let green = Some(ratatui::style::Color::Rgb(0x1c, 0x44, 0x28));
+    let plus = text.find("+added").unwrap() as u16;
+    // The empty old-number cell, the separator and the tail all carry the band.
+    for offset in [13u16, 3, 1] {
+        assert_eq!(
+            buffer.cell((plus - offset, row)).unwrap().style().bg,
+            green,
+            "column {} of the gutter is not painted",
+            plus - offset
+        );
+    }
+    assert_eq!(buffer.cell((77, row)).unwrap().style().bg, green);
 }

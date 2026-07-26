@@ -16,13 +16,15 @@ use crate::{
     },
 };
 
-/// Width of the gutter carried by every row: a 5-wide line number column plus
-/// its trailing space (`{number:>5} `), or that many blank columns for
-/// comment/orphan rows so their `│` prefix lines up underneath it.
-const GUTTER: &str = "      ";
+const GUTTER_WIDTH: usize = 14;
+const GUTTER_SPANS: usize = 3;
+const SIDE_GUTTER_WIDTH: usize = 6;
+
+fn blank_gutter() -> Span<'static> {
+    Span::raw(" ".repeat(GUTTER_WIDTH))
+}
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
-    // Borders (2) plus one column of breathing room on each side.
     let inner_width = area.width.saturating_sub(4) as usize;
     let columns = crate::tui::diff_columns(area, state);
     let lines = match &state.rendered_diff {
@@ -55,9 +57,6 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    // Reserving a row for the pinned header changes how much fits, which
-    // changes where the viewport starts — so decide with the full height and
-    // only then take the row back.
     let full = inner.height as usize;
     let heights: Vec<usize> = if state.wrap_lines {
         lines
@@ -90,8 +89,6 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     frame.render_widget(paragraph, body);
 }
 
-/// The row kept at the top while the body scrolls: the file being reviewed
-/// and the hunk the cursor sits in, so neither is lost past the fold.
 fn pinned_line(state: &AppState) -> Line<'static> {
     let path = state
         .parsed_diff
@@ -128,9 +125,6 @@ fn hunk_at_cursor(state: &AppState) -> Option<u32> {
         .map(|hunk| hunk.id)
 }
 
-/// Replaces the tail of an over-long line with `…` so a cut is visible.
-/// Without this the paragraph simply stops drawing and the reader has no way
-/// to know content was dropped.
 fn mark_if_cut(line: Line<'static>, width: usize) -> Line<'static> {
     if width == 0 || line.width() <= width {
         return line;
@@ -183,7 +177,7 @@ fn render_display_row(
             Line::styled("— outdated comments —", Style::default().fg(theme::MUTED))
         }
         DisplayRow::Gap { hidden, .. } => Line::from(vec![
-            Span::raw(GUTTER),
+            blank_gutter(),
             Span::styled(
                 if *hidden == 0 {
                     "· · · z loads the rest of the file · · ·".to_owned()
@@ -195,8 +189,19 @@ fn render_display_row(
         ]),
         DisplayRow::HunkHeader { hunk } => hunk_header_line(state, *hunk),
         DisplayRow::SplitDiff { left, right } => split_line(diff, *left, *right, columns),
-        DisplayRow::Context { new_line, text } => Line::from(vec![
-            Span::styled(format!("{new_line:>5} "), Style::default().fg(theme::MUTED)),
+        DisplayRow::Context {
+            old_line,
+            new_line,
+            text,
+        } => Line::from(vec![
+            Span::styled(
+                format!(
+                    "{:>5} {new_line:>5} ",
+                    old_line.map(|line| line.to_string()).unwrap_or_default()
+                ),
+                Style::default().fg(theme::MUTED),
+            ),
+            Span::styled("\u{2502}  ", Style::default().fg(theme::BORDER)),
             Span::styled(text.clone(), Style::default().fg(theme::FG)),
         ]),
     };
@@ -207,7 +212,6 @@ fn render_display_row(
         (start..=end).contains(row)
     }));
 
-    // The whole comment card lights up while the cursor sits on its block.
     let cursor_on_block = match display_row {
         DisplayRow::Comment { entry, .. } => matches!(
             state.display_rows.get(state.display_cursor),
@@ -228,15 +232,12 @@ fn render_display_row(
         None
     };
     if let Some(style) = style {
-        // Pad so the background reaches the panel's right edge.
         let text_width = line.width();
         if text_width < inner_width {
             line.spans
                 .push(Span::raw(" ".repeat(inner_width - text_width)));
         }
         if matches!(display_row, DisplayRow::Comment { .. }) {
-            // The card lives in the code body area: keep the line-number
-            // gutter unpainted so the box visually starts after it.
             for span in line.spans.iter_mut().skip(1) {
                 span.style = span.style.patch(style);
             }
@@ -261,7 +262,7 @@ fn hunk_header_line(state: &AppState, hunk: u32) -> Line<'static> {
         ("M mark", theme::MUTED)
     };
     Line::from(vec![
-        Span::raw(GUTTER),
+        blank_gutter(),
         Span::styled(
             format!("hunk {}/{total}", hunk + 1),
             Style::default()
@@ -277,23 +278,32 @@ fn diff_line(diff: &RenderedDiff, row: usize, inner_width: usize) -> Line<'stati
     let Some(rendered_row): Option<&RenderedRow> = diff.rows.get(row) else {
         return Line::default();
     };
-    // One gutter column: the line number on the side the row exists on (new
-    // side wins when both are present).
-    let number = rendered_row
-        .binding
-        .right
-        .as_ref()
-        .or(rendered_row.binding.left.as_ref())
-        .map(|position| position.line.to_string())
-        .unwrap_or_default();
-    let mut spans = vec![Span::styled(
-        format!("{number:>5} "),
-        Style::default().fg(theme::MUTED),
-    )];
+    let number = |position: &Option<crate::domain::DiffPosition>| {
+        position
+            .as_ref()
+            .map(|position| position.line.to_string())
+            .unwrap_or_default()
+    };
+    let muted = Style::default().fg(theme::MUTED);
+    let mut spans = vec![
+        Span::styled(format!("{:>5} ", number(&rendered_row.binding.left)), muted),
+        Span::styled(
+            format!("{:>5} ", number(&rendered_row.binding.right)),
+            muted,
+        ),
+        Span::styled("\u{2502} ", Style::default().fg(theme::BORDER)),
+    ];
     spans.extend(rendered_row.text.spans.clone());
     let mut line = Line::from(spans);
-    if let Some(bg) = line.spans.iter().skip(1).find_map(|span| span.style.bg) {
-        line.spans[0].style = line.spans[0].style.bg(bg);
+    if let Some(bg) = line
+        .spans
+        .iter()
+        .skip(GUTTER_SPANS)
+        .find_map(|span| span.style.bg)
+    {
+        for span in line.spans.iter_mut().take(GUTTER_SPANS) {
+            span.style = span.style.bg(bg);
+        }
         let text_width = line.width();
         if text_width < inner_width {
             line.spans.push(Span::styled(
@@ -362,7 +372,7 @@ fn side_spans(
     )];
     spans.extend(truncate_spans(
         &rendered.text.spans,
-        width.saturating_sub(6),
+        width.saturating_sub(SIDE_GUTTER_WIDTH),
     ));
     let used: usize = spans.iter().map(|span| display_width(&span.content)).sum();
     let background = rendered
@@ -411,12 +421,11 @@ fn comment_line(
     author: Option<&str>,
     inner_width: usize,
 ) -> Line<'static> {
-    let card_width = inner_width.saturating_sub(GUTTER.len()).max(4);
+    let card_width = inner_width.saturating_sub(GUTTER_WIDTH).max(4);
     let border_style = Style::default().fg(theme::COMMENT);
-    let mut spans = vec![Span::raw(GUTTER)];
+    let mut spans = vec![blank_gutter()];
     match kind {
         CommentRowKind::Header => {
-            // ╭─ @autor · marcador ─────╮
             let author_label = author.map_or_else(|| "you".to_owned(), str::to_owned);
             let (marker_text, marker_color) =
                 marker(state, entry).unwrap_or(("comment", theme::MUTED));
@@ -437,7 +446,6 @@ fn comment_line(
             spans.push(Span::styled("╮", border_style));
         }
         CommentRowKind::Body => {
-            // │   texto (padding interno) │
             spans.push(Span::styled("│   ", border_style));
             spans.push(Span::styled(
                 text.to_owned(),
@@ -449,7 +457,6 @@ fn comment_line(
             spans.push(Span::styled("│", border_style));
         }
         CommentRowKind::Footer => {
-            // ╰─ e editar · x excluir ──╯  (teclas em accent bold)
             let hints: &[(&str, &str)] = match entry {
                 CommentEntry::Draft { .. } => &[("e", "edit"), ("x", "delete")],
                 CommentEntry::Thread { .. } => &[("r", "reply")],
@@ -484,9 +491,6 @@ fn comment_line(
     Line::from(spans)
 }
 
-/// The badge shown next to a comment block's header: `draft` for local drafts
-/// awaiting submission, `✓` for threads that have been resolved on the
-/// provider. Unresolved threads carry no badge.
 fn marker(state: &AppState, entry: &CommentEntry) -> Option<(&'static str, ratatui::style::Color)> {
     match entry {
         CommentEntry::Draft { .. } => Some(("draft", theme::WARNING)),

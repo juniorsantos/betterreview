@@ -2091,14 +2091,17 @@ fn expanded_gap_emits_context_rows_from_the_cached_file() {
             DisplayRow::HunkHeader { hunk: 0 },
             DisplayRow::Diff { row: 1 },
             DisplayRow::Context {
+                old_line: Some(2),
                 new_line: 2,
                 text: "two".into()
             },
             DisplayRow::Context {
+                old_line: Some(3),
                 new_line: 3,
                 text: "three".into()
             },
             DisplayRow::Context {
+                old_line: Some(4),
                 new_line: 4,
                 text: "four".into()
             },
