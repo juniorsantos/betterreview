@@ -97,7 +97,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          BRANCH=$(gh pr list --state open --json headRefName,title \
+          BRANCH=$(gh pr list --repo "${GITHUB_REPOSITORY}" --state open --json headRefName,title \
             -q '.[] | select(.title | startswith("chore(main): release")) | .headRefName' | head -1)
           if [ -z "${BRANCH}" ]; then
             echo "nenhum PR de release aberto"
