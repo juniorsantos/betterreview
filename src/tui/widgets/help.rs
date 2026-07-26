@@ -13,8 +13,6 @@ use crate::{
         widgets::dialog::{Dialog, Sizing, render_dialog},
     },
 };
-
-/// One key/description entry in a help column.
 type Entry = (&'static str, &'static str);
 
 struct Column {
@@ -22,43 +20,57 @@ struct Column {
     rows: &'static [Entry],
 }
 
-const COLUMN_WIDTH: usize = 22;
+const COLUMN_WIDTH: usize = 20;
 
-const COLUMNS: [Column; 3] = [
+const COLUMNS: [Column; 4] = [
     Column {
-        title: "Navigation",
+        title: "Move",
         rows: &[
-            ("j/k", "move"),
-            ("Tab/h/l", "focus"),
-            ("]f / [f", "file"),
-            ("]u / [u", "unreviewed"),
-            ("]h / [h", "hunk"),
-            ("]c / [c", "comment"),
+            ("j/k", "line"),
+            ("]h [h", "hunk"),
+            ("]c [c", "comment"),
+            ("]f [f", "file"),
+            ("]u [u", "unreviewed"),
             ("/", "search"),
-            ("n / N", "next/prev match"),
-            ("2 / 3", "focus panel"),
-        ],
-    },
-    Column {
-        title: "Files",
-        rows: &[
-            ("f", "hide/show panel"),
-            ("e", "expand panel"),
-            ("z", "collapse folder"),
-            ("m", "file reviewed"),
-            ("M", "hunk reviewed"),
+            ("n N", "match"),
+            ("Tab", "focus"),
+            ("2 3", "panel"),
         ],
     },
     Column {
         title: "Review",
         rows: &[
-            ("v", "selection"),
+            ("m", "file done"),
+            ("M", "hunk done"),
+            ("v", "select"),
             ("c", "comment"),
             ("s", "suggestion"),
+            ("r", "reply"),
+            ("e", "edit"),
+            ("x", "delete"),
             ("t", "threads"),
-            ("\\", "split diff"),
-            ("|", "expand one side"),
-            ("w", "wrap long lines"),
+        ],
+    },
+    Column {
+        title: "View",
+        rows: &[
+            ("\\", "split"),
+            ("|", "one side"),
+            ("w", "wrap"),
+            ("z", "expand gap"),
+            ("f", "files panel"),
+            ("e", "wider panel"),
+            ("T", "comments"),
+        ],
+    },
+    Column {
+        title: "Session",
+        rows: &[
+            ("R", "submit"),
+            ("r", "refresh"),
+            ("Q", "back to list"),
+            ("q", "quit"),
+            ("?", "help"),
         ],
     },
 ];
@@ -79,14 +91,10 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         },
     );
 }
-
-/// Builds the help body: a title row (MUTED+BOLD per column), one row per
-/// key binding (key ACCENT+BOLD, description FG) aligned in columns, and a
-/// few extra key/description groups below that don't fit the column grid.
 fn body_lines() -> Vec<Line<'static>> {
     let mut lines = Vec::new();
 
-    let title_spans = COLUMNS
+    let headings = COLUMNS
         .iter()
         .map(|column| {
             Span::styled(
@@ -97,53 +105,41 @@ fn body_lines() -> Vec<Line<'static>> {
             )
         })
         .collect::<Vec<_>>();
-    lines.push(Line::from(title_spans));
+    lines.push(Line::from(headings));
 
-    let max_rows = COLUMNS.iter().map(|c| c.rows.len()).max().unwrap_or(0);
-    for row_index in 0..max_rows {
-        let mut spans = Vec::new();
-        for column in &COLUMNS {
-            spans.push(match column.rows.get(row_index) {
+    let rows = COLUMNS.iter().map(|c| c.rows.len()).max().unwrap_or(0);
+    for index in 0..rows {
+        let spans: Vec<Span<'static>> = COLUMNS
+            .iter()
+            .flat_map(|column| match column.rows.get(index) {
                 Some(entry) => entry_spans(*entry, COLUMN_WIDTH),
                 None => vec![Span::raw(" ".repeat(COLUMN_WIDTH))],
-            });
-        }
-        lines.push(Line::from(spans.into_iter().flatten().collect::<Vec<_>>()));
+            })
+            .collect();
+        lines.push(Line::from(spans));
     }
 
     lines.push(Line::raw(""));
-    lines.push(group_line(
-        "Comments:",
-        &[
-            ("e", "edit"),
-            ("x", "delete"),
-            ("r", "reply"),
-            ("T", "hide/show"),
-        ],
-    ));
-    lines.push(group_line(
-        "Editor:",
-        &[
-            ("Enter", "save"),
-            ("Alt+Enter", "new line"),
-            ("Esc", "close"),
-        ],
-    ));
-    lines.push(group_line(
-        "",
-        &[
-            ("R", "submit review"),
-            ("r", "refresh"),
-            ("Q", "back to list"),
-            ("q", "quit"),
-        ],
-    ));
+    lines.push(Line::from(vec![
+        Span::styled("Enter", accent()),
+        Span::styled("  save · ", Style::default().fg(theme::MUTED)),
+        Span::styled("Alt+Enter", accent()),
+        Span::styled("  new line · ", Style::default().fg(theme::MUTED)),
+        Span::styled("Esc", accent()),
+        Span::styled(
+            "  close — inside the editor",
+            Style::default().fg(theme::MUTED),
+        ),
+    ]));
 
     lines
 }
 
-/// `key` in ACCENT+BOLD, `desc` in FG, padded with trailing spaces to
-/// `width` visible columns so the next column lines up.
+fn accent() -> Style {
+    Style::default()
+        .fg(theme::ACCENT)
+        .add_modifier(Modifier::BOLD)
+}
 fn entry_spans((key, desc): Entry, width: usize) -> Vec<Span<'static>> {
     let key_span = Span::styled(
         key,
@@ -158,35 +154,6 @@ fn entry_spans((key, desc): Entry, width: usize) -> Vec<Span<'static>> {
         spans.push(Span::raw(" ".repeat(width - used)));
     }
     spans
-}
-
-/// A standalone `Title: key desc · key desc · …` line (used for the entries
-/// that don't fit the three-column grid).
-fn group_line(title: &'static str, entries: &[Entry]) -> Line<'static> {
-    let mut spans = Vec::new();
-    if !title.is_empty() {
-        spans.push(Span::styled(
-            title,
-            Style::default()
-                .fg(theme::MUTED)
-                .add_modifier(Modifier::BOLD),
-        ));
-        spans.push(Span::raw(" "));
-    }
-    for (index, (key, desc)) in entries.iter().enumerate() {
-        if index > 0 {
-            spans.push(Span::styled(" · ", Style::default().fg(theme::MUTED)));
-        }
-        spans.push(Span::styled(
-            *key,
-            Style::default()
-                .fg(theme::ACCENT)
-                .add_modifier(Modifier::BOLD),
-        ));
-        spans.push(Span::raw(" "));
-        spans.push(Span::styled(*desc, Style::default().fg(theme::FG)));
-    }
-    Line::from(spans)
 }
 
 fn pad(text: &str, width: usize) -> String {

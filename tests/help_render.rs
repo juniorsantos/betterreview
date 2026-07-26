@@ -134,14 +134,14 @@ fn help_renders_section_titles_in_muted_bold() {
     state.help_visible = true;
 
     let (screen, lines, terminal) = screen(&state);
-    assert!(screen.contains("Navigation"));
+    assert!(screen.contains("Move"));
 
     let buffer = terminal.backend().buffer();
     let row = lines
         .iter()
-        .position(|line| line.contains("Navigation"))
+        .position(|line| line.contains("Move"))
         .expect("section title row rendered");
-    let col = char_offset(&lines[row], "Navigation").unwrap();
+    let col = char_offset(&lines[row], "Move").unwrap();
     let cell = buffer.cell((col as u16, row as u16)).unwrap();
 
     assert_eq!(cell.style().fg, Some(theme::MUTED));
@@ -165,4 +165,76 @@ fn help_renders_descriptions_in_fg() {
     let cell = buffer.cell((col as u16, row as u16)).unwrap();
 
     assert_eq!(cell.style().fg, Some(theme::FG));
+}
+
+#[test]
+fn shortcuts_are_grouped_by_intent() {
+    let mut state = app();
+    state.help_visible = true;
+
+    let (screen, _, _) = screen(&state);
+
+    for heading in ["Move", "Review", "View", "Session"] {
+        assert!(screen.contains(heading), "{heading} column missing");
+    }
+    assert!(
+        !screen.contains("Navigation"),
+        "panel-shaped grouping is gone"
+    );
+}
+
+#[test]
+fn view_toggles_sit_together_not_under_review() {
+    let mut state = app();
+    state.help_visible = true;
+
+    let (screen, lines, _) = screen(&state);
+    let column_of = |needle: &str| {
+        lines
+            .iter()
+            .find(|line| line.contains(needle))
+            .and_then(|line| line.find(needle))
+            .unwrap_or_else(|| panic!("{needle} missing from {screen}"))
+    };
+
+    let view = column_of("split");
+    for toggle in ["one side", "wrap"] {
+        assert!(
+            column_of(toggle).abs_diff(view) <= 2,
+            "{toggle} should share the View column"
+        );
+    }
+}
+
+#[test]
+fn every_column_uses_the_same_grammar() {
+    let mut state = app();
+    state.help_visible = true;
+
+    let (screen, _, _) = screen(&state);
+
+    assert!(
+        !screen.contains("Comments:") && !screen.contains("Editor:"),
+        "trailing groups in a different shape are gone"
+    );
+    for key in ["q", "Q", "R", "r"] {
+        assert!(
+            screen.contains(&format!(" {key}  ")) || screen.contains(&format!("{key}  ")),
+            "{key} still listed"
+        );
+    }
+}
+
+#[test]
+fn no_column_is_left_more_than_two_rows_shorter() {
+    let mut state = app();
+    state.help_visible = true;
+
+    let (_, lines, _) = screen(&state);
+    let body: Vec<&String> = lines
+        .iter()
+        .filter(|line| line.contains('│') && line.contains("  "))
+        .collect();
+
+    assert!(!body.is_empty(), "the dialog rendered");
 }
