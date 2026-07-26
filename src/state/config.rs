@@ -10,6 +10,8 @@ use super::{StateError, StatePaths};
 pub struct AppConfig {
     #[serde(default)]
     pub diff_layout: DiffLayout,
+    #[serde(default)]
+    pub files_hidden: bool,
 }
 
 impl AppConfig {

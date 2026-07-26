@@ -73,6 +73,7 @@ pub enum AppAction {
     ConfirmQuit(QuitChoice),
     ToggleHelp,
     ToggleFilesPanel,
+    ToggleFilesVisible,
     ToggleFold,
     ToggleComments,
     ToggleDiffLayout,

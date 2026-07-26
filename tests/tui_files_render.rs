@@ -356,3 +356,72 @@ fn files_panel_omits_hunk_progress_when_the_patch_is_unavailable() {
 
     assert!(!line.contains("/"), "no denominator for a patchless file");
 }
+
+#[test]
+fn f_hides_the_files_panel_and_shows_it_again() {
+    let mut app = app();
+    let mut keymap = KeyMap::default();
+
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        KeyEvent::new(KeyCode::Char('f'), KeyModifiers::NONE),
+    );
+    let Some(AppEvent::Action(AppAction::ToggleFilesVisible)) = event else {
+        panic!("expected ToggleFilesVisible, got {event:?}");
+    };
+
+    update(&mut app, AppEvent::Action(AppAction::ToggleFilesVisible));
+    assert!(app.files_hidden);
+    let hidden = screen(&app);
+    assert!(!hidden.contains("[2] Files"), "the panel is gone");
+    assert!(hidden.contains("[3] Diff"));
+
+    update(&mut app, AppEvent::Action(AppAction::ToggleFilesVisible));
+    assert!(!app.files_hidden);
+    assert!(screen(&app).contains("[2] Files"));
+}
+
+#[test]
+fn hiding_the_panel_while_it_holds_the_focus_moves_the_focus_to_the_diff() {
+    let mut app = app();
+    app.focus = betterreview::app::AppFocus::Files;
+
+    update(&mut app, AppEvent::Action(AppAction::ToggleFilesVisible));
+
+    assert_eq!(app.focus, betterreview::app::AppFocus::Diff);
+}
+
+#[test]
+fn focusing_the_files_panel_brings_it_back() {
+    let mut app = app();
+    update(&mut app, AppEvent::Action(AppAction::ToggleFilesVisible));
+    assert!(app.files_hidden);
+
+    update(&mut app, AppEvent::Action(AppAction::FocusFiles));
+
+    assert!(
+        !app.files_hidden,
+        "2 cannot focus a panel that is not there"
+    );
+    assert_eq!(app.focus, betterreview::app::AppFocus::Files);
+}
+
+#[test]
+fn the_diff_takes_the_whole_body_when_the_panel_is_hidden() {
+    let mut app = app();
+    let visible = screen(&app);
+    update(&mut app, AppEvent::Action(AppAction::ToggleFilesVisible));
+    let hidden = screen(&app);
+
+    let diff_start = |text: &str| {
+        text.lines()
+            .find(|line| line.contains("[3] Diff"))
+            .and_then(|line| line.find("[3] Diff"))
+            .expect("diff panel")
+    };
+    assert!(
+        diff_start(&hidden) < diff_start(&visible),
+        "the diff panel starts further left once the files panel is gone"
+    );
+}

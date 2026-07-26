@@ -50,6 +50,9 @@ pub async fn run(
     let (result_tx, mut result_rx) = mpsc::unbounded_channel();
 
     loop {
+        if let Ok(size) = terminal.size() {
+            crate::app::sync_terminal_width(&mut app, size.width);
+        }
         terminal
             .draw(|frame| render(frame, &app))
             .map_err(TuiError::Draw)?;

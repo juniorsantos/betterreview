@@ -7,8 +7,8 @@ mod runtime;
 mod state;
 
 pub use display::{
-    CommentEntry, CommentRowKind, DisplayRow, SPLIT_MIN_TERMINAL_WIDTH, build_display_rows,
-    display_rows, refresh_display_rows, search_matches,
+    CommentEntry, CommentRowKind, DisplayRow, SPLIT_MIN_DIFF_WIDTH, build_display_rows,
+    diff_panel_width, display_rows, refresh_display_rows, search_matches, sync_terminal_width,
 };
 pub use effect::{AppEffect, EffectEnvelope, EffectOutcome, EffectResult, RenderedFile};
 pub use event::{AppAction, AppEvent, QuitChoice};

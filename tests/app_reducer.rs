@@ -2687,3 +2687,33 @@ fn the_cursor_on_a_pair_points_at_the_new_side() {
         "commenting a replacement targets the added line"
     );
 }
+
+#[test]
+fn syncing_the_terminal_width_reflows_the_layout() {
+    let mut state = state_with_a_replacement();
+    state.diff_layout = DiffLayout::Split;
+    state.terminal_width = 80;
+    betterreview::app::refresh_display_rows(&mut state);
+    assert!(
+        state
+            .display_rows
+            .iter()
+            .any(|row| matches!(row, DisplayRow::Diff { .. })),
+        "80 columns cannot hold two columns"
+    );
+
+    let changed = betterreview::app::sync_terminal_width(&mut state, 160);
+
+    assert!(changed);
+    assert!(
+        state
+            .display_rows
+            .iter()
+            .any(|row| matches!(row, DisplayRow::SplitDiff { .. })),
+        "widening the terminal brings the split back"
+    );
+    assert!(
+        !betterreview::app::sync_terminal_width(&mut state, 160),
+        "no reflow when the width did not change"
+    );
+}

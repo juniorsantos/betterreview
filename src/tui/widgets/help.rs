@@ -41,6 +41,7 @@ const COLUMNS: [Column; 3] = [
     Column {
         title: "Files",
         rows: &[
+            ("f", "hide/show panel"),
             ("e", "expand panel"),
             ("z", "collapse folder"),
             ("m", "file reviewed"),

@@ -49,7 +49,7 @@ pub(crate) fn status_row(area: Rect) -> Rect {
 /// with no access to the frame `render` drew).
 pub(crate) fn screen_layout(area: Rect, state: &AppState) -> ScreenLayout {
     let body = vertical_rows(area)[2];
-    if area.width < FILES_OVERLAY_BREAKPOINT {
+    if state.files_hidden || area.width < FILES_OVERLAY_BREAKPOINT {
         return ScreenLayout {
             files: None,
             diff: body,

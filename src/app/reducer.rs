@@ -69,7 +69,9 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             Vec::new()
         }
         AppAction::FocusFiles => {
+            state.files_hidden = false;
             state.focus = AppFocus::Files;
+            refresh_display_rows(state);
             Vec::new()
         }
         AppAction::FocusDiff => {
@@ -283,6 +285,23 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
         AppAction::ToggleFilesPanel => {
             state.files_expanded = !state.files_expanded;
             Vec::new()
+        }
+        AppAction::ToggleFilesVisible => {
+            state.files_hidden = !state.files_hidden;
+            if state.files_hidden && state.focus == AppFocus::Files {
+                state.focus = AppFocus::Diff;
+            }
+            refresh_display_rows(state);
+            vec![envelope(
+                state,
+                None,
+                AppEffect::SaveConfig {
+                    config: crate::state::AppConfig {
+                        diff_layout: state.diff_layout,
+                        files_hidden: state.files_hidden,
+                    },
+                },
+            )]
         }
         AppAction::ToggleFold => {
             // `z` is contextual: folders only from the Files panel (in the
@@ -684,11 +703,11 @@ fn toggle_diff_layout(state: &mut AppState) -> Vec<EffectEnvelope> {
     };
     refresh_display_rows(state);
     if state.diff_layout == DiffLayout::Split
-        && state.terminal_width < crate::app::SPLIT_MIN_TERMINAL_WIDTH
+        && crate::app::diff_panel_width(state) < crate::app::SPLIT_MIN_DIFF_WIDTH
     {
         push_notice(
             state,
-            "side-by-side needs a wider terminal; showing unified for now",
+            "side-by-side needs a wider diff panel; try f to hide the files panel",
         );
     }
     vec![envelope(
@@ -697,6 +716,7 @@ fn toggle_diff_layout(state: &mut AppState) -> Vec<EffectEnvelope> {
         AppEffect::SaveConfig {
             config: crate::state::AppConfig {
                 diff_layout: state.diff_layout,
+                files_hidden: state.files_hidden,
             },
         },
     )]

@@ -53,6 +53,7 @@ pub fn key_to_action(event: KeyEvent) -> Option<AppAction> {
         (KeyCode::Char('s'), KeyModifiers::NONE) => Some(AppAction::OpenSuggestion),
         (KeyCode::Char('t'), KeyModifiers::NONE) => Some(AppAction::OpenThreads),
         (KeyCode::Char('e'), KeyModifiers::NONE) => Some(AppAction::ToggleFilesPanel),
+        (KeyCode::Char('f'), KeyModifiers::NONE) => Some(AppAction::ToggleFilesVisible),
         (KeyCode::Char('z'), KeyModifiers::NONE) => Some(AppAction::ToggleFold),
         (KeyCode::Char('2'), KeyModifiers::NONE) => Some(AppAction::FocusFiles),
         (KeyCode::Char('3'), KeyModifiers::NONE) => Some(AppAction::FocusDiff),

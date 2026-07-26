@@ -389,11 +389,28 @@ fn push_gap_row(
     });
 }
 
-pub const SPLIT_MIN_TERMINAL_WIDTH: u16 = 120;
+pub const SPLIT_MIN_DIFF_WIDTH: u16 = 94;
+
+pub fn sync_terminal_width(state: &mut AppState, width: u16) -> bool {
+    if state.terminal_width == width {
+        return false;
+    }
+    state.terminal_width = width;
+    refresh_display_rows(state);
+    true
+}
+
+pub fn diff_panel_width(state: &AppState) -> u16 {
+    if state.files_hidden {
+        return state.terminal_width;
+    }
+    let panel = if state.files_expanded { 50 } else { 30 };
+    state.terminal_width.saturating_sub(panel)
+}
 
 fn fold_split_rows(state: &mut AppState) {
     if state.diff_layout != crate::domain::DiffLayout::Split
-        || state.terminal_width < SPLIT_MIN_TERMINAL_WIDTH
+        || diff_panel_width(state) < SPLIT_MIN_DIFF_WIDTH
     {
         return;
     }
