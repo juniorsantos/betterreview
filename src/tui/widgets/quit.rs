@@ -21,7 +21,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         frame,
         area,
         Dialog {
-            title: " Sair da revisão ",
+            title: Line::raw(" Sair da revisão "),
             body,
             hints: "j/k mover · Enter confirmar · Esc cancelar",
             width: 52,

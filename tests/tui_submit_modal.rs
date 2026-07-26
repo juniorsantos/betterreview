@@ -80,7 +80,6 @@ fn app_with_drafts(count: usize) -> AppState {
     app.submission_modal = Some(SubmissionModal {
         summary: "Ready to merge".into(),
         outcome: ReviewOutcome::Comment,
-        selected_field: 1,
     });
     app
 }
@@ -105,12 +104,49 @@ fn submission_modal_is_compact_and_has_no_pending_comment_list() {
     let screen = screen(&app_with_drafts(3), 80, 24);
 
     assert!(screen.contains("3 drafts serão publicados"));
-    assert!(screen.contains("COMENTAR"));
-    assert!(screen.contains("APROVAR"));
-    assert!(screen.contains("PEDIR MUDANÇAS"));
     assert!(screen.contains("Ready to merge"));
     assert!(!screen.contains("Pending comments"));
     assert!(!screen.contains("src/app.rs:42"));
+}
+
+#[test]
+fn the_active_verdict_is_named_on_the_title_bar() {
+    let mut app = app_with_drafts(1);
+    assert!(screen(&app, 80, 24).contains("Enviar revisão · COMENTAR"));
+
+    app.submission_modal.as_mut().unwrap().outcome = ReviewOutcome::Approve;
+    assert!(screen(&app, 80, 24).contains("Enviar revisão · APROVAR"));
+
+    app.submission_modal.as_mut().unwrap().outcome = ReviewOutcome::RequestChanges;
+    assert!(screen(&app, 80, 24).contains("Enviar revisão · PEDIR MUDANÇAS"));
+}
+
+#[test]
+fn the_summary_carries_a_caret_and_the_verdicts_are_shortcuts() {
+    let screen = screen(&app_with_drafts(1), 80, 24);
+
+    assert!(
+        screen.contains("Ready to merge▌"),
+        "the caret marks the focus"
+    );
+    assert!(screen.contains("⌥a"));
+    assert!(screen.contains("⌥p"));
+    assert!(screen.contains("⌥c"));
+    assert!(
+        !screen.contains("Tab campo"),
+        "there is no second field to tab into"
+    );
+}
+
+#[test]
+fn a_supported_outcome_leaves_no_room_for_an_availability_warning() {
+    let screen = screen(&app_with_drafts(1), 80, 24);
+
+    assert!(!screen.contains("indisponível"));
+    assert!(
+        !screen.contains("Comentar na revisão"),
+        "the action line only repeated the verdict already on the title"
+    );
 }
 
 #[test]
@@ -134,10 +170,7 @@ fn submission_modal_remains_usable_on_a_small_terminal() {
 
     assert!(screen.contains("Enviar revisão"));
     assert!(screen.contains("2 drafts"));
-    // The full hints line ("Tab campo · ↑/↓ resultado · Enter enviar · Esc
-    // cancelar") does not fit inside the dialog's 80%-of-area width cap on a
-    // terminal this narrow — confirm what's visible still starts correctly.
-    assert!(screen.contains("Tab campo"));
+    assert!(screen.contains("⌥a"));
 }
 
 /// A versão do crate aparece no cabeçalho renderizado; sem a redação os
@@ -156,4 +189,31 @@ fn submission_modal_snapshots_cover_regular_and_small_terminals() {
         "small_50x16",
         redact_version(screen(&app_with_drafts(2), 50, 16))
     );
+}
+
+#[test]
+fn the_modal_grows_with_the_summary_instead_of_leaving_dead_rows() {
+    let one_line = screen(&app_with_drafts(1), 80, 24);
+
+    let mut app = app_with_drafts(1);
+    app.submission_modal.as_mut().unwrap().summary = "uma\nduas\ntrês".into();
+    let three_lines = screen(&app, 80, 24);
+
+    let box_height = |screen: &str| {
+        let lines: Vec<&str> = screen.lines().collect();
+        let top = lines
+            .iter()
+            .position(|line| line.contains("╭ Enviar revisão"))
+            .expect("modal top border");
+        let bottom = lines
+            .iter()
+            .position(|line| line.contains('╰'))
+            .expect("modal bottom border");
+        bottom - top
+    };
+    assert!(
+        box_height(&three_lines) > box_height(&one_line),
+        "a multi-line summary must make the dialog taller, not scroll away"
+    );
+    assert!(three_lines.contains("trê"));
 }

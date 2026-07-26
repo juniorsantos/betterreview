@@ -140,7 +140,6 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             state.submission_modal = Some(SubmissionModal {
                 summary: String::new(),
                 outcome: ReviewOutcome::Comment,
-                selected_field: 0,
             });
             Vec::new()
         }

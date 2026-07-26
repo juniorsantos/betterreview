@@ -19,7 +19,6 @@ pub enum AppFocus {
 pub struct SubmissionModal {
     pub summary: String,
     pub outcome: ReviewOutcome,
-    pub selected_field: usize,
 }
 
 pub struct AppState {

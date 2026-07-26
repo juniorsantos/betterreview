@@ -66,7 +66,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         frame,
         area,
         Dialog {
-            title: " Ajuda ",
+            title: Line::raw(" Ajuda "),
             body: body_lines(),
             hints: "Esc fechar",
             width: 72,

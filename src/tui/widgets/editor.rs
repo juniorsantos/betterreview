@@ -42,7 +42,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         frame,
         area,
         Dialog {
-            title,
+            title: Line::raw(title),
             body,
             hints,
             width: 76,

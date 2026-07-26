@@ -476,7 +476,6 @@ fn review_modal_opens_with_comment_outcome() {
         Some(SubmissionModal {
             summary: String::new(),
             outcome: ReviewOutcome::Comment,
-            selected_field: 0,
         })
     );
 }
@@ -1905,7 +1904,6 @@ fn submitting_an_unsupported_outcome_is_refused_with_a_notice() {
     state.submission_modal = Some(betterreview::app::SubmissionModal {
         summary: "ok".into(),
         outcome: ReviewOutcome::Approve,
-        selected_field: 0,
     });
 
     let effects = update(

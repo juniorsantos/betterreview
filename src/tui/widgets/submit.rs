@@ -8,75 +8,145 @@ use ratatui::{
 use crate::{
     app::AppState,
     domain::{ReviewOutcome, Support},
-    tui::widgets::dialog::{Dialog, render_dialog},
+    tui::{
+        theme,
+        widgets::dialog::{Dialog, render_dialog},
+    },
 };
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let Some(modal) = &state.submission_modal else {
         return;
     };
-    let support = state.provider.capabilities.for_outcome(modal.outcome);
-    let reason = match support {
-        Support::Supported => String::new(),
-        Support::Unsupported { reason } => format!("indisponível: {reason}"),
-    };
     let draft_label = if state.provider.drafts.len() == 1 {
         "1 draft será publicado".to_owned()
     } else {
         format!("{} drafts serão publicados", state.provider.drafts.len())
     };
-    let outcomes = vec![
-        outcome("COMENTAR", modal.outcome == ReviewOutcome::Comment),
-        Span::raw("  "),
-        outcome("APROVAR", modal.outcome == ReviewOutcome::Approve),
-        Span::raw("  "),
-        outcome(
-            "PEDIR MUDANÇAS",
-            modal.outcome == ReviewOutcome::RequestChanges,
-        ),
-    ];
-    let body = vec![
-        Line::raw(draft_label),
-        Line::raw(""),
-        Line::raw("Resumo"),
-        Line::raw(modal.summary.clone()),
-        Line::raw(""),
-        Line::from(outcomes),
-        Line::styled(reason, Style::default().fg(crate::tui::theme::WARNING)),
-        Line::raw(""),
-        Line::raw(action_label(modal.outcome)),
-    ];
+
+    let mut body = vec![Line::raw(draft_label), Line::raw("")];
+    body.extend(summary_lines(&modal.summary));
+    body.push(Line::raw(""));
+    body.push(shortcut_line(state, modal.outcome));
+    if let Support::Unsupported { reason } = state.provider.capabilities.for_outcome(modal.outcome)
+    {
+        body.push(Line::styled(
+            format!("indisponível: {reason}"),
+            Style::default().fg(theme::WARNING),
+        ));
+    }
+
+    let height = u16::try_from(body.len() + 4).unwrap_or(u16::MAX);
     render_dialog(
         frame,
         area,
         Dialog {
-            title: " Enviar revisão ",
+            title: title_line(modal.outcome),
             body,
-            hints: "Tab campo · ↑/↓ resultado · Enter enviar · Esc cancelar",
+            hints: "Enter enviar · ⌥Enter nova linha · Esc cancelar",
             width: 70,
-            height: 14,
+            height,
         },
     );
 }
 
-fn outcome(label: &'static str, selected: bool) -> Span<'static> {
-    if selected {
+fn title_line(outcome: ReviewOutcome) -> Line<'static> {
+    Line::from(vec![
+        Span::raw(" Enviar revisão "),
+        Span::styled("· ", Style::default().fg(theme::BORDER)),
         Span::styled(
-            format!("[{label}]"),
+            format!("{} ", label(outcome)),
             Style::default()
-                .fg(crate::tui::theme::BG)
-                .bg(crate::tui::theme::ACCENT)
+                .fg(color(outcome))
                 .add_modifier(Modifier::BOLD),
-        )
-    } else {
-        Span::raw(label)
+        ),
+    ])
+}
+
+fn summary_lines(summary: &str) -> Vec<Line<'static>> {
+    let mut lines: Vec<Line<'static>> = summary
+        .split('\n')
+        .map(|line| Line::styled(line.to_owned(), Style::default().fg(theme::FG)))
+        .collect();
+    if let Some(last) = lines.last_mut() {
+        last.spans.push(Span::styled(
+            "▌",
+            Style::default()
+                .fg(theme::ACCENT)
+                .add_modifier(Modifier::BOLD),
+        ));
+    }
+    lines.insert(0, Line::styled("Resumo", Style::default().fg(theme::MUTED)));
+    lines
+}
+
+fn shortcut_line(state: &AppState, active: ReviewOutcome) -> Line<'static> {
+    let mut spans = Vec::new();
+    for (index, outcome) in [
+        ReviewOutcome::Approve,
+        ReviewOutcome::RequestChanges,
+        ReviewOutcome::Comment,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        if index > 0 {
+            spans.push(Span::styled(" · ", Style::default().fg(theme::BORDER)));
+        }
+        let supported = matches!(
+            state.provider.capabilities.for_outcome(outcome),
+            Support::Supported
+        );
+        let key_style = if supported {
+            Style::default()
+                .fg(theme::ACCENT)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(theme::BORDER)
+        };
+        spans.push(Span::styled(format!("⌥{} ", key(outcome)), key_style));
+        spans.push(if outcome == active {
+            Span::styled(
+                format!("[{}]", label(outcome)),
+                Style::default()
+                    .fg(theme::BG)
+                    .bg(color(outcome))
+                    .add_modifier(Modifier::BOLD),
+            )
+        } else {
+            Span::styled(
+                label(outcome).to_lowercase(),
+                Style::default().fg(if supported {
+                    theme::MUTED
+                } else {
+                    theme::BORDER
+                }),
+            )
+        });
+    }
+    Line::from(spans)
+}
+
+fn key(outcome: ReviewOutcome) -> char {
+    match outcome {
+        ReviewOutcome::Comment => 'c',
+        ReviewOutcome::Approve => 'a',
+        ReviewOutcome::RequestChanges => 'p',
     }
 }
 
-fn action_label(outcome: ReviewOutcome) -> &'static str {
+fn label(outcome: ReviewOutcome) -> &'static str {
     match outcome {
-        ReviewOutcome::Comment => "Comentar na revisão",
-        ReviewOutcome::Approve => "Aprovar a revisão",
-        ReviewOutcome::RequestChanges => "Pedir mudanças",
+        ReviewOutcome::Comment => "COMENTAR",
+        ReviewOutcome::Approve => "APROVAR",
+        ReviewOutcome::RequestChanges => "PEDIR MUDANÇAS",
+    }
+}
+
+fn color(outcome: ReviewOutcome) -> ratatui::style::Color {
+    match outcome {
+        ReviewOutcome::Comment => theme::ACCENT,
+        ReviewOutcome::Approve => theme::SUCCESS,
+        ReviewOutcome::RequestChanges => theme::WARNING,
     }
 }

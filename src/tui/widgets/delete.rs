@@ -17,7 +17,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         frame,
         area,
         Dialog {
-            title: " Excluir comentário ",
+            title: Line::raw(" Excluir comentário "),
             body,
             hints: "j/k mover · Enter confirmar · Esc cancelar",
             width: 52,

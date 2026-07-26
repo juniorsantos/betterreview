@@ -15,7 +15,7 @@ use crate::tui::theme;
 
 pub(in crate::tui) struct Dialog<'a> {
     /// e.g. " Excluir comentário "
-    pub title: &'a str,
+    pub title: Line<'a>,
     /// Content lines, NOT including the hints footer.
     pub body: Vec<Line<'a>>,
     /// e.g. "j/k mover · Enter confirmar · Esc cancelar"

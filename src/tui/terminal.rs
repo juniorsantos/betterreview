@@ -138,6 +138,7 @@ pub fn handle_key(app: &mut AppState, keymap: &mut KeyMap, key: KeyEvent) -> Opt
     if let Some(modal) = &mut app.submission_modal {
         match (key.code, key.modifiers) {
             (KeyCode::Esc, _) => return action(AppAction::CancelSubmit),
+            (KeyCode::Enter, KeyModifiers::ALT) => modal.summary.push('\n'),
             (code, modifiers)
                 if code == KeyCode::Enter
                     || (code == KeyCode::Char('s')
@@ -148,20 +149,15 @@ pub fn handle_key(app: &mut AppState, keymap: &mut KeyMap, key: KeyEvent) -> Opt
                     outcome: modal.outcome,
                 });
             }
-            (KeyCode::Tab, _) => modal.selected_field = (modal.selected_field + 1) % 2,
-            (KeyCode::BackTab, _) => modal.selected_field = (modal.selected_field + 1) % 2,
-            (KeyCode::Up | KeyCode::Left, _) if modal.selected_field == 1 => {
-                modal.outcome = previous_outcome(modal.outcome);
+            (KeyCode::Char('a'), KeyModifiers::ALT) => modal.outcome = ReviewOutcome::Approve,
+            (KeyCode::Char('p'), KeyModifiers::ALT) => {
+                modal.outcome = ReviewOutcome::RequestChanges;
             }
-            (KeyCode::Down | KeyCode::Right, _) if modal.selected_field == 1 => {
-                modal.outcome = next_outcome(modal.outcome);
-            }
-            (KeyCode::Backspace, _) if modal.selected_field == 0 => {
+            (KeyCode::Char('c'), KeyModifiers::ALT) => modal.outcome = ReviewOutcome::Comment,
+            (KeyCode::Backspace, _) => {
                 modal.summary.pop();
             }
-            (KeyCode::Char(value), KeyModifiers::NONE | KeyModifiers::SHIFT)
-                if modal.selected_field == 0 =>
-            {
+            (KeyCode::Char(value), KeyModifiers::NONE | KeyModifiers::SHIFT) => {
                 modal.summary.push(value);
             }
             _ => {}
@@ -398,22 +394,6 @@ fn diff_click(app: &AppState, rect: Rect, mouse_row: u16) -> Option<AppAction> {
 
 fn is_interrupt(key: KeyEvent) -> bool {
     key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL)
-}
-
-fn next_outcome(outcome: ReviewOutcome) -> ReviewOutcome {
-    match outcome {
-        ReviewOutcome::Comment => ReviewOutcome::Approve,
-        ReviewOutcome::Approve => ReviewOutcome::RequestChanges,
-        ReviewOutcome::RequestChanges => ReviewOutcome::Comment,
-    }
-}
-
-fn previous_outcome(outcome: ReviewOutcome) -> ReviewOutcome {
-    match outcome {
-        ReviewOutcome::Comment => ReviewOutcome::RequestChanges,
-        ReviewOutcome::Approve => ReviewOutcome::Comment,
-        ReviewOutcome::RequestChanges => ReviewOutcome::Approve,
-    }
 }
 
 #[cfg(test)]

@@ -108,7 +108,6 @@ fn app_with_modal() -> AppState {
     app.submission_modal = Some(SubmissionModal {
         summary: "Ready to merge".into(),
         outcome: ReviewOutcome::Comment,
-        selected_field: 0,
     });
     app
 }
@@ -598,4 +597,103 @@ fn shift_m_marks_the_hunk_while_m_still_marks_the_file() {
         file,
         Some(AppEvent::Action(AppAction::ToggleReviewed))
     ));
+}
+
+#[test]
+fn alt_letters_pick_the_verdict_inside_the_submit_modal() {
+    let mut app = app_with_modal();
+    let mut keymap = KeyMap::default();
+
+    handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('a'), KeyModifiers::ALT),
+    );
+    assert_eq!(
+        app.submission_modal.as_ref().unwrap().outcome,
+        ReviewOutcome::Approve
+    );
+
+    handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('p'), KeyModifiers::ALT),
+    );
+    assert_eq!(
+        app.submission_modal.as_ref().unwrap().outcome,
+        ReviewOutcome::RequestChanges
+    );
+
+    handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('c'), KeyModifiers::ALT),
+    );
+    assert_eq!(
+        app.submission_modal.as_ref().unwrap().outcome,
+        ReviewOutcome::Comment
+    );
+}
+
+#[test]
+fn plain_letters_still_type_into_the_summary() {
+    let mut app = app_with_modal();
+    app.submission_modal.as_mut().unwrap().summary = String::new();
+    let mut keymap = KeyMap::default();
+
+    for letter in "aprovado".chars() {
+        handle_key(
+            &mut app,
+            &mut keymap,
+            key(KeyCode::Char(letter), KeyModifiers::NONE),
+        );
+    }
+
+    assert_eq!(app.submission_modal.as_ref().unwrap().summary, "aprovado");
+    assert_eq!(
+        app.submission_modal.as_ref().unwrap().outcome,
+        ReviewOutcome::Comment,
+        "typing an 'a' must not approve the review"
+    );
+}
+
+#[test]
+fn alt_enter_breaks_the_summary_line_while_enter_submits() {
+    let mut app = app_with_modal();
+    let mut keymap = KeyMap::default();
+
+    let broke = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Enter, KeyModifiers::ALT),
+    );
+    assert!(broke.is_none());
+    assert!(
+        app.submission_modal
+            .as_ref()
+            .unwrap()
+            .summary
+            .ends_with('\n')
+    );
+
+    let sent = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Enter, KeyModifiers::NONE),
+    );
+    assert!(matches!(
+        sent,
+        Some(AppEvent::Action(AppAction::SubmitReview { .. }))
+    ));
+}
+
+#[test]
+fn tab_no_longer_moves_focus_inside_the_submit_modal() {
+    let mut app = app_with_modal();
+    let before = app.submission_modal.clone();
+    let mut keymap = KeyMap::default();
+
+    handle_key(&mut app, &mut keymap, key(KeyCode::Tab, KeyModifiers::NONE));
+
+    assert_eq!(app.submission_modal, before);
 }
