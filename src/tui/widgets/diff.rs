@@ -20,6 +20,13 @@ const GUTTER_SPANS: usize = 3;
 const SIDE_GUTTER_WIDTH: usize = 6;
 const MIN_GUTTER_DIGITS: usize = 2;
 
+struct RowLayout<'a> {
+    inner_width: usize,
+    columns: Option<crate::tui::DiffColumns>,
+    gutter: Gutter,
+    commented: &'a std::collections::BTreeSet<usize>,
+}
+
 #[derive(Clone, Copy)]
 struct CardLayout {
     inner_width: usize,
@@ -88,23 +95,19 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let inner_width = area.width.saturating_sub(4) as usize;
     let columns = crate::tui::diff_columns(area, state);
     let gutter = Gutter::for_state(state);
-    let commented = crate::app::commented_rows(state);
+    let layout = RowLayout {
+        inner_width,
+        columns,
+        gutter,
+        commented: &crate::app::commented_rows(state),
+    };
     let lines = match &state.rendered_diff {
         Some(diff) => state
             .display_rows
             .iter()
             .enumerate()
             .map(|(index, display_row)| {
-                let line = render_display_row(
-                    state,
-                    diff,
-                    display_row,
-                    index,
-                    inner_width,
-                    columns,
-                    gutter,
-                    &commented,
-                );
+                let line = render_display_row(state, diff, display_row, index, &layout);
                 if state.wrap_lines {
                     line
                 } else {
@@ -359,11 +362,14 @@ fn render_display_row(
     diff: &RenderedDiff,
     display_row: &DisplayRow,
     index: usize,
-    inner_width: usize,
-    columns: Option<crate::tui::DiffColumns>,
-    gutter: Gutter,
-    commented: &std::collections::BTreeSet<usize>,
+    layout: &RowLayout<'_>,
 ) -> Line<'static> {
+    let &RowLayout {
+        inner_width,
+        columns,
+        gutter,
+        commented,
+    } = layout;
     let cursor_on_block = match display_row {
         DisplayRow::Comment { entry, .. } => matches!(
             state.display_rows.get(state.display_cursor),
