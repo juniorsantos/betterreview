@@ -481,10 +481,6 @@ fn a_file_is_indented_under_the_directory_it_belongs_to() {
         child_column > folder_column,
         "a file sits to the right of its folder, not flush with it:\n{screen}"
     );
-    assert!(
-        child.contains('\u{2502}'),
-        "an indent guide traces the file back to its folder:\n{screen}"
-    );
 }
 
 #[test]

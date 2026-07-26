@@ -6,6 +6,8 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem},
 };
 
+const INDENT_WIDTH: usize = 1;
+
 use crate::{
     app::{AppFocus, AppState, is_generated},
     domain::{ChangedFile, FileStatus},
@@ -240,7 +242,7 @@ fn file_item<'a>(
         *last = Span::styled(last.content.trim_end().to_owned(), last.style);
     }
 
-    let indent_width = depth;
+    let indent_width = depth * INDENT_WIDTH;
     let flagged = state.flagged_files.contains(&file.path);
     let left_prefix = format!(
         "{marker} {}{} ",
@@ -321,9 +323,10 @@ fn encloses(parent: &str, child: &str) -> bool {
 }
 
 fn indent(depth: usize) -> Vec<Span<'static>> {
-    (0..depth)
-        .map(|_| Span::styled("\u{2502}", Style::default().fg(theme::BORDER)))
-        .collect()
+    if depth == 0 {
+        return Vec::new();
+    }
+    vec![Span::raw(" ".repeat(depth * INDENT_WIDTH))]
 }
 
 fn split_path(path: &str) -> (&str, &str) {
