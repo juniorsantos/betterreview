@@ -23,6 +23,35 @@ Rodando dentro de um repositório, o seletor lista as revisões abertas e já fa
 - Sessão persistente: feche e retome a revisão de onde parou (`betterreview resume`)
 - Envio da revisão completa (`R`): aprovar, solicitar mudanças ou comentar
 
+## Comparação
+
+O betterreview é um cliente de revisão, não um visualizador de diff: ele lê o pull request, guarda seu progresso e publica a revisão de volta no forge. É esse o eixo que a tabela compara.
+
+| Capacidade | [betterreview](https://github.com/juniorsantos/betterreview) | [hunk](https://github.com/modem-dev/hunk) | [lumen](https://github.com/jnsahaj/lumen) | [gh](https://cli.github.com) / [glab](https://gitlab.com/gitlab-org/cli) | [delta](https://github.com/dandavison/delta) |
+| --- | --- | --- | --- | --- | --- |
+| GitHub **e** GitLab | ✅ | ❌ | ❌ | um cada | ❌ |
+| Publica a revisão no forge | ✅ | ❌ | ❌ | ✅ | ❌ |
+| Comentário inline em linha ou seleção | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Respostas e resolução de thread | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Sugestão de código | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Aprovar / pedir mudanças | ✅ | ❌ | ❌ | ✅ | ❌ |
+| Progresso por arquivo e por hunk | ✅ | ❌ | por arquivo | ❌ | ❌ |
+| Sessão sobrevive ao fechar | ✅ | ❌ | ❌ | — | ❌ |
+| TUI voltada à revisão | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Lado a lado e unificado | ✅ | ✅ | ✅ | ❌ | ✅ |
+| Contexto oculto expansível | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Busca dentro do diff | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Suporte a mouse | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Realce de sintaxe | via delta | ✅ | ✅ | ❌ | ✅ |
+| Dispensa chave de provedor de IA | ✅ | ✅ | para recursos de IA | ✅ | ✅ |
+| Ponte para anotações de agente | [planejado](https://github.com/juniorsantos/betterreview/issues/6) | ✅ | ✅ | ❌ | ❌ |
+| Revisa diff local sem PR | [planejado](https://github.com/juniorsantos/betterreview/issues/22) | ✅ | ✅ | ❌ | ✅ |
+| Funciona como pager / difftool | ❌ | ✅ | ❌ | ❌ | ✅ |
+| Diff estrutural | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+`gh` e `glab` publicam revisões, mas cada um fala com um forge e nenhum renderiza o diff para revisar — você comenta por arquivo e número de linha, não apontando para o código. `hunk` e `lumen` são visualizadores com anotações locais: ótimos para ler um changeset, mas a revisão nunca chega ao pull request.
+
+
 ## Dependências
 
 | Ferramenta | Para quê | Instalação |

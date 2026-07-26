@@ -23,6 +23,35 @@ When launched inside a repository, the picker lists the open reviews and prefetc
 - Persistent sessions: quit and resume the review where you left off (`betterreview resume`)
 - Full review submission (`R`): approve, request changes or comment
 
+## Comparison
+
+betterreview is a review client, not a diff viewer: it reads the pull request, keeps your progress, and publishes the review back to the forge. That is the axis this table compares.
+
+| Capability | [betterreview](https://github.com/juniorsantos/betterreview) | [hunk](https://github.com/modem-dev/hunk) | [lumen](https://github.com/jnsahaj/lumen) | [gh](https://cli.github.com) / [glab](https://gitlab.com/gitlab-org/cli) | [delta](https://github.com/dandavison/delta) |
+| --- | --- | --- | --- | --- | --- |
+| GitHub **and** GitLab | ✅ | ❌ | ❌ | one each | ❌ |
+| Publishes the review to the forge | ✅ | ❌ | ❌ | ✅ | ❌ |
+| Inline comments on a line or selection | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Replies and thread resolution | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Code suggestions | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Approve / request changes | ✅ | ❌ | ❌ | ✅ | ❌ |
+| Per-file and per-hunk progress | ✅ | ❌ | per file | ❌ | ❌ |
+| Session survives quitting | ✅ | ❌ | ❌ | — | ❌ |
+| Review-first interactive TUI | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Side-by-side and unified | ✅ | ✅ | ✅ | ❌ | ✅ |
+| Expandable hidden context | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Search inside the diff | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Mouse support | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Syntax highlighting | via delta | ✅ | ✅ | ❌ | ✅ |
+| Needs no AI provider key | ✅ | ✅ | for AI features | ✅ | ✅ |
+| Agent annotation bridge | [planned](https://github.com/juniorsantos/betterreview/issues/6) | ✅ | ✅ | ❌ | ❌ |
+| Reviews a local diff without a PR | [planned](https://github.com/juniorsantos/betterreview/issues/22) | ✅ | ✅ | ❌ | ✅ |
+| Works as a pager / difftool | ❌ | ✅ | ❌ | ❌ | ✅ |
+| Structural diffing | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+`gh` and `glab` publish reviews, but each speaks to one forge and neither renders the diff for review — you comment by file and line number, not by pointing at the code. `hunk` and `lumen` are diff viewers with local annotations: excellent for reading a changeset, but the review never reaches the pull request.
+
+
 ## Dependencies
 
 | Tool | Purpose | Install |
