@@ -320,3 +320,46 @@ fn args(spec: &CommandSpec) -> Vec<&str> {
         .map(|argument| argument.to_str().unwrap())
         .collect()
 }
+
+fn server_error() -> CommandOutput {
+    CommandOutput {
+        status: 1,
+        stdout: Vec::new(),
+        stderr: b"glab: 500 Internal Server Error (HTTP 500)".to_vec(),
+    }
+}
+
+#[tokio::test]
+async fn falls_back_to_changes_when_the_diffs_endpoint_errors() {
+    let mut responses = snapshot_responses();
+    responses.retain(|(endpoint, _)| !endpoint.contains("/diffs"));
+    responses.push((
+        "projects/group%2Fapi/merge_requests/42/diffs?unidiff=true&per_page=100",
+        server_error(),
+    ));
+    responses.push((
+        "projects/group%2Fapi/merge_requests/42/changes?unidiff=true",
+        fixture("changes.json"),
+    ));
+    let runner = Arc::new(RoutingRunner::new(responses));
+    let provider = GitLabProvider::new(runner.clone());
+
+    let snapshot = provider
+        .load(&key())
+        .await
+        .expect("an older gitlab still has to be reviewable");
+
+    assert!(
+        !snapshot.files.is_empty(),
+        "the fallback has to produce the same files the modern endpoint would"
+    );
+    let calls = runner.calls.lock().unwrap();
+    assert!(
+        calls.iter().any(|call| {
+            call.args
+                .iter()
+                .any(|arg| arg.to_string_lossy().contains("/changes"))
+        }),
+        "the fallback was actually taken"
+    );
+}

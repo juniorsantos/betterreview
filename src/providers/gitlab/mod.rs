@@ -29,7 +29,7 @@ use self::{
     client::GlabClient,
     position::{position, selection},
     wire::{
-        Approvals, Blob, Diff, Discussion, DraftNote, MergeRequest, MergeRequestSummary,
+        Approvals, Blob, Changes, Diff, Discussion, DraftNote, MergeRequest, MergeRequestSummary,
         VersionInfo,
     },
 };
@@ -70,6 +70,44 @@ where
             })
     }
 
+    async fn load_diffs(
+        &self,
+        key: &ChangeRequestKey,
+        root: &str,
+        modern: &str,
+    ) -> Result<Vec<Diff>, ProviderError> {
+        let modern_call = self
+            .read_api(
+                &key.host,
+                api_args(&key.host, ["--paginate", "--output", "ndjson", modern]),
+                "load merge request diffs",
+            )
+            .await;
+        if let Ok(bytes) = modern_call {
+            return parse_ndjson::<Diff>(&bytes, "load merge request diffs");
+        }
+        for (endpoint, operation) in [
+            (
+                format!("{root}/changes?unidiff=true"),
+                "load merge request changes",
+            ),
+            (format!("{root}/changes"), "load merge request changes"),
+        ] {
+            if let Ok(bytes) = self
+                .read_api(
+                    &key.host,
+                    api_args(&key.host, [endpoint.as_str()]),
+                    operation,
+                )
+                .await
+                && let Ok(changes) = parse_json::<Changes>(&bytes, operation)
+            {
+                return Ok(changes.changes);
+            }
+        }
+        modern_call.map(|_| Vec::new())
+    }
+
     async fn load_snapshot(
         &self,
         key: &ChangeRequestKey,
@@ -93,21 +131,7 @@ where
                     "load merge request",
                 )
             },
-            async {
-                parse_ndjson::<Diff>(
-                    &self
-                        .read_api(
-                            &key.host,
-                            api_args(
-                                &key.host,
-                                ["--paginate", "--output", "ndjson", diffs_endpoint.as_str()],
-                            ),
-                            "load merge request diffs",
-                        )
-                        .await?,
-                    "load merge request diffs",
-                )
-            },
+            self.load_diffs(key, &root, &diffs_endpoint),
             async {
                 parse_json::<Vec<DraftNote>>(
                     &self

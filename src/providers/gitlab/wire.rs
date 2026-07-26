@@ -22,6 +22,11 @@ pub struct Author {
 }
 
 #[derive(Deserialize)]
+pub struct Changes {
+    pub changes: Vec<Diff>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct Diff {
     pub old_path: String,
     pub new_path: String,
