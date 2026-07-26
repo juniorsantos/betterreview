@@ -746,3 +746,99 @@ fn a_line_missing_on_one_side_is_hatched() {
         "the added line has no counterpart on the old side"
     );
 }
+
+fn app_with_a_long_file() -> AppState {
+    let mut state = app();
+    let path = RepoPath("src/app.rs".into());
+    let rows: Vec<DiffRow> = (0..60)
+        .map(|index| {
+            if index == 0 {
+                DiffRow {
+                    raw: "@@ -1,60 +1,60 @@".into(),
+                    kind: DiffRowKind::HunkHeader,
+                    old_line: None,
+                    new_line: None,
+                    left: None,
+                    right: None,
+                }
+            } else {
+                DiffRow {
+                    raw: format!(" line {index}"),
+                    kind: DiffRowKind::Context,
+                    old_line: Some(index),
+                    new_line: Some(index),
+                    left: Some(position(DiffSide::Left, index)),
+                    right: Some(position(DiffSide::Right, index)),
+                }
+            }
+        })
+        .collect();
+    state.parsed_diff = Some(ParsedFileDiff {
+        path: path.clone(),
+        head: CommitOid("head".into()),
+        rows,
+        hunks: vec![betterreview::diff::DiffHunk {
+            id: 0,
+            old_start: 1,
+            old_count: 59,
+            new_start: 1,
+            new_count: 59,
+            row_range: 1..60,
+        }],
+    });
+    state.rendered_diff = Some(RenderedDiff {
+        rows: (0..60)
+            .map(|index| RenderedRow {
+                text: Line::raw(format!("line {index}")),
+                binding: RowBinding {
+                    row_index: index,
+                    left: Some(position(DiffSide::Left, index as u32)),
+                    right: Some(position(DiffSide::Right, index as u32)),
+                },
+            })
+            .collect(),
+    });
+    refresh_display_rows(&mut state);
+    state
+}
+
+#[test]
+fn scrolling_pins_the_file_and_hunk_to_the_top() {
+    let mut state = app_with_a_long_file();
+    state.session.cursor_row = 50;
+    refresh_display_rows(&mut state);
+
+    let screen = screen(&draw(&state));
+    let pinned = screen
+        .lines()
+        .find(|line| line.contains("src/app.rs"))
+        .expect("a row naming the file");
+
+    assert!(
+        pinned.contains("hunk 1/1"),
+        "file and hunk are pinned together: {pinned:?}"
+    );
+    assert!(
+        !screen.contains("line 1 "),
+        "the body really scrolled away from the top"
+    );
+}
+
+#[test]
+fn the_top_of_the_file_shows_no_pinned_row() {
+    let mut state = app_with_a_long_file();
+    state.session.cursor_row = 1;
+    refresh_display_rows(&mut state);
+
+    let screen = screen(&draw(&state));
+    let rows: Vec<&str> = screen.lines().collect();
+    let occurrences = rows
+        .iter()
+        .filter(|line| line.contains("src/app.rs"))
+        .count();
+
+    assert_eq!(
+        occurrences, 1,
+        "the real header is visible, so nothing is pinned above it"
+    );
+}

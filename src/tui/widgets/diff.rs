@@ -41,19 +41,71 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     } else {
         theme::BORDER
     };
-    let visible = area.height.saturating_sub(2) as usize;
+    let block = Block::default()
+        .title(" [3] Diff ")
+        .borders(Borders::ALL)
+        .padding(ratatui::widgets::Padding::horizontal(1))
+        .border_style(Style::default().fg(border));
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+
+    // Reserving a row for the pinned header changes how much fits, which
+    // changes where the viewport starts — so decide with the full height and
+    // only then take the row back.
+    let full = inner.height as usize;
+    let pinned = viewport::start(state.display_cursor, lines.len(), full) > 0;
+    let visible = if pinned { full.saturating_sub(1) } else { full };
     let start = viewport::start(state.display_cursor, lines.len(), visible);
     let scroll = u16::try_from(start).unwrap_or(u16::MAX);
-    frame.render_widget(
-        Paragraph::new(lines).scroll((scroll, 0)).block(
-            Block::default()
-                .title(" [3] Diff ")
-                .borders(Borders::ALL)
-                .padding(ratatui::widgets::Padding::horizontal(1))
-                .border_style(Style::default().fg(border)),
-        ),
-        area,
-    );
+
+    let body = if pinned {
+        frame.render_widget(
+            Paragraph::new(pinned_line(state)),
+            Rect::new(inner.x, inner.y, inner.width, 1),
+        );
+        Rect::new(inner.x, inner.y + 1, inner.width, inner.height - 1)
+    } else {
+        inner
+    };
+    frame.render_widget(Paragraph::new(lines).scroll((scroll, 0)), body);
+}
+
+/// The row kept at the top while the body scrolls: the file being reviewed
+/// and the hunk the cursor sits in, so neither is lost past the fold.
+fn pinned_line(state: &AppState) -> Line<'static> {
+    let path = state
+        .parsed_diff
+        .as_ref()
+        .map(|parsed| parsed.path.0.clone())
+        .unwrap_or_default();
+    let mut spans = vec![Span::styled(
+        path,
+        Style::default()
+            .fg(theme::ACCENT)
+            .add_modifier(Modifier::BOLD),
+    )];
+    if let Some(hunk) = hunk_at_cursor(state) {
+        spans.push(Span::styled(" · ", Style::default().fg(theme::BORDER)));
+        spans.push(Span::styled(
+            format!("hunk {}/{}", hunk + 1, state.active_hunk_total()),
+            Style::default().fg(theme::MUTED),
+        ));
+    }
+    Line::from(spans)
+}
+
+fn hunk_at_cursor(state: &AppState) -> Option<u32> {
+    let row = state
+        .display_rows
+        .get(state.display_cursor)
+        .and_then(DisplayRow::anchor_row)?;
+    state
+        .parsed_diff
+        .as_ref()?
+        .hunks
+        .iter()
+        .find(|hunk| hunk.row_range.contains(&row))
+        .map(|hunk| hunk.id)
 }
 
 fn render_display_row(
