@@ -26,6 +26,7 @@ use super::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExitReason {
     Quit,
+    BackToPicker,
     Interrupted,
 }
 
@@ -53,7 +54,11 @@ pub async fn run(
             .draw(|frame| render(frame, &app))
             .map_err(TuiError::Draw)?;
         if app.quit_requested {
-            return Ok(ExitReason::Quit);
+            return Ok(if app.return_to_picker {
+                ExitReason::BackToPicker
+            } else {
+                ExitReason::Quit
+            });
         }
 
         let event = tokio::select! {

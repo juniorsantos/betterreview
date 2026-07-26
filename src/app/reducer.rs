@@ -241,17 +241,8 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             Some(state.provider.head.clone()),
             AppEffect::RefreshSnapshot,
         )],
-        AppAction::Quit => {
-            // Without an unsaved editor draft both dialog choices are
-            // identical (the session is always persisted) — just leave.
-            if state.session.editor.is_none() {
-                state.quit_requested = true;
-                return Vec::new();
-            }
-            state.quit_dialog = true;
-            state.quit_selected = 0;
-            Vec::new()
-        }
+        AppAction::Quit => leave_review(state, false),
+        AppAction::BackToPicker => leave_review(state, true),
         AppAction::ConfirmQuit(choice) => {
             match choice {
                 QuitChoice::KeepSession => {
@@ -279,7 +270,7 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
                     state.dirty = true;
                     state.quit_requested = true;
                 }
-                QuitChoice::Cancel => {}
+                QuitChoice::Cancel => state.return_to_picker = false,
             }
             state.quit_dialog = false;
             Vec::new()
@@ -677,6 +668,17 @@ fn activate_file(state: &mut AppState, index: usize) -> Vec<EffectEnvelope> {
             },
         ),
     ]
+}
+
+fn leave_review(state: &mut AppState, to_picker: bool) -> Vec<EffectEnvelope> {
+    state.return_to_picker = to_picker;
+    if state.session.editor.is_none() {
+        state.quit_requested = true;
+    } else {
+        state.quit_dialog = true;
+        state.quit_selected = 0;
+    }
+    Vec::new()
 }
 
 fn active_path(state: &AppState) -> Option<crate::domain::RepoPath> {

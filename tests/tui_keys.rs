@@ -703,3 +703,26 @@ fn alt_enter_breaks_the_summary_line_while_enter_submits() {
         Some(AppEvent::Action(AppAction::SubmitReview { .. }))
     ));
 }
+
+#[test]
+fn shift_q_asks_to_go_back_to_the_picker_while_q_quits() {
+    let mut app = base_app();
+    let mut keymap = KeyMap::default();
+
+    let back = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('Q'), KeyModifiers::SHIFT),
+    );
+    let quit = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('q'), KeyModifiers::NONE),
+    );
+
+    assert!(matches!(
+        back,
+        Some(AppEvent::Action(AppAction::BackToPicker))
+    ));
+    assert!(matches!(quit, Some(AppEvent::Action(AppAction::Quit))));
+}

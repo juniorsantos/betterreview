@@ -69,6 +69,7 @@ pub enum AppAction {
     CancelSubmit,
     Refresh,
     Quit,
+    BackToPicker,
     ConfirmQuit(QuitChoice),
     ToggleHelp,
     ToggleFilesPanel,

@@ -13,7 +13,10 @@ use betterreview::{
         SubmitResult, Support, ThreadId,
     },
     providers::DraftBody,
-    state::{ContentIdentity, FileProgress, ReviewSync, SESSION_SCHEMA_VERSION, SessionSnapshot},
+    state::{
+        ContentIdentity, EditorSnapshot, FileProgress, ReviewSync, SESSION_SCHEMA_VERSION,
+        SessionSnapshot,
+    },
 };
 use ratatui::text::Line;
 use time::OffsetDateTime;
@@ -2477,4 +2480,82 @@ fn shift_m_on_a_file_without_hunks_leaves_a_notice() {
     assert!(effects.is_empty());
     assert!(reviewed_hunks(&state).is_empty());
     assert!(state.notices.iter().any(|notice| notice.contains("hunk")));
+}
+
+// --- Going back to the picker (Q) ---
+
+#[test]
+fn shift_q_leaves_the_review_asking_for_the_picker() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+
+    update(&mut state, AppEvent::Action(AppAction::BackToPicker));
+
+    assert!(state.quit_requested);
+    assert!(state.return_to_picker);
+}
+
+#[test]
+fn q_leaves_the_review_without_asking_for_the_picker() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+
+    update(&mut state, AppEvent::Action(AppAction::Quit));
+
+    assert!(state.quit_requested);
+    assert!(!state.return_to_picker);
+}
+
+#[test]
+fn shift_q_with_an_open_editor_goes_through_the_quit_dialog() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    state.session.editor = Some(editor_snapshot());
+
+    update(&mut state, AppEvent::Action(AppAction::BackToPicker));
+
+    assert!(state.quit_dialog, "an unsaved draft still asks first");
+    assert!(!state.quit_requested);
+
+    update(
+        &mut state,
+        AppEvent::Action(AppAction::ConfirmQuit(QuitChoice::KeepSession)),
+    );
+
+    assert!(state.quit_requested);
+    assert!(state.return_to_picker);
+}
+
+#[test]
+fn canceling_the_dialog_forgets_the_picker_request() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    state.session.editor = Some(editor_snapshot());
+    update(&mut state, AppEvent::Action(AppAction::BackToPicker));
+
+    update(
+        &mut state,
+        AppEvent::Action(AppAction::ConfirmQuit(QuitChoice::Cancel)),
+    );
+
+    assert!(!state.quit_requested);
+    assert!(!state.return_to_picker);
+}
+
+fn editor_snapshot() -> EditorSnapshot {
+    let path = RepoPath("src/file_0.rs".into());
+    let position = DiffPosition {
+        path: path.clone(),
+        side: DiffSide::Right,
+        line: 1,
+        hunk: 0,
+    };
+    EditorSnapshot {
+        lines: vec!["being edited".into()],
+        cursor_row: 0,
+        grapheme_col: 0,
+        original_head: CommitOid("new-head".into()),
+        path,
+        selection: DiffSelection {
+            start: position.clone(),
+            end: position,
+        },
+        stale: false,
+    }
 }

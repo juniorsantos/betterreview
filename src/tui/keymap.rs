@@ -60,6 +60,7 @@ pub fn key_to_action(event: KeyEvent) -> Option<AppAction> {
         (KeyCode::Char('T'), _) => Some(AppAction::ToggleComments),
         (KeyCode::Char('r'), KeyModifiers::NONE) => Some(AppAction::Refresh),
         (KeyCode::Char('q'), KeyModifiers::NONE) => Some(AppAction::Quit),
+        (KeyCode::Char('Q'), _) => Some(AppAction::BackToPicker),
         (KeyCode::Char('?'), _) => Some(AppAction::ToggleHelp),
         _ => None,
     };

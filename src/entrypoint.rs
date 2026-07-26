@@ -86,7 +86,7 @@ impl InstalledRuntime {
             return Err(LaunchError::Dependencies(report.to_string()));
         }
         let fresh = loaded?;
-        self.run_loaded(key, fresh, &mut terminal).await
+        self.run_loaded(key, fresh, &mut terminal).await.map(|_| ())
     }
 
     async fn run_loaded(
@@ -94,7 +94,7 @@ impl InstalledRuntime {
         key: ChangeRequestKey,
         fresh: crate::domain::ProviderSnapshot,
         terminal: &mut ratatui::DefaultTerminal,
-    ) -> Result<(), LaunchError> {
+    ) -> Result<tui::ExitReason, LaunchError> {
         let provider = self.providers.get(key.provider);
         let store = JsonSessionStore::discover()?;
         let saved = store.load(&key)?;
@@ -133,8 +133,7 @@ impl InstalledRuntime {
                 crate::app::AppEvent::EffectFinished(Box::new(result)),
             );
         }
-        tui::run(terminal, app, runtime).await?;
-        Ok(())
+        Ok(tui::run(terminal, app, runtime).await?)
     }
 }
 
@@ -173,50 +172,64 @@ impl LaunchBackend for InstalledRuntime {
                         if !report.is_ready() {
                             return Err(LaunchError::Dependencies(report.to_string()));
                         }
-                        let list = listed?;
+                        let mut list = listed?;
                         if list.is_empty() {
                             return Err(LaunchError::NoReview);
                         }
-                        let store = JsonSessionStore::discover()?;
-                        let sessions: std::collections::BTreeSet<u64> = store
-                            .list()?
-                            .into_iter()
-                            .filter(|summary| {
-                                summary.key.provider == provider
-                                    && summary.key.host == host
-                                    && summary.key.repository == repository
-                            })
-                            .map(|summary| summary.key.number)
-                            .collect();
-                        let items =
-                            crate::tui::picker::mark_items(list, Some(branch.as_str()), &sessions);
-                        let outcome = crate::tui::picker::run(
-                            &mut terminal,
-                            crate::tui::picker::PickerState::new(items, repository.clone()),
-                            crate::tui::picker::PickerSource {
-                                provider: review_provider.clone(),
-                                kind: provider,
+                        loop {
+                            let store = JsonSessionStore::discover()?;
+                            let sessions: std::collections::BTreeSet<u64> = store
+                                .list()?
+                                .into_iter()
+                                .filter(|summary| {
+                                    summary.key.provider == provider
+                                        && summary.key.host == host
+                                        && summary.key.repository == repository
+                                })
+                                .map(|summary| summary.key.number)
+                                .collect();
+                            let items = crate::tui::picker::mark_items(
+                                list.clone(),
+                                Some(branch.as_str()),
+                                &sessions,
+                            );
+                            let outcome = crate::tui::picker::run(
+                                &mut terminal,
+                                crate::tui::picker::PickerState::new(items, repository.clone()),
+                                crate::tui::picker::PickerSource {
+                                    provider: review_provider.clone(),
+                                    kind: provider,
+                                    host: host.clone(),
+                                    repository: repository.clone(),
+                                    branch: Some(branch.clone()),
+                                    sessions,
+                                },
+                            )
+                            .await?;
+                            let (number, snapshot) = match outcome {
+                                crate::tui::picker::PickerOutcome::Quit => return Ok(()),
+                                crate::tui::picker::PickerOutcome::Open { number, snapshot } => {
+                                    (number, snapshot)
+                                }
+                            };
+                            let key = ChangeRequestKey {
+                                provider,
                                 host: host.clone(),
                                 repository: repository.clone(),
-                                branch: Some(branch.clone()),
-                                sessions,
-                            },
-                        )
-                        .await?;
-                        match outcome {
-                            crate::tui::picker::PickerOutcome::Quit => Ok(()),
-                            crate::tui::picker::PickerOutcome::Open { number, snapshot } => {
-                                let key = ChangeRequestKey {
-                                    provider,
-                                    host,
-                                    repository,
-                                    number,
-                                };
-                                let fresh = match snapshot {
-                                    Some(fresh) => fresh,
-                                    None => review_provider.load(&key).await?,
-                                };
-                                self.run_loaded(key, fresh, &mut terminal).await
+                                number,
+                            };
+                            let fresh = match snapshot {
+                                Some(fresh) => fresh,
+                                None => review_provider.load(&key).await?,
+                            };
+                            if self.run_loaded(key, fresh, &mut terminal).await?
+                                != tui::ExitReason::BackToPicker
+                            {
+                                return Ok(());
+                            }
+                            list = review_provider.list_open(&host, &repository).await?;
+                            if list.is_empty() {
+                                return Ok(());
                             }
                         }
                     }

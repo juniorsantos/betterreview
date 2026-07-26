@@ -126,7 +126,12 @@ fn body_lines() -> Vec<Line<'static>> {
     ));
     lines.push(group_line(
         "",
-        &[("R", "submit review"), ("r", "refresh"), ("q", "quit")],
+        &[
+            ("R", "submit review"),
+            ("r", "refresh"),
+            ("Q", "back to list"),
+            ("q", "quit"),
+        ],
     ));
 
     lines
