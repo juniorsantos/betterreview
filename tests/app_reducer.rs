@@ -836,18 +836,18 @@ fn cursor_walks_through_comment_blocks() {
     assert_eq!(state.display_cursor, 0);
 
     update(&mut state, AppEvent::Action(AppAction::MoveCursor(1)));
-    assert_eq!(state.display_cursor, 1, "lands on the comment block start");
+    assert_eq!(state.display_cursor, 2, "lands on the comment block start");
     assert_eq!(state.session.cursor_row, 0);
 
     update(&mut state, AppEvent::Action(AppAction::MoveCursor(1)));
     assert_eq!(
-        state.display_cursor, 9,
+        state.display_cursor, 11,
         "body, footer and action rows are skipped, landing on Diff{{1}}"
     );
     assert_eq!(state.session.cursor_row, 1);
 
     update(&mut state, AppEvent::Action(AppAction::MoveCursor(1)));
-    assert_eq!(state.display_cursor, 10);
+    assert_eq!(state.display_cursor, 12);
     assert_eq!(state.session.cursor_row, 2);
 
     update(&mut state, AppEvent::Action(AppAction::MoveCursor(1)));
@@ -867,7 +867,7 @@ fn cursor_on_comment_keeps_session_row() {
 
     update(&mut state, AppEvent::Action(AppAction::MoveCursor(1)));
 
-    assert_eq!(state.display_cursor, 1);
+    assert_eq!(state.display_cursor, 2);
     assert_eq!(
         state.session.cursor_row, 5,
         "landing on a comment row must not touch session.cursor_row"
@@ -924,7 +924,7 @@ fn toggle_comments_resyncs_cursor() {
 
     assert!(!state.comments_hidden);
     assert_eq!(
-        state.display_cursor, 9,
+        state.display_cursor, 11,
         "re-synced back to Diff{{1}} once comments are shown again"
     );
 }
@@ -1478,15 +1478,18 @@ fn bracket_c_jumps_between_comment_blocks() {
     assert_eq!(state.display_cursor, 0);
 
     update(&mut state, AppEvent::Action(AppAction::NextComment));
-    assert_eq!(state.display_cursor, 1, "lands on the first comment block");
+    assert_eq!(state.display_cursor, 2, "lands on the first comment block");
 
     update(&mut state, AppEvent::Action(AppAction::NextComment));
-    assert_eq!(state.display_cursor, 9, "lands on the second comment block");
+    assert_eq!(
+        state.display_cursor, 12,
+        "lands on the second comment block"
+    );
 
     let effects = update(&mut state, AppEvent::Action(AppAction::NextComment));
     assert!(effects.is_empty());
     assert_eq!(
-        state.display_cursor, 9,
+        state.display_cursor, 12,
         "clamped, no wrap past the last comment"
     );
     assert!(
@@ -1497,7 +1500,7 @@ fn bracket_c_jumps_between_comment_blocks() {
     );
 
     update(&mut state, AppEvent::Action(AppAction::PreviousComment));
-    assert_eq!(state.display_cursor, 1, "back to the first comment block");
+    assert_eq!(state.display_cursor, 2, "back to the first comment block");
 }
 
 /// Four plain diff rows, two of which contain the word "needle": rows 1 and
@@ -1549,7 +1552,7 @@ fn search_matching_only_a_comment_body_lands_on_its_block_header() {
     update(&mut state, AppEvent::Action(AppAction::ConfirmSearch));
 
     assert_eq!(
-        state.display_cursor, 1,
+        state.display_cursor, 2,
         "a match inside a comment body must land on the block's Header row"
     );
 }
@@ -2503,9 +2506,12 @@ fn toggle_fold_dir_folds_and_unfolds_an_arbitrary_directory() {
 fn jump_to_display_row_lands_directly_on_a_diff_row() {
     let mut state = state_with_multiline_comment();
 
-    update(&mut state, AppEvent::Action(AppAction::JumpToDisplayRow(9)));
+    update(
+        &mut state,
+        AppEvent::Action(AppAction::JumpToDisplayRow(11)),
+    );
 
-    assert_eq!(state.display_cursor, 9);
+    assert_eq!(state.display_cursor, 11);
     assert_eq!(state.session.cursor_row, 1);
 }
 
@@ -2513,10 +2519,9 @@ fn jump_to_display_row_lands_directly_on_a_diff_row() {
 fn jump_to_display_row_snaps_a_comment_body_click_to_its_header() {
     let mut state = state_with_multiline_comment();
 
-    // Row 2 is a Body row inside the comment block that starts at row 1.
-    update(&mut state, AppEvent::Action(AppAction::JumpToDisplayRow(2)));
+    update(&mut state, AppEvent::Action(AppAction::JumpToDisplayRow(3)));
 
-    assert_eq!(state.display_cursor, 1);
+    assert_eq!(state.display_cursor, 2);
 }
 
 #[test]

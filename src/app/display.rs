@@ -18,6 +18,7 @@ pub enum CommentEntry {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommentRowKind {
+    Spacer,
     Header,
     Actions,
     Body,
@@ -546,6 +547,49 @@ fn place(
     }
 }
 
+pub fn commented_rows(state: &AppState) -> std::collections::BTreeSet<usize> {
+    let mut rows = std::collections::BTreeSet::new();
+    let (Some(rendered), Some(active_path)) = (
+        state.rendered_diff.as_ref(),
+        state
+            .provider
+            .files
+            .get(state.active_file_index)
+            .map(|file| file.path.clone()),
+    ) else {
+        return rows;
+    };
+    for draft in state
+        .provider
+        .drafts
+        .iter()
+        .filter(|draft| draft_belongs(draft, &active_path))
+    {
+        let Some(selection) = draft.selection.as_ref() else {
+            continue;
+        };
+        if let (Some(first), Some(last)) = (
+            find_anchor_row(rendered, &selection.start),
+            find_anchor_row(rendered, &selection.end),
+        ) {
+            rows.extend(first.min(last)..=first.max(last));
+        }
+    }
+    for thread in state
+        .provider
+        .threads
+        .iter()
+        .filter(|thread| thread.path == active_path)
+    {
+        for position in thread.comments.iter().filter_map(|c| c.position.as_ref()) {
+            if let Some(row) = find_anchor_row(rendered, position) {
+                rows.insert(row);
+            }
+        }
+    }
+    rows
+}
+
 fn find_anchor_row(rendered: &RenderedDiff, target: &DiffPosition) -> Option<usize> {
     rendered.rows.iter().find_map(|row| {
         let matches = |position: &Option<DiffPosition>| {
@@ -562,6 +606,12 @@ fn find_anchor_row(rendered: &RenderedDiff, target: &DiffPosition) -> Option<usi
 }
 
 fn push_block(rows: &mut Vec<DisplayRow>, block: PendingBlock) {
+    rows.push(DisplayRow::Comment {
+        entry: block.entry.clone(),
+        kind: CommentRowKind::Spacer,
+        text: String::new(),
+        author: None,
+    });
     rows.push(DisplayRow::Comment {
         entry: block.entry.clone(),
         kind: CommentRowKind::Header,
@@ -604,8 +654,14 @@ fn push_block(rows: &mut Vec<DisplayRow>, block: PendingBlock) {
         author: None,
     });
     rows.push(DisplayRow::Comment {
-        entry: block.entry,
+        entry: block.entry.clone(),
         kind: CommentRowKind::Actions,
+        text: String::new(),
+        author: None,
+    });
+    rows.push(DisplayRow::Comment {
+        entry: block.entry,
+        kind: CommentRowKind::Spacer,
         text: String::new(),
         author: None,
     });

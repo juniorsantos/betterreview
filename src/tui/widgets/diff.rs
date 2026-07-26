@@ -24,7 +24,6 @@ const MIN_GUTTER_DIGITS: usize = 2;
 struct CardLayout {
     inner_width: usize,
     gutter: Gutter,
-    focused: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -89,6 +88,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let inner_width = area.width.saturating_sub(4) as usize;
     let columns = crate::tui::diff_columns(area, state);
     let gutter = Gutter::for_state(state);
+    let commented = crate::app::commented_rows(state);
     let lines = match &state.rendered_diff {
         Some(diff) => state
             .display_rows
@@ -103,6 +103,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
                     inner_width,
                     columns,
                     gutter,
+                    &commented,
                 );
                 if state.wrap_lines {
                     line
@@ -361,6 +362,7 @@ fn render_display_row(
     inner_width: usize,
     columns: Option<crate::tui::DiffColumns>,
     gutter: Gutter,
+    commented: &std::collections::BTreeSet<usize>,
 ) -> Line<'static> {
     let cursor_on_block = match display_row {
         DisplayRow::Comment { entry, .. } => matches!(
@@ -376,7 +378,7 @@ fn render_display_row(
             inner_width,
             gutter,
             state.tab_width,
-            index == state.display_cursor,
+            index == state.display_cursor || commented.contains(row),
         ),
         DisplayRow::Comment {
             entry,
@@ -392,7 +394,6 @@ fn render_display_row(
             CardLayout {
                 inner_width,
                 gutter,
-                focused: cursor_on_block,
             },
         ),
         DisplayRow::FileHeader {
@@ -667,15 +668,15 @@ fn comment_line(
     let CardLayout {
         inner_width,
         gutter,
-        focused,
     } = layout;
-    let card_width = inner_width.saturating_sub(gutter.width() + 1).max(4);
+    let card_width = inner_width.saturating_sub(gutter.width()).max(4);
     let border_style = Style::default().fg(theme::ACCENT);
     let mut spans = vec![
-        gutter.blank(),
-        Span::styled("\u{258d}", Style::default().fg(theme::ACCENT)),
+        gutter.bar(true),
+        Span::raw(" ".repeat(gutter.width().saturating_sub(1))),
     ];
     match kind {
+        CommentRowKind::Spacer => {}
         CommentRowKind::Header => {
             let author_label = author.map_or_else(|| "you".to_owned(), str::to_owned);
             let (marker_text, marker_color) =
@@ -715,28 +716,26 @@ fn comment_line(
             spans.push(Span::styled("┘", border_style));
         }
         CommentRowKind::Actions => {
-            if focused {
-                let hints: &[(&str, &str)] = match entry {
-                    CommentEntry::Draft { .. } => &[("e", "edit"), ("x", "delete")],
-                    CommentEntry::Thread { .. } => &[("r", "reply")],
-                };
-                spans.push(Span::raw("  "));
-                for (index, (key, label)) in hints.iter().enumerate() {
-                    if index > 0 {
-                        spans.push(Span::styled(" · ", Style::default().fg(theme::BORDER)));
-                    }
-                    spans.push(Span::styled(
-                        (*key).to_owned(),
-                        Style::default()
-                            .fg(theme::ACCENT)
-                            .add_modifier(Modifier::BOLD),
-                    ));
-                    spans.push(Span::raw(" "));
-                    spans.push(Span::styled(
-                        (*label).to_owned(),
-                        Style::default().fg(theme::MUTED),
-                    ));
+            let hints: &[(&str, &str)] = match entry {
+                CommentEntry::Draft { .. } => &[("e", "edit"), ("x", "delete")],
+                CommentEntry::Thread { .. } => &[("r", "reply")],
+            };
+            spans.push(Span::raw("  "));
+            for (index, (key, label)) in hints.iter().enumerate() {
+                if index > 0 {
+                    spans.push(Span::styled(" · ", Style::default().fg(theme::BORDER)));
                 }
+                spans.push(Span::styled(
+                    (*key).to_owned(),
+                    Style::default()
+                        .fg(theme::ACCENT)
+                        .add_modifier(Modifier::BOLD),
+                ));
+                spans.push(Span::raw(" "));
+                spans.push(Span::styled(
+                    (*label).to_owned(),
+                    Style::default().fg(theme::MUTED),
+                ));
             }
         }
     }

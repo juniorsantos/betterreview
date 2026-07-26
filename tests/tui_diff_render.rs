@@ -481,13 +481,14 @@ fn comment_box_renders_under_its_line() {
         .iter()
         .position(|line| line.contains("+added"))
         .expect("anchored diff row rendered");
-    assert!(lines[anchor + 1].contains("┌─ @you · draft"));
     assert!(
-        lines[anchor + 2].trim().starts_with('│'),
-        "a blank padding row separates the border from the text"
+        lines[anchor + 1].trim().is_empty() || lines[anchor + 1].contains('▌'),
+        "a spacer row gives the card room to breathe"
     );
-    assert!(lines[anchor + 3].contains("│   Please double-check this line"));
-    assert!(lines[anchor + 5].contains("└─"));
+    assert!(lines[anchor + 2].contains("┌─ @you · draft"));
+    assert!(lines[anchor + 4].contains("│   Please double-check this line"));
+    assert!(lines[anchor + 6].contains("└─"));
+    assert!(lines[anchor + 7].contains("e edit"));
 }
 
 #[test]
@@ -1022,22 +1023,16 @@ fn a_comment_card_has_square_corners_and_a_gutter_indicator() {
         "the rounded corners are gone"
     );
     assert!(
-        screen.contains('\u{258d}'),
+        screen.contains('\u{258c}'),
         "the card is tied to the lines it comments on"
     );
 }
 
 #[test]
-fn the_action_keys_sit_below_the_card_and_only_under_the_cursor() {
+fn the_action_keys_sit_below_the_card_on_a_line_of_their_own() {
     let mut state = app();
     state.provider.drafts.push(draft_at_line_5());
     refresh_display_rows(&mut state);
-    let card = state
-        .display_rows
-        .iter()
-        .position(|row| matches!(row, DisplayRow::Comment { .. }))
-        .expect("the card rendered");
-    state.display_cursor = card;
 
     let screen = screen_wide(&draw_wide(&state));
     let actions = screen
@@ -1048,13 +1043,6 @@ fn the_action_keys_sit_below_the_card_and_only_under_the_cursor() {
     assert!(
         !actions.contains('\u{2518}') && !actions.contains('\u{2500}'),
         "the keys are on their own line, not fighting the border for space: {actions:?}"
-    );
-
-    state.display_cursor = 0;
-    let elsewhere = screen_wide(&draw_wide(&state));
-    assert!(
-        !elsewhere.contains("e edit"),
-        "a card the cursor is not on does not repeat its keys:\n{elsewhere}"
     );
 }
 
@@ -1247,5 +1235,49 @@ fn the_cursor_row_lifts_its_own_diff_background_instead_of_losing_it() {
         bg_of("+second"),
         Some(green),
         "a row away from the cursor keeps the plain diff background"
+    );
+}
+
+#[test]
+fn the_comment_bar_runs_from_the_reviewed_line_through_the_card() {
+    let mut state = app();
+    state.provider.drafts.push(draft_at_line_5());
+    refresh_display_rows(&mut state);
+    state.display_cursor = state.display_rows.len() - 1;
+
+    let screen = screen_wide(&draw_wide(&state));
+    let bar_on = |needle: &str| {
+        screen
+            .lines()
+            .find(|line| line.contains(needle))
+            .is_some_and(|line| line.contains('\u{258c}'))
+    };
+
+    assert!(
+        bar_on("+added"),
+        "the reviewed line carries the bar so the author knows which line it is about:\n{screen}"
+    );
+    assert!(
+        bar_on("Please double-check this line"),
+        "and so does the card"
+    );
+    assert!(
+        !bar_on("context"),
+        "a line nobody commented on carries none:\n{screen}"
+    );
+}
+
+#[test]
+fn the_card_keys_stay_visible_when_the_cursor_moves_away() {
+    let mut state = app();
+    state.provider.drafts.push(draft_at_line_5());
+    refresh_display_rows(&mut state);
+    state.display_cursor = 0;
+
+    let screen = screen_wide(&draw_wide(&state));
+
+    assert!(
+        screen.contains("e edit"),
+        "the keys belong to the card, not to the cursor:\n{screen}"
     );
 }
