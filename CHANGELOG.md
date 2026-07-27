@@ -3,7 +3,47 @@
 All notable changes to this project are documented in this file, generated
 from conventional commits by [release-please](https://github.com/googleapis/release-please).
 
-## [0.5.0](https://github.com/juniorsantos/betterreview/compare/v0.4.0...v0.5.0) (2026-07-26)
+## [1.0.0](https://github.com/juniorsantos/betterreview/compare/v0.5.0...v1.0.0)
+
+
+### Features
+
+* a blame gutter names who wrote each line of the old side (closes [#32](https://github.com/juniorsantos/betterreview/issues/32)) ([b39ab7f](https://github.com/juniorsantos/betterreview/commit/b39ab7f96c96f46ac77959bbd60ff52298a0ed6d))
+* a failed blame explains itself in a dialog with git's own words ([0623ef0](https://github.com/juniorsantos/betterreview/commit/0623ef0ee355c7fa91dc3815ad6f13ed9bd82350))
+* a transparent canvas leaves the terminal background alone (closes [#26](https://github.com/juniorsantos/betterreview/issues/26)) ([a521acf](https://github.com/juniorsantos/betterreview/commit/a521acfcf86525b148f21c32b79cfac189b2e17b))
+* DiffLayout::Auto picks the layout from the panel width (closes [#59](https://github.com/juniorsantos/betterreview/issues/59)) ([1bd2430](https://github.com/juniorsantos/betterreview/commit/1bd24301ed9da790bcb9201dcf912f061804a67e))
+* mark code that only changed place in its own colour (closes [#31](https://github.com/juniorsantos/betterreview/issues/31)) ([1ea6bd1](https://github.com/juniorsantos/betterreview/commit/1ea6bd17b34cc4d4f46bd0820506721977fb2dcb))
+* space toggles reviewed in the files panel where the checkbox is drawn (closes [#70](https://github.com/juniorsantos/betterreview/issues/70)) ([b47e4f1](https://github.com/juniorsantos/betterreview/commit/b47e4f1ea3198f2da0d3f4e3570c85bd72a8b576))
+* square comment card with a gutter indicator and its keys on a line of their own (closes [#51](https://github.com/juniorsantos/betterreview/issues/51)) ([f1f4802](https://github.com/juniorsantos/betterreview/commit/f1f48023f994ded4668e5588f42fcd881dff8214))
+* the comment bar runs from the reviewed line through the card and the keys stay visible ([9b30e9c](https://github.com/juniorsantos/betterreview/commit/9b30e9cec8af3d8fdfd63faf8ad4b8c0a5bf768a))
+* the files cursor marks the folder itself and enter folds it ([93e5c92](https://github.com/juniorsantos/betterreview/commit/93e5c924c453e3f2817eed88e4b5fe920b35fd0e))
+* the review regions lose their frames in favour of one separator (closes [#66](https://github.com/juniorsantos/betterreview/issues/66)) ([7db6a41](https://github.com/juniorsantos/betterreview/commit/7db6a41644636412b5a529beda0dcd8dcffb6d7b))
+* tint reply cards a lighter blue so an answer reads apart from the comment it answers ([1dabf9c](https://github.com/juniorsantos/betterreview/commit/1dabf9c149fccd73953d5dbc38538158cb24b20d))
+
+
+### Bug Fixes
+
+* escape bidi and zero-width characters and flag the files carrying them (closes [#56](https://github.com/juniorsantos/betterreview/issues/56)) ([9b120db](https://github.com/juniorsantos/betterreview/commit/9b120dbba051a4ea4ba038f273619006f51d5016))
+* fall back to the changes endpoint when a gitlab instance has no working diffs route (closes [#72](https://github.com/juniorsantos/betterreview/issues/72)) ([a4093c4](https://github.com/juniorsantos/betterreview/commit/a4093c48f2b198e4be277324d753edc84e2da428))
+* indent the files tree without a guide line and lighten the alignment hatch ([582c6ab](https://github.com/juniorsantos/betterreview/commit/582c6ab90743a22c9a193a84169393e1c25c1324))
+* keep the comment marking on the end of a range that still resolves ([13d8d57](https://github.com/juniorsantos/betterreview/commit/13d8d57692e565bcaf5f9dbe39a2b9f677601e03))
+* mark the cursor row with a bar the diff background cannot swallow (closes [#65](https://github.com/juniorsantos/betterreview/issues/65)) ([a9e561e](https://github.com/juniorsantos/betterreview/commit/a9e561e5994563e97aea2145d3d3c62708fe2eb6))
+* persist the closed editor and the cleared pending submit so they do not come back on relaunch ([8a1d0a7](https://github.com/juniorsantos/betterreview/commit/8a1d0a7949865988139205cba68585deb54fa9bd))
+* read the comment line range back from both providers so a reopened review keeps its anchor (closes [#71](https://github.com/juniorsantos/betterreview/issues/71)) ([a9e42f3](https://github.com/juniorsantos/betterreview/commit/a9e42f3cf47cb5ed37d02a1fcefc012753cc2257))
+* refetch after a write so a reply or a resolve reaches the screen (closes [#74](https://github.com/juniorsantos/betterreview/issues/74)) ([d376239](https://github.com/juniorsantos/betterreview/commit/d376239c96bf28788a6386527d21547cf25a5bc0))
+* the arrows walk between panels and stop at the ends instead of wrapping ([607bb13](https://github.com/juniorsantos/betterreview/commit/607bb13ad958116d8efa912bbc781230b5fc3d7d))
+
+
+### Reverts
+
+* bring the panel frames back (reopens [#66](https://github.com/juniorsantos/betterreview/issues/66)) ([6beb877](https://github.com/juniorsantos/betterreview/commit/6beb877a1622b31ae2a0dac4a4396177e210a79a))
+
+
+### Miscellaneous Chores
+
+* accumulate the next release as 1.0.0 ([0780922](https://github.com/juniorsantos/betterreview/commit/07809222ce3859d997a0d87ece2575b088f9f49e))
+
+## [0.5.0](https://github.com/juniorsantos/betterreview/compare/v0.4.0...v0.5.0)
 
 
 ### Features
@@ -30,7 +70,7 @@ from conventional commits by [release-please](https://github.com/googleapis/rele
 * keep the gutter reserved on wrapped rows instead of spending a row on the number (closes [#60](https://github.com/juniorsantos/betterreview/issues/60)) ([b8ac69c](https://github.com/juniorsantos/betterreview/commit/b8ac69c4182053b3a25477f5e613125ea65ca6eb))
 * measure text in terminal cells and abbreviate paths instead of cutting names (closes [#25](https://github.com/juniorsantos/betterreview/issues/25), closes [#44](https://github.com/juniorsantos/betterreview/issues/44)) ([adaf97c](https://github.com/juniorsantos/betterreview/commit/adaf97c9b30e351f4d68f54d94e60b2592df8a4a))
 
-## [0.4.0](https://github.com/juniorsantos/betterreview/compare/v0.3.0...v0.4.0) (2026-07-26)
+## [0.4.0](https://github.com/juniorsantos/betterreview/compare/v0.3.0...v0.4.0)
 
 
 ### Features
@@ -44,7 +84,7 @@ from conventional commits by [release-please](https://github.com/googleapis/rele
 * draw a large block banner on the splash screen (closes [#17](https://github.com/juniorsantos/betterreview/issues/17)) ([48f31e3](https://github.com/juniorsantos/betterreview/commit/48f31e377e6b0cc2eff036c17c7117301d802978))
 * keep the config out of the session directory and read it from ~/.config (closes [#20](https://github.com/juniorsantos/betterreview/issues/20)) ([9937792](https://github.com/juniorsantos/betterreview/commit/993779209bf08b804199e9fee2da148f67d0c445))
 
-## [0.3.0](https://github.com/juniorsantos/betterreview/compare/v0.2.0...v0.3.0) (2026-07-26)
+## [0.3.0](https://github.com/juniorsantos/betterreview/compare/v0.2.0...v0.3.0)
 
 
 ### Features
