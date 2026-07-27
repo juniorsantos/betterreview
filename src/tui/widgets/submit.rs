@@ -9,6 +9,7 @@ use crate::{
     app::AppState,
     domain::{ReviewOutcome, Support},
     tui::{
+        text::{display_width, truncate_to_width},
         theme,
         widgets::dialog::{
             ActionButton, Dialog, Sizing, button_line, center_lines, clamped_width, render_dialog,
@@ -29,13 +30,16 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     };
 
     let mut body = vec![Line::raw(draft_label), Line::raw("")];
-    body.extend(summary_lines(&modal.summary));
-    body.push(Line::raw(""));
     let action_width = usize::from(
         clamped_width(DIALOG_WIDTH, area.width)
             .saturating_sub(3)
             .max(1),
     );
+    body.extend(summary_lines(
+        &modal.summary,
+        action_width.saturating_sub(1).max(2),
+    ));
+    body.push(Line::raw(""));
     body.extend(shortcut_lines(state, modal.outcome, action_width));
     if let Support::Unsupported { reason } = state.provider.capabilities.for_outcome(modal.outcome)
     {
@@ -75,23 +79,43 @@ fn title_line(outcome: ReviewOutcome) -> Line<'static> {
     ])
 }
 
-fn summary_lines(summary: &str) -> Vec<Line<'static>> {
-    let mut lines: Vec<Line<'static>> = summary
-        .split('\n')
-        .map(|line| Line::styled(line.to_owned(), Style::default().fg(theme::FG)))
-        .collect();
-    if let Some(last) = lines.last_mut() {
-        last.spans.push(Span::styled(
-            "▌",
-            Style::default()
-                .fg(theme::ACCENT)
-                .add_modifier(Modifier::BOLD),
-        ));
+fn summary_lines(summary: &str, width: usize) -> Vec<Line<'static>> {
+    let border_style = Style::default().fg(theme::ACCENT);
+    let label = " Comment ";
+    let top_fill = width.saturating_sub(display_width(label) + 2);
+    let mut lines = vec![Line::styled(
+        format!("┌{label}{}┐", "─".repeat(top_fill)),
+        border_style,
+    )];
+    let summary_lines: Vec<&str> = summary.split('\n').collect();
+    let inner_width = width.saturating_sub(2);
+    for (index, line) in summary_lines.iter().enumerate() {
+        let is_last = index + 1 == summary_lines.len();
+        let caret_width = usize::from(is_last);
+        let text_width = inner_width.saturating_sub(1 + caret_width);
+        let text = truncate_to_width(line, text_width);
+        let padding = inner_width.saturating_sub(1 + display_width(&text) + caret_width);
+        let mut spans = vec![
+            Span::styled("│", border_style),
+            Span::raw(" "),
+            Span::styled(text, Style::default().fg(theme::FG)),
+        ];
+        if is_last {
+            spans.push(Span::styled(
+                "▌",
+                Style::default()
+                    .fg(theme::ACCENT)
+                    .add_modifier(Modifier::BOLD),
+            ));
+        }
+        spans.push(Span::raw(" ".repeat(padding)));
+        spans.push(Span::styled("│", border_style));
+        lines.push(Line::from(spans));
     }
-    lines.insert(
-        0,
-        Line::styled("Summary", Style::default().fg(theme::MUTED)),
-    );
+    lines.push(Line::styled(
+        format!("└{}┘", "─".repeat(inner_width)),
+        border_style,
+    ));
     lines
 }
 

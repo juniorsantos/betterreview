@@ -94,9 +94,9 @@ pub fn render_dialog(frame: &mut Frame, area: Rect, dialog: Dialog) -> Vec<Rect>
     let inner = block.inner(outer);
 
     let inner_height = inner.height as usize;
-    let has_blank = inner_height >= 3;
-    let hint_rows = usize::from(inner_height >= 1);
-    let blank_rows = usize::from(has_blank);
+    let has_hints = !dialog.hints.is_empty();
+    let hint_rows = usize::from(has_hints && inner_height >= 1);
+    let blank_rows = usize::from(has_hints && inner_height >= 3);
     let body_capacity = inner_height.saturating_sub(hint_rows + blank_rows);
     let body_rect = Rect {
         x: inner.x,
@@ -203,7 +203,7 @@ pub(in crate::tui) fn button_line(buttons: &[ActionButton<'_>], gap: usize) -> L
         if button.selected {
             style = style.add_modifier(Modifier::BOLD);
         }
-        spans.push(Span::styled(format!("  {}  ", button.label), style));
+        spans.push(Span::styled(format!(" {} ", button.label), style));
     }
     Line::from(spans)
 }

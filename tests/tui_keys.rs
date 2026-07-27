@@ -5,7 +5,7 @@ use betterreview::{
         AppAction, AppEvent, AppFocus, AppState, CommentEntry, DisplayRow, SubmissionModal, update,
     },
     domain::{
-        ChangeRequestKey, ChangedFile, CommitOid, DiffPosition, DiffSelection, DiffSide,
+        ChangeRequestKey, ChangedFile, CommitOid, DiffPosition, DiffSelection, DiffSide, DraftId,
         FileStatus, PatchAvailability, ProviderCapabilities, ProviderKind, ProviderSnapshot,
         RepoPath, ReviewOutcome, ThreadId,
     },
@@ -267,6 +267,25 @@ fn quit_dialog_esc_cancels() {
             betterreview::app::QuitChoice::Cancel
         )))
     ));
+}
+
+#[test]
+fn delete_dialog_navigates_with_tab_and_shift_tab() {
+    let mut app = base_app();
+    app.delete_dialog = Some(DraftId("draft-1".into()));
+    let mut keymap = KeyMap::default();
+
+    let moved = handle_key(&mut app, &mut keymap, key(KeyCode::Tab, KeyModifiers::NONE));
+    assert!(moved.is_none());
+    assert_eq!(app.delete_selected, 1);
+
+    let moved = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::BackTab, KeyModifiers::SHIFT),
+    );
+    assert!(moved.is_none());
+    assert_eq!(app.delete_selected, 0);
 }
 
 #[test]

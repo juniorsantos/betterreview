@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 use betterreview::{
     app::AppState,
     domain::{
-        ChangeRequestKey, ChangedFile, CommitOid, FileStatus, PatchAvailability,
+        ChangeRequestKey, ChangedFile, CommitOid, DraftId, FileStatus, PatchAvailability,
         ProviderCapabilities, ProviderKind, ProviderSnapshot, RepoPath,
     },
     state::{ContentIdentity, FileProgress, ReviewSync, SESSION_SCHEMA_VERSION, SessionSnapshot},
@@ -221,8 +221,11 @@ fn dialog_actions_use_compact_background_only_buttons() {
         assert_eq!(label_cell.fg, betterreview::tui::theme::BG);
         assert_eq!(label_cell.bg, background);
         let label_width = label.chars().count() as u16;
-        for padding_x in [x - 2, x - 1, x + label_width, x + label_width + 1] {
+        for padding_x in [x - 1, x + label_width] {
             assert_eq!(buffer.cell((padding_x, row as u16)).unwrap().bg, background);
+        }
+        for padding_y in [row as u16 - 1, row as u16 + 1] {
+            assert_ne!(buffer.cell((x, padding_y)).unwrap().bg, background);
         }
     }
     let action_rows = [
@@ -253,6 +256,90 @@ fn dialog_actions_use_compact_background_only_buttons() {
         !selected_style
             .add_modifier
             .contains(ratatui::style::Modifier::UNDERLINED)
+    );
+}
+
+#[test]
+fn quit_actions_are_centered_below_a_blank_row() {
+    let mut app = base_app();
+    app.quit_dialog = true;
+
+    let (_, lines) = screen(&app, 120, 30);
+    let top = lines
+        .iter()
+        .position(|line| line.contains("┌ Quit review "))
+        .expect("quit dialog rendered");
+    let left_byte = lines[top].find("┌ Quit review ").unwrap();
+    let left = lines[top][..left_byte].chars().count();
+    let right = left
+        + lines[top]
+            .chars()
+            .skip(left)
+            .position(|character| character == '┐')
+            .unwrap();
+    let actions = lines
+        .iter()
+        .position(|line| {
+            line.contains("Quit keeping the draft")
+                && line.contains("Quit discarding the draft")
+                && line.contains("Cancel")
+        })
+        .expect("quit actions rendered");
+    let first_byte = lines[actions].find("Quit keeping the draft").unwrap();
+    let first = lines[actions][..first_byte].chars().count() - 1;
+    let last_byte = lines[actions].find("Cancel").unwrap();
+    let last = lines[actions][..last_byte].chars().count() + "Cancel".chars().count() + 1;
+    let left_margin = first - (left + 1);
+    let right_margin = right - last;
+    let top_space: String = lines[top + 1]
+        .chars()
+        .skip(left + 1)
+        .take(right - left - 1)
+        .collect();
+
+    assert_eq!(actions, top + 2);
+    assert!(top_space.trim().is_empty());
+    assert!((left_margin as isize - right_margin as isize).abs() <= 1);
+}
+
+#[test]
+fn delete_actions_follow_the_quit_dialog_spacing_and_alignment() {
+    let mut app = base_app();
+    app.delete_dialog = Some(DraftId("draft-1".into()));
+
+    let (_, lines) = screen(&app, 120, 30);
+    let top = lines
+        .iter()
+        .position(|line| line.contains("┌ Delete comment "))
+        .expect("delete dialog rendered");
+    let border: Vec<char> = lines[top].chars().collect();
+    let left = border
+        .iter()
+        .position(|character| *character == '┌')
+        .unwrap();
+    let right = border
+        .iter()
+        .rposition(|character| *character == '┐')
+        .unwrap();
+    let actions = lines
+        .iter()
+        .position(|line| line.contains("Delete") && line.contains("Cancel"))
+        .expect("delete actions rendered");
+    let first_byte = lines[actions].find("Delete").unwrap();
+    let first = lines[actions][..first_byte].chars().count() - 1;
+    let last_byte = lines[actions].find("Cancel").unwrap();
+    let last = lines[actions][..last_byte].chars().count() + "Cancel".chars().count() + 1;
+    let top_space: String = lines[top + 1]
+        .chars()
+        .skip(left + 1)
+        .take(right - left - 1)
+        .collect();
+
+    assert_eq!(actions, top + 2);
+    assert!(top_space.trim().is_empty());
+    assert!(
+        ((first - (left + 1)) as isize - (right - last) as isize).abs() <= 1,
+        "delete actions are not centered"
     );
 }
 

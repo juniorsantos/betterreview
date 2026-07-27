@@ -141,7 +141,12 @@ pub fn handle_key(app: &mut AppState, keymap: &mut KeyMap, key: KeyEvent) -> Opt
     if app.delete_dialog.is_some() {
         return match key.code {
             KeyCode::Esc => action(AppAction::ConfirmDeleteChoice(false)),
-            KeyCode::Down | KeyCode::Up | KeyCode::Char('j') | KeyCode::Char('k') => {
+            KeyCode::Tab
+            | KeyCode::BackTab
+            | KeyCode::Down
+            | KeyCode::Up
+            | KeyCode::Char('j')
+            | KeyCode::Char('k') => {
                 app.delete_selected = (app.delete_selected + 1) % 2;
                 None
             }

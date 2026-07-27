@@ -843,13 +843,13 @@ fn cursor_walks_through_comment_blocks() {
 
     update(&mut state, AppEvent::Action(AppAction::MoveCursor(1)));
     assert_eq!(
-        state.display_cursor, 11,
+        state.display_cursor, 12,
         "body, footer and action rows are skipped, landing on Diff{{1}}"
     );
     assert_eq!(state.session.cursor_row, 1);
 
     update(&mut state, AppEvent::Action(AppAction::MoveCursor(1)));
-    assert_eq!(state.display_cursor, 12);
+    assert_eq!(state.display_cursor, 13);
     assert_eq!(state.session.cursor_row, 2);
 
     update(&mut state, AppEvent::Action(AppAction::MoveCursor(1)));
@@ -926,7 +926,7 @@ fn toggle_comments_resyncs_cursor() {
 
     assert!(!state.comments_hidden);
     assert_eq!(
-        state.display_cursor, 11,
+        state.display_cursor, 12,
         "re-synced back to Diff{{1}} once comments are shown again"
     );
 }
@@ -1495,14 +1495,14 @@ fn bracket_c_jumps_between_comment_blocks() {
 
     update(&mut state, AppEvent::Action(AppAction::NextComment));
     assert_eq!(
-        state.display_cursor, 12,
+        state.display_cursor, 13,
         "lands on the second comment block"
     );
 
     let effects = update(&mut state, AppEvent::Action(AppAction::NextComment));
     assert!(effects.is_empty());
     assert_eq!(
-        state.display_cursor, 12,
+        state.display_cursor, 13,
         "clamped, no wrap past the last comment"
     );
     assert!(
@@ -2416,10 +2416,10 @@ fn jump_to_display_row_lands_directly_on_a_diff_row() {
 
     update(
         &mut state,
-        AppEvent::Action(AppAction::JumpToDisplayRow(11)),
+        AppEvent::Action(AppAction::JumpToDisplayRow(12)),
     );
 
-    assert_eq!(state.display_cursor, 11);
+    assert_eq!(state.display_cursor, 12);
     assert_eq!(state.session.cursor_row, 1);
 }
 

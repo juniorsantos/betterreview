@@ -2,10 +2,14 @@ use ratatui::{Frame, layout::Rect, text::Line};
 
 use crate::{
     app::AppState,
-    tui::widgets::dialog::{ActionButton, Dialog, Sizing, button_line, render_dialog},
+    tui::{
+        text::display_width,
+        widgets::dialog::{ActionButton, Dialog, Sizing, button_line, center_lines, render_dialog},
+    },
 };
 
 const OPTIONS: [&str; 2] = ["Delete", "Cancel"];
+const HINTS: &str = "⇥ move · ↵ confirm · ⎋ cancel";
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let buttons: Vec<ActionButton<'_>> = OPTIONS
@@ -17,14 +21,18 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             enabled: true,
         })
         .collect();
-    let body = vec![button_line(&buttons, 1)];
+    let mut body = vec![Line::raw("")];
+    body.extend(center_lines(
+        vec![button_line(&buttons, 1)],
+        display_width(HINTS),
+    ));
     render_dialog(
         frame,
         area,
         Dialog {
             title: Line::raw(" Delete comment "),
             body,
-            hints: "j/k move · ↵ confirm · ⎋ cancel",
+            hints: HINTS,
             sizing: Sizing::Content { max_width: 52 },
             zones: Vec::new(),
         },

@@ -10,7 +10,7 @@ use crate::{
     },
 };
 
-const DIALOG_WIDTH: u16 = 76;
+const DIALOG_WIDTH: u16 = 60;
 const DIALOG_HEIGHT: u16 = 12;
 
 pub(in crate::tui) fn text_width(terminal_width: u16) -> usize {

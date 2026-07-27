@@ -487,8 +487,9 @@ fn comment_box_renders_under_its_line() {
     );
     assert!(lines[anchor + 2].contains("┌─ @you · draft"));
     assert!(lines[anchor + 4].contains("│   Please double-check this line"));
-    assert!(lines[anchor + 6].contains("└─"));
-    assert!(lines[anchor + 7].contains("e edit"));
+    assert!(lines[anchor + 6].contains("├────────┬─┬──────────┬"));
+    assert!(lines[anchor + 7].contains("│ e edit │ │ x delete │"));
+    assert!(lines[anchor + 8].contains("└────────┘ └──────────┘"));
 }
 
 #[test]
@@ -923,6 +924,49 @@ fn a_cut_line_says_it_was_cut() {
 }
 
 #[test]
+fn comment_editor_is_narrow_and_actions_touch_the_bottom_border() {
+    use betterreview::state::EditorSnapshot;
+    let mut state = app();
+    let anchor = position(DiffSide::Right, 5);
+    state.session.editor = Some(EditorSnapshot {
+        lines: vec!["abc".into()],
+        cursor_row: 0,
+        grapheme_col: 3,
+        original_head: CommitOid("head".into()),
+        path: RepoPath("src/app.rs".into()),
+        selection: DiffSelection {
+            start: anchor.clone(),
+            end: anchor,
+        },
+        stale: false,
+    });
+    state.editor_open = true;
+
+    let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
+    terminal.draw(|frame| render(frame, &state)).unwrap();
+    let editor_screen = screen_wide(&terminal);
+    let lines: Vec<&str> = editor_screen.lines().collect();
+    let top = lines
+        .iter()
+        .position(|line| line.contains("┌ Comment "))
+        .expect("comment editor rendered");
+    let left = lines[top].find("┌ Comment ").unwrap();
+    let left = lines[top][..left].chars().count();
+    let bottom = top + 11;
+    let actions = lines
+        .iter()
+        .position(|line| {
+            line.contains("↵ save") && line.contains("⌥↵ new line") && line.contains("⎋ close")
+        })
+        .expect("comment actions rendered");
+
+    assert_eq!(lines[top].chars().nth(left + 59), Some('┐'));
+    assert_eq!(lines[bottom].chars().nth(left), Some('└'));
+    assert_eq!(lines[bottom].chars().nth(left + 59), Some('┘'));
+    assert_eq!(actions + 1, bottom);
+}
+
+#[test]
 fn wrapping_shows_the_whole_line_across_rows() {
     let mut state = app_with_a_long_line();
     state.wrap_lines = true;
@@ -1063,7 +1107,7 @@ fn a_comment_card_has_square_corners_and_a_gutter_indicator() {
 }
 
 #[test]
-fn the_action_keys_use_background_only_and_align_with_the_card() {
+fn the_action_buttons_hang_from_the_comment_card_bottom_edge() {
     let mut state = app();
     state.provider.drafts.push(draft_at_line_5());
     refresh_display_rows(&mut state);
@@ -1072,7 +1116,7 @@ fn the_action_keys_use_background_only_and_align_with_the_card() {
     let lines: Vec<&str> = screen.lines().collect();
     let action_row = lines
         .iter()
-        .position(|line| line.contains("e edit"))
+        .position(|line| line.contains("│ e edit │ │ x delete │"))
         .expect("the actions line rendered");
     let card_row = lines
         .iter()
@@ -1080,22 +1124,36 @@ fn the_action_keys_use_background_only_and_align_with_the_card() {
         .expect("the comment card rendered");
     let card_byte = lines[card_row].find("┌─ @you").unwrap();
     let card_left = lines[card_row][..card_byte].chars().count();
-    let label = lines[action_row].find("e edit").unwrap();
-    let actions_left = lines[action_row][..label].chars().count() - 2;
+    let actions_byte = lines[action_row].find("│ e edit").unwrap();
+    let actions_left = lines[action_row][..actions_byte].chars().count();
+    let attached_edge_row = lines
+        .iter()
+        .position(|line| line.contains("├────────┬─┬──────────┬"))
+        .expect("the attached top edge rendered");
+    let actions_bottom_row = lines
+        .iter()
+        .position(|line| line.contains("└────────┘ └──────────┘"))
+        .expect("the action bottom edges rendered");
 
-    let button_width = "  e edit  ".len() + 1 + "  x delete  ".len();
-    let button_region: String = lines[action_row]
-        .chars()
-        .skip(actions_left)
-        .take(button_width)
-        .collect();
-    assert!(!button_region.contains('│'));
-    assert!(!button_region.contains('─'));
     assert_eq!(actions_left, card_left);
+    assert_eq!(action_row, attached_edge_row + 1);
+    assert_eq!(actions_bottom_row, action_row + 1);
+
+    let terminal = draw_wide(&state);
+    let buffer = terminal.backend().buffer();
+    let label_x = lines[action_row][..lines[action_row].find("e edit").unwrap()]
+        .chars()
+        .count() as u16;
+    let label = buffer.cell((label_x, action_row as u16)).unwrap();
+    assert_eq!(label.fg, theme::ACCENT);
+    assert_eq!(label.bg, theme::BG);
+    for x in [label_x - 1, label_x + "e edit".chars().count() as u16] {
+        assert_eq!(buffer.cell((x, action_row as u16)).unwrap().bg, theme::BG);
+    }
 }
 
 #[test]
-fn selected_comment_card_keeps_action_button_color() {
+fn selected_comment_card_keeps_action_label_color() {
     let mut state = app();
     state.provider.drafts.push(draft_at_line_5());
     refresh_display_rows(&mut state);
@@ -1125,9 +1183,10 @@ fn selected_comment_card_keeps_action_button_color() {
         })
         .expect("edit button rendered");
 
-    let button = buffer.cell((x, y)).unwrap();
-    assert_eq!(button.bg, theme::ACCENT);
-    assert!(!button.style().add_modifier.contains(Modifier::UNDERLINED));
+    let label = buffer.cell((x, y)).unwrap();
+    assert_eq!(label.fg, theme::ACCENT);
+    assert_eq!(label.bg, theme::CURSOR_LINE);
+    assert!(!label.style().add_modifier.contains(Modifier::UNDERLINED));
 }
 
 #[test]

@@ -142,6 +142,19 @@ fn the_summary_carries_a_caret_and_the_verdicts_are_shortcuts() {
 }
 
 #[test]
+fn the_summary_is_rendered_inside_a_comment_input_border() {
+    let screen = screen(&app_with_drafts(1), 80, 24);
+    let lines: Vec<&str> = screen.lines().collect();
+    let top = lines
+        .iter()
+        .position(|line| line.contains("┌ Comment ─"))
+        .expect("comment input top border");
+
+    assert!(lines[top + 1].contains("│ Ready to merge▌"));
+    assert!(lines[top + 2].contains("└─"));
+}
+
+#[test]
 fn verdict_actions_use_compact_background_only_buttons() {
     let backend = TestBackend::new(80, 24);
     let mut terminal = Terminal::new(backend).unwrap();

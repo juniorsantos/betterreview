@@ -811,30 +811,45 @@ fn comment_line(
             spans.push(Span::styled("│", border_style));
         }
         CommentRowKind::Footer => {
+            let actions = comment_actions(entry, accent);
+            let mut footer = Line::from(Span::styled("├", border_style));
+            for span in &actions.spans {
+                footer
+                    .spans
+                    .push(Span::styled("─".repeat(span.width()), border_style));
+                footer.spans.push(Span::styled("┬", border_style));
+            }
+            let used = footer.width();
+            spans.extend(footer.spans);
             spans.push(Span::styled(
-                "└".to_owned() + &"─".repeat(card_width.saturating_sub(2)),
+                "─".repeat(card_width.saturating_sub(used + 1)),
                 border_style,
             ));
             spans.push(Span::styled("┘", border_style));
         }
         CommentRowKind::Actions => {
-            let hints: &[(&str, &str)] = match entry {
-                CommentEntry::Draft { .. } => &[("e", "edit"), ("x", "delete")],
-                CommentEntry::Thread { .. } => &[("r", "reply")],
-            };
-            let labels: Vec<String> = hints
-                .iter()
-                .map(|(key, label)| format!("{key} {label}"))
-                .collect();
-            let buttons: Vec<ActionButton<'_>> = labels
-                .iter()
-                .map(|label| ActionButton {
-                    label,
-                    selected: false,
-                    enabled: true,
-                })
-                .collect();
-            spans.extend(button_line(&buttons, 1).spans);
+            let actions = comment_actions(entry, accent);
+            for (index, span) in actions.spans.into_iter().enumerate() {
+                if index % 2 == 0 {
+                    spans.push(Span::styled("│", border_style));
+                    spans.push(span);
+                    spans.push(Span::styled("│", border_style));
+                } else {
+                    spans.push(span);
+                }
+            }
+        }
+        CommentRowKind::ActionsBottom => {
+            let actions = comment_actions(entry, accent);
+            for (index, span) in actions.spans.into_iter().enumerate() {
+                if index % 2 == 0 {
+                    spans.push(Span::styled("└", border_style));
+                    spans.push(Span::styled("─".repeat(span.width()), border_style));
+                    spans.push(Span::styled("┘", border_style));
+                } else {
+                    spans.push(span);
+                }
+            }
         }
     }
     if matches!(
@@ -842,10 +857,38 @@ fn comment_line(
         CommentRowKind::Header | CommentRowKind::Body | CommentRowKind::Footer
     ) {
         for span in &mut spans[card_start..] {
-            span.style = span.style.bg(theme::BG);
+            if span.style.bg.is_none() {
+                span.style = span.style.bg(theme::BG);
+            }
         }
     }
     Line::from(spans)
+}
+
+fn comment_actions(entry: &CommentEntry, accent: ratatui::style::Color) -> Line<'static> {
+    let hints: &[(&str, &str)] = match entry {
+        CommentEntry::Draft { .. } => &[("e", "edit"), ("x", "delete")],
+        CommentEntry::Thread { .. } => &[("r", "reply")],
+    };
+    let labels: Vec<String> = hints
+        .iter()
+        .map(|(key, label)| format!("{key} {label}"))
+        .collect();
+    let buttons: Vec<ActionButton<'_>> = labels
+        .iter()
+        .map(|label| ActionButton {
+            label,
+            selected: false,
+            enabled: true,
+        })
+        .collect();
+    let mut actions = button_line(&buttons, 1);
+    for (index, span) in actions.spans.iter_mut().enumerate() {
+        if index % 2 == 0 {
+            span.style = Style::default().fg(accent);
+        }
+    }
+    actions
 }
 
 fn marker(state: &AppState, entry: &CommentEntry) -> Option<(&'static str, ratatui::style::Color)> {
