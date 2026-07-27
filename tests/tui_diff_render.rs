@@ -1090,6 +1090,40 @@ fn the_action_keys_sit_in_outlined_buttons_below_the_card() {
 }
 
 #[test]
+fn selected_comment_card_keeps_action_button_color() {
+    let mut state = app();
+    state.provider.drafts.push(draft_at_line_5());
+    refresh_display_rows(&mut state);
+    state.display_cursor = state
+        .display_rows
+        .iter()
+        .position(|row| {
+            matches!(
+                row,
+                DisplayRow::Comment {
+                    kind: betterreview::app::CommentRowKind::Header,
+                    ..
+                }
+            )
+        })
+        .unwrap();
+
+    let terminal = draw_wide(&state);
+    let buffer = terminal.backend().buffer();
+    let (x, y) = (0..30)
+        .find_map(|y| {
+            let line = (0..120)
+                .map(|x| buffer.cell((x, y)).unwrap().symbol())
+                .collect::<String>();
+            line.find("e edit")
+                .map(|byte| (line[..byte].chars().count() as u16, y))
+        })
+        .expect("edit button rendered");
+
+    assert_eq!(buffer.cell((x, y)).unwrap().bg, theme::ACCENT);
+}
+
+#[test]
 fn the_gutter_widens_with_the_highest_line_number_in_the_file() {
     let mut state = app();
     state.rendered_diff = Some(RenderedDiff {

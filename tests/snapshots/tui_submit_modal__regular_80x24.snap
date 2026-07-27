@@ -14,9 +14,9 @@ expression: "redact_version(screen(&app_with_drafts(3), 80, 24))"
 │       │ Summary                                                      │       │
 │       │ Ready to merge▌                                              │       │
 │       │                                                              │       │
-│       │          ┌─────────┐ ┌─────────────────┐ ┌─────────┐         │       │
-│       │          │ APPROVE │ │ REQUEST CHANGES │ │ COMMENT │         │       │
-│       │          └─────────┘ └─────────────────┘ └─────────┘         │       │
+│       │             ┌───────┐ ┌───────────────┐ ┌───────┐            │       │
+│       │             │APPROVE│ │REQUEST CHANGES│ │COMMENT│            │       │
+│       │             └───────┘ └───────────────┘ └───────┘            │       │
 │       │                                                              │       │
 │       │        ⇥ verdict · ↵ submit · ⌥↵ new line · ⎋ cancel         │       │
 │       └──────────────────────────────────────────────────────────────┘       │

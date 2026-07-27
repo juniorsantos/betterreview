@@ -22,11 +22,6 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             .saturating_sub(3)
             .max(1),
     );
-    let (padding, gap) = if available_width >= 69 {
-        (1, 2)
-    } else {
-        (0, 1)
-    };
     let buttons: Vec<ActionButton<'_>> = OPTIONS
         .iter()
         .enumerate()
@@ -36,10 +31,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             enabled: true,
         })
         .collect();
-    let actions = center_lines(
-        outlined_button_rows(&buttons, gap, padding),
-        available_width,
-    );
+    let actions = center_lines(outlined_button_rows(&buttons, 1, 0), available_width);
     render_dialog(
         frame,
         area,

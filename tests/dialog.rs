@@ -220,7 +220,7 @@ fn dialog_actions_use_outlines_with_theme_background() {
         };
         assert_eq!(label_cell.fg, betterreview::tui::theme::BG);
         assert_eq!(label_cell.bg, background);
-        assert_eq!(buffer.cell((x - 2, row as u16 - 1)).unwrap().symbol(), "┌");
+        assert_eq!(buffer.cell((x - 1, row as u16 - 1)).unwrap().symbol(), "┌");
     }
     let action_rows = [
         "Quit keeping the draft",

@@ -524,9 +524,16 @@ fn render_display_row(
             line.spans
                 .push(Span::raw(" ".repeat(inner_width - text_width)));
         }
-        if matches!(display_row, DisplayRow::Comment { .. }) {
-            for span in line.spans.iter_mut().skip(1) {
-                span.style = span.style.patch(style);
+        if let DisplayRow::Comment { kind, .. } = display_row {
+            if !matches!(
+                kind,
+                CommentRowKind::ActionsTop
+                    | CommentRowKind::Actions
+                    | CommentRowKind::ActionsBottom
+            ) {
+                for span in line.spans.iter_mut().skip(1) {
+                    span.style = span.style.patch(style);
+                }
             }
         } else {
             for span in line.spans.iter_mut() {
@@ -829,7 +836,7 @@ fn comment_line(
                     enabled: true,
                 })
                 .collect();
-            let rows = outlined_button_rows(&buttons, 2, 1);
+            let rows = outlined_button_rows(&buttons, 1, 0);
             let row_index = match kind {
                 CommentRowKind::ActionsTop => 0,
                 CommentRowKind::Actions => 1,

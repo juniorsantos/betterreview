@@ -117,8 +117,7 @@ fn shortcut_lines(
             ),
         })
         .collect();
-    let padding = usize::from(available_width >= 52);
-    center_lines(outlined_button_rows(&buttons, 1, padding), available_width)
+    center_lines(outlined_button_rows(&buttons, 1, 0), available_width)
 }
 
 fn label(outcome: ReviewOutcome) -> &'static str {
