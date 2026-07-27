@@ -3,7 +3,7 @@
 All notable changes to this project are documented in this file, generated
 from conventional commits by [release-please](https://github.com/googleapis/release-please).
 
-## [1.0.0](https://github.com/juniorsantos/betterreview/compare/v0.5.0...v1.0.0) (2026-07-27)
+## [1.0.0](https://github.com/juniorsantos/betterreview/compare/v0.5.0...v1.0.0)
 
 
 ### Features
@@ -43,7 +43,7 @@ from conventional commits by [release-please](https://github.com/googleapis/rele
 
 * accumulate the next release as 1.0.0 ([0780922](https://github.com/juniorsantos/betterreview/commit/07809222ce3859d997a0d87ece2575b088f9f49e))
 
-## [0.5.0](https://github.com/juniorsantos/betterreview/compare/v0.4.0...v0.5.0) (2026-07-26)
+## [0.5.0](https://github.com/juniorsantos/betterreview/compare/v0.4.0...v0.5.0)
 
 
 ### Features
@@ -70,7 +70,7 @@ from conventional commits by [release-please](https://github.com/googleapis/rele
 * keep the gutter reserved on wrapped rows instead of spending a row on the number (closes [#60](https://github.com/juniorsantos/betterreview/issues/60)) ([b8ac69c](https://github.com/juniorsantos/betterreview/commit/b8ac69c4182053b3a25477f5e613125ea65ca6eb))
 * measure text in terminal cells and abbreviate paths instead of cutting names (closes [#25](https://github.com/juniorsantos/betterreview/issues/25), closes [#44](https://github.com/juniorsantos/betterreview/issues/44)) ([adaf97c](https://github.com/juniorsantos/betterreview/commit/adaf97c9b30e351f4d68f54d94e60b2592df8a4a))
 
-## [0.4.0](https://github.com/juniorsantos/betterreview/compare/v0.3.0...v0.4.0) (2026-07-26)
+## [0.4.0](https://github.com/juniorsantos/betterreview/compare/v0.3.0...v0.4.0)
 
 
 ### Features
@@ -84,7 +84,7 @@ from conventional commits by [release-please](https://github.com/googleapis/rele
 * draw a large block banner on the splash screen (closes [#17](https://github.com/juniorsantos/betterreview/issues/17)) ([48f31e3](https://github.com/juniorsantos/betterreview/commit/48f31e377e6b0cc2eff036c17c7117301d802978))
 * keep the config out of the session directory and read it from ~/.config (closes [#20](https://github.com/juniorsantos/betterreview/issues/20)) ([9937792](https://github.com/juniorsantos/betterreview/commit/993779209bf08b804199e9fee2da148f67d0c445))
 
-## [0.3.0](https://github.com/juniorsantos/betterreview/compare/v0.2.0...v0.3.0) (2026-07-26)
+## [0.3.0](https://github.com/juniorsantos/betterreview/compare/v0.2.0...v0.3.0)
 
 
 ### Features
