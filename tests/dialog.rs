@@ -192,25 +192,24 @@ fn dialog_actions_are_colored_buttons_with_padding() {
     app.quit_dialog = true;
     app.quit_selected = 0;
 
-    let backend = TestBackend::new(80, 24);
+    let backend = TestBackend::new(120, 30);
     let mut terminal = Terminal::new(backend).unwrap();
     terminal.draw(|frame| render(frame, &app)).unwrap();
     let buffer = terminal.backend().buffer().clone();
-    let (screen, lines) = screen(&app, 80, 24);
+    let (screen, lines) = screen(&app, 120, 30);
 
-    assert!(screen.contains("▶  Quit keeping the draft"));
-    assert!(
-        !screen.contains("▸ Quit keeping the draft"),
-        "old marker must be gone"
-    );
+    assert!(!screen.contains('▶'));
 
     for (label, color) in [
-        ("Quit keeping the draft", betterreview::tui::theme::SUCCESS),
+        (
+            "Quit keeping the draft",
+            betterreview::tui::theme::BUTTON_SUCCESS,
+        ),
         (
             "Quit discarding the draft",
-            betterreview::tui::theme::DANGER,
+            betterreview::tui::theme::BUTTON_DANGER,
         ),
-        ("Cancel", betterreview::tui::theme::FILLER),
+        ("Cancel", betterreview::tui::theme::BUTTON_NEUTRAL),
     ] {
         let row = lines
             .iter()
@@ -225,6 +224,41 @@ fn dialog_actions_are_colored_buttons_with_padding() {
             assert_eq!(cell.bg, color);
         }
     }
+    let action_rows = [
+        "Quit keeping the draft",
+        "Quit discarding the draft",
+        "Cancel",
+    ]
+    .map(|label| {
+        lines
+            .iter()
+            .position(|line| line.contains(label))
+            .expect("action rendered")
+    });
+    assert!(action_rows.windows(2).all(|rows| rows[0] == rows[1]));
+    let selected_row = action_rows[0];
+    let byte = lines[selected_row].find("Quit keeping the draft").unwrap();
+    let selected_x = lines[selected_row][..byte].chars().count() as u16;
+    let selected_style = buffer
+        .cell((selected_x, selected_row as u16))
+        .unwrap()
+        .style();
+    assert!(
+        selected_style
+            .add_modifier
+            .contains(ratatui::style::Modifier::BOLD | ratatui::style::Modifier::UNDERLINED)
+    );
+}
+
+#[test]
+fn quit_actions_stay_inline_on_a_small_terminal() {
+    let mut app = base_app();
+    app.quit_dialog = true;
+
+    let (_, lines) = screen(&app, 50, 16);
+    assert!(lines.iter().any(|line| {
+        line.contains("Keep draft") && line.contains("Discard draft") && line.contains("Cancel")
+    }));
 }
 
 #[test]

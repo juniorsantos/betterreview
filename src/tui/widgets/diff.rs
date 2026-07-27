@@ -765,11 +765,17 @@ fn comment_line(
     } else {
         theme::ACCENT
     };
+    let card_background = if is_reply {
+        theme::COMMENT_REPLY_BG
+    } else {
+        theme::COMMENT_BG
+    };
     let border_style = Style::default().fg(accent);
     let mut spans = vec![
         Span::styled("\u{258c}", Style::default().fg(accent)),
         Span::raw(" ".repeat(gutter.width().saturating_sub(1))),
     ];
+    let card_start = spans.len();
     match kind {
         CommentRowKind::Spacer => {}
         CommentRowKind::Header => {
@@ -832,6 +838,14 @@ fn comment_line(
                     Style::default().fg(theme::MUTED),
                 ));
             }
+        }
+    }
+    if matches!(
+        kind,
+        CommentRowKind::Header | CommentRowKind::Body | CommentRowKind::Footer
+    ) {
+        for span in &mut spans[card_start..] {
+            span.style = span.style.bg(card_background);
         }
     }
     Line::from(spans)

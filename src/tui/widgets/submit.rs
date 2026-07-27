@@ -111,24 +111,18 @@ fn shortcut_line(state: &AppState, active: ReviewOutcome, available_width: usize
             state.provider.capabilities.for_outcome(outcome),
             Support::Supported
         );
-        let text = if outcome == active {
-            if spacious {
-                format!(" [  {}  ] ", label(outcome))
-            } else {
-                format!("[{}]", label(outcome))
-            }
-        } else if spacious {
+        let text = if spacious {
             format!("  {}  ", label(outcome))
         } else {
             format!(" {} ", label(outcome))
         };
         let mut style = if supported {
-            Style::default().fg(theme::BG).bg(color(outcome))
+            Style::default().fg(theme::FG).bg(color(outcome))
         } else {
-            Style::default().fg(theme::MUTED).bg(theme::FILLER)
+            Style::default().fg(theme::MUTED).bg(theme::BUTTON_NEUTRAL)
         };
         if outcome == active {
-            style = style.add_modifier(Modifier::BOLD);
+            style = style.add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
         }
         spans.push(Span::styled(text, style));
     }
@@ -145,8 +139,8 @@ fn label(outcome: ReviewOutcome) -> &'static str {
 
 fn color(outcome: ReviewOutcome) -> ratatui::style::Color {
     match outcome {
-        ReviewOutcome::Comment => theme::COMMENT,
-        ReviewOutcome::Approve => theme::SUCCESS,
-        ReviewOutcome::RequestChanges => theme::WARNING,
+        ReviewOutcome::Comment => theme::BUTTON_COMMENT,
+        ReviewOutcome::Approve => theme::BUTTON_SUCCESS,
+        ReviewOutcome::RequestChanges => theme::BUTTON_WARNING,
     }
 }

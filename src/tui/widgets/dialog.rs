@@ -140,7 +140,9 @@ pub fn render_dialog(frame: &mut Frame, area: Rect, dialog: Dialog) -> Vec<Rect>
 
     frame.render_widget(Clear, outer);
     frame.render_widget(
-        Paragraph::new(lines).style(theme::canvas()).block(block),
+        Paragraph::new(lines)
+            .style(Style::default().fg(theme::FG).bg(theme::MODAL_BG))
+            .block(block),
         outer,
     );
 
@@ -174,17 +176,27 @@ pub(in crate::tui) fn menu_line(label: &str, selected: bool, background: Color) 
     } else {
         format!("     {label}  ")
     };
-    let mut style = Style::default()
-        .fg(if background == theme::FILLER {
-            theme::FG
-        } else {
-            theme::BG
-        })
-        .bg(background);
+    let mut style = Style::default().fg(theme::FG).bg(background);
     if selected {
         style = style.add_modifier(Modifier::BOLD);
     }
     Line::from(Span::styled(text, style))
+}
+
+pub(in crate::tui) fn menu_button(
+    label: &str,
+    selected: bool,
+    background: Color,
+    padding: usize,
+) -> Span<'static> {
+    let mut style = Style::default().fg(theme::FG).bg(background);
+    if selected {
+        style = style.add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
+    }
+    Span::styled(
+        format!("{}{label}{}", " ".repeat(padding), " ".repeat(padding)),
+        style,
+    )
 }
 
 /// Centers `hints` horizontally within `width` columns, in `theme::MUTED`.

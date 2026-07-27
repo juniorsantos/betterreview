@@ -16,9 +16,9 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         .enumerate()
         .map(|(index, option)| {
             let color = if index == 0 {
-                theme::DANGER
+                theme::BUTTON_DANGER
             } else {
-                theme::FILLER
+                theme::BUTTON_NEUTRAL
             };
             menu_line(option, index == state.delete_selected, color)
         })

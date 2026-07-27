@@ -130,8 +130,8 @@ fn the_summary_carries_a_caret_and_the_verdicts_are_shortcuts() {
         "the caret marks the focus"
     );
     assert!(
-        screen.contains("[  COMMENT  ]"),
-        "the active verdict is highlighted"
+        screen.contains("COMMENT"),
+        "the active verdict remains visible"
     );
     assert!(screen.contains("APPROVE"));
     assert!(screen.contains("REQUEST CHANGES"));
@@ -162,9 +162,9 @@ fn verdict_actions_are_filled_buttons() {
         .expect("action buttons rendered");
 
     for (label, color) in [
-        ("APPROVE", theme::SUCCESS),
-        ("REQUEST CHANGES", theme::WARNING),
-        ("COMMENT", theme::COMMENT),
+        ("APPROVE", theme::BUTTON_SUCCESS),
+        ("REQUEST CHANGES", theme::BUTTON_WARNING),
+        ("COMMENT", theme::BUTTON_COMMENT),
     ] {
         let byte = action_line.find(label).expect("button label rendered");
         let x = action_line[..byte].chars().count() as u16;
@@ -174,7 +174,49 @@ fn verdict_actions_are_filled_buttons() {
             assert_eq!(cell.symbol(), " ");
             assert_eq!(cell.bg, color);
         }
+        if label == "COMMENT" {
+            assert!(
+                buffer
+                    .cell((x, action_row))
+                    .unwrap()
+                    .style()
+                    .add_modifier
+                    .contains(
+                        ratatui::style::Modifier::BOLD | ratatui::style::Modifier::UNDERLINED
+                    )
+            );
+        }
     }
+}
+
+#[test]
+fn changing_the_verdict_does_not_move_button_labels() {
+    let mut app = app_with_drafts(1);
+    let positions = |app: &AppState| {
+        let screen = screen(app, 80, 24);
+        let line = screen
+            .lines()
+            .find(|line| {
+                line.contains("APPROVE")
+                    && line.contains("REQUEST CHANGES")
+                    && line.contains("COMMENT")
+            })
+            .expect("action buttons rendered");
+        [
+            line.find("APPROVE").unwrap(),
+            line.find("REQUEST CHANGES").unwrap(),
+            line.find("COMMENT").unwrap(),
+        ]
+    };
+
+    let comment = positions(&app);
+    app.submission_modal.as_mut().unwrap().outcome = ReviewOutcome::Approve;
+    let approve = positions(&app);
+    app.submission_modal.as_mut().unwrap().outcome = ReviewOutcome::RequestChanges;
+    let request_changes = positions(&app);
+
+    assert_eq!(comment, approve);
+    assert_eq!(approve, request_changes);
 }
 
 #[test]

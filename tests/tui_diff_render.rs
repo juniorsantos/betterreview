@@ -634,6 +634,15 @@ fn editor_shows_the_terminal_cursor_at_the_typing_position() {
     let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
     terminal.draw(|frame| render(frame, &state)).unwrap();
     let at_col_3 = terminal.get_cursor_position().unwrap();
+    assert_eq!(
+        terminal
+            .backend()
+            .buffer()
+            .cell((at_col_3.x - 3, at_col_3.y))
+            .unwrap()
+            .bg,
+        theme::MODAL_BG
+    );
 
     state.session.editor.as_mut().unwrap().grapheme_col = 0;
     let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
@@ -704,6 +713,27 @@ fn comment_card_border_uses_the_accent_colour() {
         Some(theme::ACCENT),
         "card borders must use the comment color"
     );
+}
+
+#[test]
+fn comment_card_uses_a_tinted_background() {
+    let mut state = app();
+    state.provider.drafts.push(draft_at_line_5());
+    refresh_display_rows(&mut state);
+
+    let terminal = draw_wide(&state);
+    let buffer = terminal.backend().buffer();
+    let (x, y) = (0..30)
+        .find_map(|y| {
+            let line = (0..120)
+                .map(|x| buffer.cell((x, y)).unwrap().symbol())
+                .collect::<String>();
+            line.find("Please double-check this line")
+                .map(|byte| (line[..byte].chars().count() as u16, y))
+        })
+        .expect("comment body rendered");
+
+    assert_eq!(buffer.cell((x, y)).unwrap().bg, theme::COMMENT_BG);
 }
 
 #[test]
