@@ -221,11 +221,9 @@ fn dialog_actions_use_compact_background_only_buttons() {
         assert_eq!(label_cell.fg, betterreview::tui::theme::BG);
         assert_eq!(label_cell.bg, background);
         let label_width = label.chars().count() as u16;
-        assert_eq!(buffer.cell((x - 1, row as u16)).unwrap().bg, background);
-        assert_eq!(
-            buffer.cell((x + label_width, row as u16)).unwrap().bg,
-            background
-        );
+        for padding_x in [x - 2, x - 1, x + label_width, x + label_width + 1] {
+            assert_eq!(buffer.cell((padding_x, row as u16)).unwrap().bg, background);
+        }
     }
     let action_rows = [
         "Quit keeping the draft",

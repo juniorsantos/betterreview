@@ -203,7 +203,7 @@ pub(in crate::tui) fn button_line(buttons: &[ActionButton<'_>], gap: usize) -> L
         if button.selected {
             style = style.add_modifier(Modifier::BOLD);
         }
-        spans.push(Span::styled(format!(" {} ", button.label), style));
+        spans.push(Span::styled(format!("  {}  ", button.label), style));
     }
     Line::from(spans)
 }

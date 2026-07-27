@@ -1081,9 +1081,9 @@ fn the_action_keys_use_background_only_and_align_with_the_card() {
     let card_byte = lines[card_row].find("┌─ @you").unwrap();
     let card_left = lines[card_row][..card_byte].chars().count();
     let label = lines[action_row].find("e edit").unwrap();
-    let actions_left = lines[action_row][..label].chars().count() - 1;
+    let actions_left = lines[action_row][..label].chars().count() - 2;
 
-    let button_width = " e edit ".len() + 1 + " x delete ".len();
+    let button_width = "  e edit  ".len() + 1 + "  x delete  ".len();
     let button_region: String = lines[action_row]
         .chars()
         .skip(actions_left)
