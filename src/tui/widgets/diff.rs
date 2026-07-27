@@ -25,6 +25,7 @@ struct RowLayout<'a> {
     columns: Option<crate::tui::DiffColumns>,
     gutter: Gutter,
     commented: &'a std::collections::BTreeSet<usize>,
+    moved: &'a std::collections::BTreeSet<usize>,
 }
 
 #[derive(Clone, Copy)]
@@ -111,6 +112,11 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         columns,
         gutter,
         commented: &crate::app::commented_rows(state),
+        moved: &state
+            .parsed_diff
+            .as_ref()
+            .map(crate::diff::moved_rows)
+            .unwrap_or_default(),
     };
     let lines = match &state.rendered_diff {
         Some(diff) => state
@@ -369,6 +375,7 @@ fn render_display_row(
         columns,
         gutter,
         commented,
+        moved,
     } = layout;
     let cursor_on_block = match display_row {
         DisplayRow::Comment { entry, .. } => matches!(
@@ -385,6 +392,7 @@ fn render_display_row(
             gutter,
             state.tab_width,
             index == state.display_cursor || commented.contains(row),
+            moved.contains(row),
         ),
         DisplayRow::Comment {
             entry,
@@ -521,6 +529,7 @@ fn diff_line(
     gutter: Gutter,
     tab_width: usize,
     on_cursor: bool,
+    moved: bool,
 ) -> Line<'static> {
     let Some(rendered_row): Option<&RenderedRow> = diff.rows.get(row) else {
         return Line::default();
@@ -541,12 +550,17 @@ fn diff_line(
     ];
     spans.extend(expand_span_tabs(&rendered_row.text.spans, tab_width));
     let mut line = Line::from(spans);
-    if let Some(bg) = line
+    let detected = line
         .spans
         .iter()
         .skip(GUTTER_SPANS)
-        .find_map(|span| span.style.bg)
-    {
+        .find_map(|span| span.style.bg);
+    if moved && detected.is_some() {
+        for span in line.spans.iter_mut().skip(GUTTER_SPANS) {
+            span.style = span.style.bg(theme::MOVED);
+        }
+    }
+    if let Some(bg) = if moved { Some(theme::MOVED) } else { detected } {
         for span in line.spans.iter_mut().take(GUTTER_SPANS).skip(1) {
             span.style = span.style.bg(bg);
         }

@@ -61,6 +61,7 @@ const COLUMNS: [Column; 4] = [
             ("f", "files panel"),
             ("e", "wider panel"),
             ("T", "comments"),
+            ("\u{2588}", "moved code"),
         ],
     },
     Column {

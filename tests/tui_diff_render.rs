@@ -1369,3 +1369,69 @@ fn a_reply_card_is_tinted_apart_from_the_comment_it_answers() {
         "a reply has to read as an answer, not as another top-level comment"
     );
 }
+
+#[test]
+fn a_moved_block_reads_apart_from_a_real_addition() {
+    let mut state = app();
+    state.provider.files[0].patch = PatchAvailability::Available(
+        concat!(
+            "@@ -1,4 +1,3 @@\n",
+            "-fn validate(input: &str) -> bool {\n",
+            "-    !input.trim().is_empty()\n",
+            "-}\n",
+            " fn main() {\n",
+            "+fn validate(input: &str) -> bool {\n",
+            "+    !input.trim().is_empty()\n",
+        )
+        .into(),
+    );
+    state.refresh_hunk_totals();
+    let parsed = betterreview::diff::parse_file_patch(
+        &state.provider.files[0],
+        &betterreview::domain::CommitOid("head".into()),
+    )
+    .unwrap();
+    state.rendered_diff = Some(RenderedDiff {
+        rows: parsed
+            .rows
+            .iter()
+            .enumerate()
+            .map(|(index, row)| RenderedRow {
+                text: Line::raw(row.raw.clone()),
+                binding: RowBinding {
+                    row_index: index,
+                    left: row.left.clone(),
+                    right: row.right.clone(),
+                },
+            })
+            .collect(),
+    });
+    state.parsed_diff = Some(parsed);
+    state.session.cursor_row = 99;
+    refresh_display_rows(&mut state);
+
+    let terminal = draw_wide(&state);
+    let buffer = terminal.backend().buffer();
+    let background = |needle: &str| {
+        let row = (0..30)
+            .find(|y| {
+                (0..120)
+                    .map(|x| buffer.cell((x, *y)).unwrap().symbol())
+                    .collect::<String>()
+                    .contains(needle)
+            })
+            .unwrap_or_else(|| panic!("row {needle} rendered"));
+        buffer.cell((110, row)).unwrap().style().bg
+    };
+
+    assert_eq!(
+        background("fn validate"),
+        Some(theme::MOVED),
+        "code that only changed place must not read as new code"
+    );
+    assert_ne!(
+        background("fn main"),
+        Some(theme::MOVED),
+        "and an untouched line is not moved"
+    );
+}

@@ -238,3 +238,16 @@ fn no_column_is_left_more_than_two_rows_shorter() {
 
     assert!(!body.is_empty(), "the dialog rendered");
 }
+
+#[test]
+fn the_help_explains_the_third_colour() {
+    let mut state = app();
+    state.help_visible = true;
+
+    let (text, _, _) = screen(&state);
+
+    assert!(
+        text.contains("moved"),
+        "a colour that is neither added nor removed has to be named somewhere:\n{text}"
+    );
+}
