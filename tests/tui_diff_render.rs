@@ -488,7 +488,7 @@ fn comment_box_renders_under_its_line() {
     assert!(lines[anchor + 2].contains("┌─ @you · draft"));
     assert!(lines[anchor + 4].contains("│   Please double-check this line"));
     assert!(lines[anchor + 6].contains("└─"));
-    assert!(lines[anchor + 7].contains('┌'));
+    assert!(lines[anchor + 7].contains('─'));
     assert!(lines[anchor + 8].contains("e edit"));
 }
 
@@ -1079,10 +1079,13 @@ fn the_action_keys_sit_in_two_row_buttons_below_the_card() {
         .iter()
         .position(|line| line.contains("┌─ @you"))
         .expect("the comment card rendered");
-    let card_left = lines[card_row].find('┌').unwrap();
-    let actions_left = lines[action_row - 1].find('┌').unwrap();
+    let card_byte = lines[card_row].find("┌─ @you").unwrap();
+    let card_left = lines[card_row][..card_byte].chars().count();
+    let label = lines[action_row].find("e edit").unwrap();
+    let actions_left = lines[action_row][..label].chars().count() - 1;
 
-    assert!(lines[action_row - 1].contains('┌'));
+    assert!(lines[action_row - 1].contains('─'));
+    assert!(!lines[action_row - 1].contains('┌'));
     assert!(lines[action_row].contains('│'));
     assert_eq!(actions_left, card_left);
 }
@@ -1120,7 +1123,7 @@ fn selected_comment_card_keeps_action_button_color() {
 
     let button = buffer.cell((x, y)).unwrap();
     assert_eq!(button.bg, theme::ACCENT);
-    assert!(button.style().add_modifier.contains(Modifier::UNDERLINED));
+    assert!(!button.style().add_modifier.contains(Modifier::UNDERLINED));
 }
 
 #[test]

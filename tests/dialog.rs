@@ -220,7 +220,8 @@ fn dialog_actions_use_outlines_with_theme_background() {
         };
         assert_eq!(label_cell.fg, betterreview::tui::theme::BG);
         assert_eq!(label_cell.bg, background);
-        assert_eq!(buffer.cell((x - 1, row as u16 - 1)).unwrap().symbol(), "┌");
+        assert_eq!(buffer.cell((x - 1, row as u16 - 1)).unwrap().symbol(), " ");
+        assert_eq!(buffer.cell((x, row as u16 - 1)).unwrap().symbol(), "─");
     }
     let action_rows = [
         "Quit keeping the draft",
@@ -247,7 +248,7 @@ fn dialog_actions_use_outlines_with_theme_background() {
             .contains(ratatui::style::Modifier::BOLD)
     );
     assert!(
-        selected_style
+        !selected_style
             .add_modifier
             .contains(ratatui::style::Modifier::UNDERLINED)
     );

@@ -10,7 +10,7 @@ expression: "redact_version(screen(&app_with_drafts(2), 50, 16))"
 │    │ Summary                              │    │
 │    │ Ready to merge▌                      │    │
 │    │                                      │    │
-│    │ ┌───────┐ ┌───────────────┐ ┌───────┐│    │
+│    │  ───────   ───────────────   ─────── │    │
 │    │ │APPROVE│ │REQUEST CHANGES│ │COMMENT││    │
 │    │                                      │    │
 │    │⇥ verdict · ↵ submit · ⌥↵ new line · ⎋│    │

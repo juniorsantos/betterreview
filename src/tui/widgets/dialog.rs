@@ -197,7 +197,7 @@ pub(in crate::tui) fn button_rows(buttons: &[ActionButton<'_>], gap: usize) -> V
                 };
                 if row == 0 {
                     spans.push(Span::styled(
-                        format!("┌{}┐", "─".repeat(display_width(button.label))),
+                        format!(" {} ", "─".repeat(display_width(button.label))),
                         Style::default().fg(background).bg(theme::BG),
                     ));
                     continue;
@@ -208,15 +208,17 @@ pub(in crate::tui) fn button_rows(buttons: &[ActionButton<'_>], gap: usize) -> V
                     } else {
                         theme::MUTED
                     })
-                    .bg(background)
-                    .add_modifier(Modifier::UNDERLINED);
+                    .bg(background);
                 if button.selected {
                     label_style = label_style.add_modifier(Modifier::BOLD);
                 }
                 let edge_style = Style::default()
-                    .fg(background)
-                    .bg(background)
-                    .add_modifier(Modifier::UNDERLINED);
+                    .fg(if button.enabled {
+                        theme::BG
+                    } else {
+                        theme::MUTED
+                    })
+                    .bg(background);
                 spans.push(Span::styled("│", edge_style));
                 spans.push(Span::styled(button.label.to_owned(), label_style));
                 spans.push(Span::styled("│", edge_style));
