@@ -17,4 +17,4 @@ pub use generated::is_generated;
 pub(crate) use reducer::push_notice;
 pub use reducer::update;
 pub use runtime::Runtime;
-pub use state::{AppFocus, AppState, SubmissionModal};
+pub use state::{AppFocus, AppState, Blocked, SubmissionModal};

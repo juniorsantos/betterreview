@@ -108,6 +108,12 @@ pub fn handle_key(app: &mut AppState, keymap: &mut KeyMap, key: KeyEvent) -> Opt
             _ => None,
         };
     }
+    if app.blocked.is_some() {
+        return match key.code {
+            KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') => action(AppAction::DismissBlocked),
+            _ => None,
+        };
+    }
     if app.quit_dialog {
         const CHOICES: [QuitChoice; 3] = [
             QuitChoice::KeepSession,

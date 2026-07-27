@@ -3085,7 +3085,7 @@ fn a_blame_that_cannot_run_says_so_and_turns_itself_off() {
             generation: Some(head),
             outcome: EffectOutcome::BlameLoaded {
                 path: RepoPath("src/file_0.rs".into()),
-                result: Err("blame needs the base commit in this clone".into()),
+                result: Err("fatal: bad object 9f8e7d6".into()),
             },
         })),
     );
@@ -3094,11 +3094,10 @@ fn a_blame_that_cannot_run_says_so_and_turns_itself_off() {
         !state.blame_visible,
         "a shallow clone has no base commit; leaving the column on would show nothing forever"
     );
-    assert!(
-        state
-            .error_banner
-            .as_deref()
-            .unwrap_or_default()
-            .contains("base commit")
+    let blocked = state.blocked.as_ref().expect("the failure is explained");
+    assert_eq!(
+        blocked.reason, "fatal: bad object 9f8e7d6",
+        "git's own words survive; a guess about them does not help anyone"
     );
+    assert!(blocked.guidance.contains("fetch the base branch"));
 }

@@ -65,6 +65,18 @@ fn age(seconds: i64, now: OffsetDateTime) -> String {
     }
 }
 
+pub fn guidance(reason: &str) -> String {
+    if reason.contains("not a git repository") {
+        "blame reads the local repository; start betterreview from inside the clone".to_owned()
+    } else if reason.contains("bad object") || reason.contains("no such") {
+        "the base commit is not in this clone; fetch the base branch and try again".to_owned()
+    } else if reason.contains("no such path") || reason.contains("exists on disk") {
+        "this file is not in the local checkout at that revision".to_owned()
+    } else {
+        "git could not blame this file".to_owned()
+    }
+}
+
 pub async fn load(
     runner: &dyn crate::process::CommandRunner,
     path: &crate::domain::RepoPath,
@@ -89,10 +101,7 @@ pub async fn load(
         .await
         .map_err(|error| error.to_string())?;
     if output.status != 0 {
-        return Err(format!(
-            "blame needs the base commit in this clone: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        ));
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_owned());
     }
     Ok(parse_blame(
         &String::from_utf8_lossy(&output.stdout),

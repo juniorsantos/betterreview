@@ -21,6 +21,13 @@ pub struct SubmissionModal {
     pub outcome: ReviewOutcome,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Blocked {
+    pub title: String,
+    pub reason: String,
+    pub guidance: String,
+}
+
 pub struct AppState {
     pub provider: ProviderSnapshot,
     pub session: SessionSnapshot,
@@ -69,6 +76,7 @@ pub struct AppState {
     /// it's toggled. Lines are split on `\n`, indexed from 0 (new-file line
     /// `n` is `file_contexts[path][n - 1]`).
     pub file_contexts: BTreeMap<RepoPath, Vec<String>>,
+    pub blocked: Option<Blocked>,
     pub blame_visible: bool,
     pub blame: BTreeMap<RepoPath, BTreeMap<u32, crate::blame::BlameLine>>,
     /// Gap keys — the new-file line number right after which the gap sits —
@@ -169,6 +177,7 @@ impl AppState {
             search_input: None,
             search_query: None,
             file_contexts: BTreeMap::new(),
+            blocked: None,
             blame_visible: false,
             blame: BTreeMap::new(),
             expanded_gaps: BTreeSet::new(),

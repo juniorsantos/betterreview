@@ -9,7 +9,7 @@ use crate::app::{AppFocus, AppState};
 use super::{
     layout::{ScreenLayout, header_row, screen_layout, status_row},
     theme,
-    widgets::{delete, diff, editor, files, header, help, quit, status, submit, threads},
+    widgets::{blocked, delete, diff, editor, files, header, help, quit, status, submit, threads},
 };
 
 pub fn render(frame: &mut Frame, state: &AppState) {
@@ -55,6 +55,9 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     submit::render(frame, area, state);
     if state.quit_dialog {
         quit::render(frame, area, state);
+    }
+    if state.blocked.is_some() {
+        blocked::render(frame, area, state);
     }
     if state.delete_dialog.is_some() {
         delete::render(frame, area, state);

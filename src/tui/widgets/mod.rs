@@ -1,3 +1,4 @@
+pub(super) mod blocked;
 pub(super) mod delete;
 pub mod dialog;
 pub(super) mod diff;

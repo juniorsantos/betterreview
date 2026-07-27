@@ -338,6 +338,10 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
         AppAction::CycleSplitSide => cycle_split_side(state),
         AppAction::ToggleWrap => toggle_wrap(state),
         AppAction::ToggleBlame => toggle_blame(state),
+        AppAction::DismissBlocked => {
+            state.blocked = None;
+            Vec::new()
+        }
         AppAction::ToggleComments => {
             state.comments_hidden = !state.comments_hidden;
             refresh_display_rows(state);
@@ -1127,9 +1131,13 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
             Ok(lines) => {
                 state.blame.insert(path, lines);
             }
-            Err(message) => {
+            Err(reason) => {
                 state.blame_visible = false;
-                state.error_banner = Some(message);
+                state.blocked = Some(crate::app::Blocked {
+                    title: "Blame unavailable".into(),
+                    guidance: crate::blame::guidance(&reason),
+                    reason,
+                });
             }
         },
         EffectOutcome::FileContextLoaded { path, result } => match result {

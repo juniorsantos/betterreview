@@ -376,3 +376,26 @@ fn zones_split_the_interior_vertically() {
         "the box is drawn with room for both zones"
     );
 }
+
+#[test]
+fn a_blame_that_cannot_run_explains_itself_in_a_dialog() {
+    let mut state = base_app();
+    state.blocked = Some(betterreview::app::Blocked {
+        title: "Blame unavailable".into(),
+        reason: "fatal: bad object 9f8e7d6".into(),
+        guidance: "the base commit is not in this clone; fetch the base branch and try again"
+            .into(),
+    });
+
+    let (screen, _) = screen(&state, 100, 30);
+
+    assert!(screen.contains("Blame unavailable"), "{screen}");
+    assert!(
+        screen.contains("fatal: bad object"),
+        "what the tool actually said has to survive, not a guess about it:\n{screen}"
+    );
+    assert!(
+        screen.contains("fetch the base branch"),
+        "and the reader needs to know what to do about it"
+    );
+}

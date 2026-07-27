@@ -82,6 +82,7 @@ pub enum AppAction {
     CycleSplitSide,
     ToggleWrap,
     ToggleBlame,
+    DismissBlocked,
     ExpandGap,
     ConfirmSearch,
     SearchNext,
