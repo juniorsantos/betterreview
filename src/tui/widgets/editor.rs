@@ -55,13 +55,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         })
         .collect();
     let available_width = text_width(area.width);
-    let padding = if available_width >= 46 {
-        2
-    } else if available_width >= 38 {
-        1
-    } else {
-        0
-    };
+    let padding = if available_width >= 38 { 1 } else { 0 };
     let action_lines = center_lines(outlined_button_rows(&buttons, 1, padding), available_width);
     let zones = render_dialog(
         frame,

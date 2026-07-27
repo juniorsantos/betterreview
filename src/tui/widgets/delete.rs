@@ -17,7 +17,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             enabled: true,
         })
         .collect();
-    let body = outlined_button_rows(&buttons, 2, 2);
+    let body = outlined_button_rows(&buttons, 2, 1);
     render_dialog(
         frame,
         area,

@@ -22,9 +22,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             .saturating_sub(3)
             .max(1),
     );
-    let (padding, gap) = if available_width >= 77 {
-        (2, 3)
-    } else if available_width >= 69 {
+    let (padding, gap) = if available_width >= 69 {
         (1, 2)
     } else {
         (0, 1)

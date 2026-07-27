@@ -169,9 +169,9 @@ fn verdict_actions_use_outlines_with_theme_background() {
         assert_eq!(
             cell.bg,
             if label == "COMMENT" {
-                theme::ACCENT
+                theme::ACCENT_SOFT
             } else {
-                theme::BORDER
+                theme::ACCENT
             }
         );
         if label == "COMMENT" {

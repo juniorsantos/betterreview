@@ -829,7 +829,7 @@ fn comment_line(
                     enabled: true,
                 })
                 .collect();
-            let rows = outlined_button_rows(&buttons, 2, 2);
+            let rows = outlined_button_rows(&buttons, 2, 1);
             let row_index = match kind {
                 CommentRowKind::ActionsTop => 0,
                 CommentRowKind::Actions => 1,

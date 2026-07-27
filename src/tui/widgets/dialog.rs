@@ -192,12 +192,12 @@ pub(in crate::tui) fn outlined_button_rows(
                         Style::default().bg(theme::BG),
                     ));
                 }
-                let background = if button.selected {
-                    theme::ACCENT
-                } else if button.enabled {
-                    theme::BORDER
-                } else {
+                let background = if !button.enabled {
                     theme::FILLER
+                } else if button.selected {
+                    theme::ACCENT_SOFT
+                } else {
+                    theme::ACCENT
                 };
                 let border_style = Style::default().fg(background).bg(background);
                 let mut label_style = Style::default()
