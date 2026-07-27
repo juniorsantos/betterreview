@@ -1,3 +1,5 @@
+mod support;
+
 use std::collections::BTreeMap;
 
 use betterreview::{
@@ -2146,78 +2148,15 @@ fn context_numbering(state: &AppState) -> Vec<(Option<u32>, u32)> {
 
 #[test]
 fn an_expanded_gap_after_an_insertion_trails_the_old_side_behind_the_new() {
-    let path = RepoPath("src/file_0.rs".into());
-    let mut state = app_with_reviewed_pattern([false; 4]);
-    state.provider.files[0].patch =
-        PatchAvailability::Available("@@ -1 +1,3 @@\n context\n@@ -5 +7 @@\n context\n".into());
-    state.refresh_hunk_totals();
-    state.parsed_diff = Some(ParsedFileDiff {
-        path: path.clone(),
-        head: CommitOid("new-head".into()),
-        rows: vec![
-            betterreview::diff::DiffRow {
-                raw: "@@ -1 +1,3 @@".into(),
-                kind: betterreview::diff::DiffRowKind::HunkHeader,
-                old_line: None,
-                new_line: None,
-                left: None,
-                right: None,
-            },
-            betterreview::diff::DiffRow {
-                raw: " context".into(),
-                kind: betterreview::diff::DiffRowKind::Context,
-                old_line: Some(1),
-                new_line: Some(3),
-                left: Some(comment_pos(&path, DiffSide::Left, 1)),
-                right: Some(comment_pos(&path, DiffSide::Right, 3)),
-            },
-            betterreview::diff::DiffRow {
-                raw: "@@ -5 +7 @@".into(),
-                kind: betterreview::diff::DiffRowKind::HunkHeader,
-                old_line: None,
-                new_line: None,
-                left: None,
-                right: None,
-            },
-            betterreview::diff::DiffRow {
-                raw: " context".into(),
-                kind: betterreview::diff::DiffRowKind::Context,
-                old_line: Some(5),
-                new_line: Some(7),
-                left: Some(comment_pos(&path, DiffSide::Left, 5)),
-                right: Some(comment_pos(&path, DiffSide::Right, 7)),
-            },
-        ],
-        hunks: vec![
-            betterreview::diff::DiffHunk {
-                id: 0,
-                old_start: 1,
-                old_count: 1,
-                new_start: 1,
-                new_count: 3,
-                row_range: 1..2,
-                section: None,
-            },
-            betterreview::diff::DiffHunk {
-                id: 1,
-                old_start: 5,
-                old_count: 1,
-                new_start: 7,
-                new_count: 1,
-                row_range: 3..4,
-                section: None,
-            },
-        ],
-    });
-    state.rendered_diff = Some(RenderedDiff {
-        rows: (0..4).map(|index| diff_row(index, None, None)).collect(),
-    });
-    state.file_contexts.insert(
-        path,
-        (1..=7)
-            .map(|line| format!("line {line}"))
-            .collect::<Vec<_>>(),
-    );
+    let mut state = support::Fixture::new()
+        .file(
+            support::FileSpec::new(
+                "src/app.rs",
+                "@@ -1 +1,3 @@\n context\n+one\n+two\n@@ -5 +7 @@\n context\n",
+            )
+            .cached_lines(7),
+        )
+        .build();
     state.expanded_gaps.insert(3);
     betterreview::app::refresh_display_rows(&mut state);
 
@@ -2230,51 +2169,9 @@ fn an_expanded_gap_after_an_insertion_trails_the_old_side_behind_the_new() {
 
 #[test]
 fn an_old_line_computed_below_one_is_left_blank_instead_of_wrapping() {
-    let path = RepoPath("src/file_0.rs".into());
-    let mut state = app_with_reviewed_pattern([false; 4]);
-    state.provider.files[0].patch =
-        PatchAvailability::Available("@@ -0,0 +1,2 @@\n+added\n".into());
-    state.refresh_hunk_totals();
-    state.parsed_diff = Some(ParsedFileDiff {
-        path: path.clone(),
-        head: CommitOid("new-head".into()),
-        rows: vec![
-            betterreview::diff::DiffRow {
-                raw: "@@ -0,0 +1,2 @@".into(),
-                kind: betterreview::diff::DiffRowKind::HunkHeader,
-                old_line: None,
-                new_line: None,
-                left: None,
-                right: None,
-            },
-            betterreview::diff::DiffRow {
-                raw: "+added".into(),
-                kind: betterreview::diff::DiffRowKind::Added,
-                old_line: None,
-                new_line: Some(2),
-                left: None,
-                right: Some(comment_pos(&path, DiffSide::Right, 2)),
-            },
-        ],
-        hunks: vec![betterreview::diff::DiffHunk {
-            id: 0,
-            old_start: 0,
-            old_count: 0,
-            new_start: 1,
-            new_count: 2,
-            row_range: 1..2,
-            section: None,
-        }],
-    });
-    state.rendered_diff = Some(RenderedDiff {
-        rows: (0..2).map(|index| diff_row(index, None, None)).collect(),
-    });
-    state.file_contexts.insert(
-        path,
-        (1..=5)
-            .map(|line| format!("line {line}"))
-            .collect::<Vec<_>>(),
-    );
+    let mut state = support::Fixture::new()
+        .file(support::FileSpec::new("src/app.rs", "@@ -0,0 +1,2 @@\n+one\n+two\n").cached_lines(5))
+        .build();
     state.expanded_gaps.insert(2);
     betterreview::app::refresh_display_rows(&mut state);
 
