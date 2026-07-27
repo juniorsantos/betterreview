@@ -13,7 +13,7 @@ use crate::{
     tui::{
         text::{display_width, expand_tabs, truncate_to_width},
         theme, viewport,
-        widgets::dialog::{ActionButton, button_rows},
+        widgets::dialog::{ActionButton, button_line},
     },
 };
 
@@ -817,7 +817,7 @@ fn comment_line(
             ));
             spans.push(Span::styled("┘", border_style));
         }
-        CommentRowKind::ActionsTop | CommentRowKind::Actions => {
+        CommentRowKind::Actions => {
             let hints: &[(&str, &str)] = match entry {
                 CommentEntry::Draft { .. } => &[("e", "edit"), ("x", "delete")],
                 CommentEntry::Thread { .. } => &[("r", "reply")],
@@ -834,14 +834,7 @@ fn comment_line(
                     enabled: true,
                 })
                 .collect();
-            let rows = button_rows(&buttons, 1);
-            let row_index = match kind {
-                CommentRowKind::ActionsTop => 0,
-                CommentRowKind::Actions => 1,
-                _ => unreachable!(),
-            };
-            let row = &rows[row_index];
-            spans.extend(row.spans.clone());
+            spans.extend(button_line(&buttons, 1).spans);
         }
     }
     if matches!(

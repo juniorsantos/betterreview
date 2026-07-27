@@ -177,55 +177,35 @@ pub(in crate::tui) struct ActionButton<'a> {
     pub enabled: bool,
 }
 
-pub(in crate::tui) fn button_rows(buttons: &[ActionButton<'_>], gap: usize) -> Vec<Line<'static>> {
-    (0..2)
-        .map(|row| {
-            let mut spans = Vec::new();
-            for (index, button) in buttons.iter().enumerate() {
-                if index > 0 {
-                    spans.push(Span::styled(
-                        " ".repeat(gap),
-                        Style::default().bg(theme::BG),
-                    ));
-                }
-                let background = if !button.enabled {
-                    theme::FILLER
-                } else if button.selected {
-                    theme::ACCENT_SOFT
-                } else {
-                    theme::ACCENT
-                };
-                if row == 0 {
-                    spans.push(Span::styled(
-                        format!(" {} ", "─".repeat(display_width(button.label))),
-                        Style::default().fg(background).bg(theme::BG),
-                    ));
-                    continue;
-                }
-                let mut label_style = Style::default()
-                    .fg(if button.enabled {
-                        theme::BG
-                    } else {
-                        theme::MUTED
-                    })
-                    .bg(background);
-                if button.selected {
-                    label_style = label_style.add_modifier(Modifier::BOLD);
-                }
-                let edge_style = Style::default()
-                    .fg(if button.enabled {
-                        theme::BG
-                    } else {
-                        theme::MUTED
-                    })
-                    .bg(background);
-                spans.push(Span::styled("│", edge_style));
-                spans.push(Span::styled(button.label.to_owned(), label_style));
-                spans.push(Span::styled("│", edge_style));
-            }
-            Line::from(spans)
-        })
-        .collect()
+pub(in crate::tui) fn button_line(buttons: &[ActionButton<'_>], gap: usize) -> Line<'static> {
+    let mut spans = Vec::new();
+    for (index, button) in buttons.iter().enumerate() {
+        if index > 0 {
+            spans.push(Span::styled(
+                " ".repeat(gap),
+                Style::default().bg(theme::BG),
+            ));
+        }
+        let background = if !button.enabled {
+            theme::FILLER
+        } else if button.selected {
+            theme::ACCENT_SOFT
+        } else {
+            theme::ACCENT
+        };
+        let mut style = Style::default()
+            .fg(if button.enabled {
+                theme::BG
+            } else {
+                theme::MUTED
+            })
+            .bg(background);
+        if button.selected {
+            style = style.add_modifier(Modifier::BOLD);
+        }
+        spans.push(Span::styled(format!(" {} ", button.label), style));
+    }
+    Line::from(spans)
 }
 
 pub(in crate::tui) fn center_lines(lines: Vec<Line<'static>>, width: usize) -> Vec<Line<'static>> {

@@ -185,7 +185,7 @@ fn dialog_hints_line_is_horizontally_centered() {
 }
 
 #[test]
-fn dialog_actions_use_outlines_with_theme_background() {
+fn dialog_actions_use_compact_background_only_buttons() {
     let mut app = base_app();
     app.quit_dialog = true;
     app.quit_selected = 0;
@@ -220,8 +220,12 @@ fn dialog_actions_use_outlines_with_theme_background() {
         };
         assert_eq!(label_cell.fg, betterreview::tui::theme::BG);
         assert_eq!(label_cell.bg, background);
-        assert_eq!(buffer.cell((x - 1, row as u16 - 1)).unwrap().symbol(), " ");
-        assert_eq!(buffer.cell((x, row as u16 - 1)).unwrap().symbol(), "─");
+        let label_width = label.chars().count() as u16;
+        assert_eq!(buffer.cell((x - 1, row as u16)).unwrap().bg, background);
+        assert_eq!(
+            buffer.cell((x + label_width, row as u16)).unwrap().bg,
+            background
+        );
     }
     let action_rows = [
         "Quit keeping the draft",

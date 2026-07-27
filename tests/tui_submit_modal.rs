@@ -142,7 +142,7 @@ fn the_summary_carries_a_caret_and_the_verdicts_are_shortcuts() {
 }
 
 #[test]
-fn verdict_actions_use_outlines_with_theme_background() {
+fn verdict_actions_use_compact_background_only_buttons() {
     let backend = TestBackend::new(80, 24);
     let mut terminal = Terminal::new(backend).unwrap();
     terminal

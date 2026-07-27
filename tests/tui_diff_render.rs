@@ -488,8 +488,7 @@ fn comment_box_renders_under_its_line() {
     assert!(lines[anchor + 2].contains("┌─ @you · draft"));
     assert!(lines[anchor + 4].contains("│   Please double-check this line"));
     assert!(lines[anchor + 6].contains("└─"));
-    assert!(lines[anchor + 7].contains('─'));
-    assert!(lines[anchor + 8].contains("e edit"));
+    assert!(lines[anchor + 7].contains("e edit"));
 }
 
 #[test]
@@ -1064,7 +1063,7 @@ fn a_comment_card_has_square_corners_and_a_gutter_indicator() {
 }
 
 #[test]
-fn the_action_keys_sit_in_two_row_buttons_below_the_card() {
+fn the_action_keys_use_background_only_and_align_with_the_card() {
     let mut state = app();
     state.provider.drafts.push(draft_at_line_5());
     refresh_display_rows(&mut state);
@@ -1084,9 +1083,14 @@ fn the_action_keys_sit_in_two_row_buttons_below_the_card() {
     let label = lines[action_row].find("e edit").unwrap();
     let actions_left = lines[action_row][..label].chars().count() - 1;
 
-    assert!(lines[action_row - 1].contains('─'));
-    assert!(!lines[action_row - 1].contains('┌'));
-    assert!(lines[action_row].contains('│'));
+    let button_width = " e edit ".len() + 1 + " x delete ".len();
+    let button_region: String = lines[action_row]
+        .chars()
+        .skip(actions_left)
+        .take(button_width)
+        .collect();
+    assert!(!button_region.contains('│'));
+    assert!(!button_region.contains('─'));
     assert_eq!(actions_left, card_left);
 }
 

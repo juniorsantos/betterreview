@@ -20,7 +20,6 @@ pub enum CommentEntry {
 pub enum CommentRowKind {
     Spacer,
     Header,
-    ActionsTop,
     Actions,
     Body,
     Footer,
@@ -667,12 +666,6 @@ fn push_block(rows: &mut Vec<DisplayRow>, block: PendingBlock) {
     rows.push(DisplayRow::Comment {
         entry: block.entry.clone(),
         kind: CommentRowKind::Footer,
-        text: String::new(),
-        author: None,
-    });
-    rows.push(DisplayRow::Comment {
-        entry: block.entry.clone(),
-        kind: CommentRowKind::ActionsTop,
         text: String::new(),
         author: None,
     });

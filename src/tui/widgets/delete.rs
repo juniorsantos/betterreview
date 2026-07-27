@@ -2,7 +2,7 @@ use ratatui::{Frame, layout::Rect, text::Line};
 
 use crate::{
     app::AppState,
-    tui::widgets::dialog::{ActionButton, Dialog, Sizing, button_rows, render_dialog},
+    tui::widgets::dialog::{ActionButton, Dialog, Sizing, button_line, render_dialog},
 };
 
 const OPTIONS: [&str; 2] = ["Delete", "Cancel"];
@@ -17,7 +17,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             enabled: true,
         })
         .collect();
-    let body = button_rows(&buttons, 1);
+    let body = vec![button_line(&buttons, 1)];
     render_dialog(
         frame,
         area,
