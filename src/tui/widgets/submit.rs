@@ -11,8 +11,7 @@ use crate::{
     tui::{
         theme,
         widgets::dialog::{
-            ActionButton, Dialog, Sizing, center_lines, clamped_width, outlined_button_rows,
-            render_dialog,
+            ActionButton, Dialog, Sizing, button_rows, center_lines, clamped_width, render_dialog,
         },
     },
 };
@@ -117,7 +116,7 @@ fn shortcut_lines(
             ),
         })
         .collect();
-    center_lines(outlined_button_rows(&buttons, 1, 0), available_width)
+    center_lines(button_rows(&buttons, 1), available_width)
 }
 
 fn label(outcome: ReviewOutcome) -> &'static str {

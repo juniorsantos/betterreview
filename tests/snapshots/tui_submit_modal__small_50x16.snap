@@ -12,9 +12,9 @@ expression: "redact_version(screen(&app_with_drafts(2), 50, 16))"
 │    │                                      │    │
 │    │ ┌───────┐ ┌───────────────┐ ┌───────┐│    │
 │    │ │APPROVE│ │REQUEST CHANGES│ │COMMENT││    │
-│    │ └───────┘ └───────────────┘ └───────┘│    │
 │    │                                      │    │
 │    │⇥ verdict · ↵ submit · ⌥↵ new line · ⎋│    │
 │    └──────────────────────────────────────┘    │
+│                                                │
 └────────────────────────────────────────────────┘
  0/1 reviewed · 0/1 hunks · +1 -1 · auto · 2 draft

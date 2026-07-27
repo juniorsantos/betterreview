@@ -247,7 +247,7 @@ fn dialog_actions_use_outlines_with_theme_background() {
             .contains(ratatui::style::Modifier::BOLD)
     );
     assert!(
-        !selected_style
+        selected_style
             .add_modifier
             .contains(ratatui::style::Modifier::UNDERLINED)
     );

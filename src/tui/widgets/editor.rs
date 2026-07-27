@@ -5,14 +5,13 @@ use crate::{
     tui::{
         theme,
         widgets::dialog::{
-            ActionButton, Dialog, Sizing, center_lines, clamped_width, outlined_button_rows,
-            render_dialog,
+            ActionButton, Dialog, Sizing, button_rows, center_lines, clamped_width, render_dialog,
         },
     },
 };
 
 const DIALOG_WIDTH: u16 = 76;
-const DIALOG_HEIGHT: u16 = 14;
+const DIALOG_HEIGHT: u16 = 13;
 
 pub(in crate::tui) fn text_width(terminal_width: u16) -> usize {
     usize::from(
@@ -55,7 +54,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         })
         .collect();
     let available_width = text_width(area.width);
-    let action_lines = center_lines(outlined_button_rows(&buttons, 1, 0), available_width);
+    let action_lines = center_lines(button_rows(&buttons, 1), available_width);
     let zones = render_dialog(
         frame,
         area,

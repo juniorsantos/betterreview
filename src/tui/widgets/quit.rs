@@ -3,8 +3,7 @@ use ratatui::{Frame, layout::Rect, text::Line};
 use crate::{
     app::AppState,
     tui::widgets::dialog::{
-        ActionButton, Dialog, Sizing, center_lines, clamped_width, outlined_button_rows,
-        render_dialog,
+        ActionButton, Dialog, Sizing, button_rows, center_lines, clamped_width, render_dialog,
     },
 };
 
@@ -31,7 +30,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             enabled: true,
         })
         .collect();
-    let actions = center_lines(outlined_button_rows(&buttons, 1, 0), available_width);
+    let actions = center_lines(button_rows(&buttons, 1), available_width);
     render_dialog(
         frame,
         area,

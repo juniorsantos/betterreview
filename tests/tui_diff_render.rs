@@ -11,7 +11,7 @@ use betterreview::{
     state::{ContentIdentity, FileProgress, ReviewSync, SESSION_SCHEMA_VERSION, SessionSnapshot},
     tui::{render, theme},
 };
-use ratatui::{Terminal, backend::TestBackend, text::Line};
+use ratatui::{Terminal, backend::TestBackend, style::Modifier, text::Line};
 use time::OffsetDateTime;
 
 fn position(side: DiffSide, line: u32) -> DiffPosition {
@@ -490,7 +490,6 @@ fn comment_box_renders_under_its_line() {
     assert!(lines[anchor + 6].contains("└─"));
     assert!(lines[anchor + 7].contains('┌'));
     assert!(lines[anchor + 8].contains("e edit"));
-    assert!(lines[anchor + 9].contains('└'));
 }
 
 #[test]
@@ -1065,7 +1064,7 @@ fn a_comment_card_has_square_corners_and_a_gutter_indicator() {
 }
 
 #[test]
-fn the_action_keys_sit_in_outlined_buttons_below_the_card() {
+fn the_action_keys_sit_in_two_row_buttons_below_the_card() {
     let mut state = app();
     state.provider.drafts.push(draft_at_line_5());
     refresh_display_rows(&mut state);
@@ -1085,7 +1084,6 @@ fn the_action_keys_sit_in_outlined_buttons_below_the_card() {
 
     assert!(lines[action_row - 1].contains('┌'));
     assert!(lines[action_row].contains('│'));
-    assert!(lines[action_row + 1].contains('└'));
     assert_eq!(actions_left, card_left);
 }
 
@@ -1120,7 +1118,9 @@ fn selected_comment_card_keeps_action_button_color() {
         })
         .expect("edit button rendered");
 
-    assert_eq!(buffer.cell((x, y)).unwrap().bg, theme::ACCENT);
+    let button = buffer.cell((x, y)).unwrap();
+    assert_eq!(button.bg, theme::ACCENT);
+    assert!(button.style().add_modifier.contains(Modifier::UNDERLINED));
 }
 
 #[test]

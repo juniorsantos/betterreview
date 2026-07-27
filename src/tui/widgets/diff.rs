@@ -13,7 +13,7 @@ use crate::{
     tui::{
         text::{display_width, expand_tabs, truncate_to_width},
         theme, viewport,
-        widgets::dialog::{ActionButton, outlined_button_rows},
+        widgets::dialog::{ActionButton, button_rows},
     },
 };
 
@@ -524,14 +524,12 @@ fn render_display_row(
             line.spans
                 .push(Span::raw(" ".repeat(inner_width - text_width)));
         }
-        if let DisplayRow::Comment { kind, .. } = display_row {
-            if !matches!(
-                kind,
-                CommentRowKind::ActionsTop
-                    | CommentRowKind::Actions
-                    | CommentRowKind::ActionsBottom
-            ) {
-                for span in line.spans.iter_mut().skip(1) {
+        if matches!(display_row, DisplayRow::Comment { .. }) {
+            for span in line.spans.iter_mut().skip(1) {
+                if !matches!(
+                    span.style.bg,
+                    Some(theme::ACCENT | theme::ACCENT_SOFT | theme::FILLER)
+                ) {
                     span.style = span.style.patch(style);
                 }
             }
@@ -819,7 +817,7 @@ fn comment_line(
             ));
             spans.push(Span::styled("┘", border_style));
         }
-        CommentRowKind::ActionsTop | CommentRowKind::Actions | CommentRowKind::ActionsBottom => {
+        CommentRowKind::ActionsTop | CommentRowKind::Actions => {
             let hints: &[(&str, &str)] = match entry {
                 CommentEntry::Draft { .. } => &[("e", "edit"), ("x", "delete")],
                 CommentEntry::Thread { .. } => &[("r", "reply")],
@@ -836,11 +834,10 @@ fn comment_line(
                     enabled: true,
                 })
                 .collect();
-            let rows = outlined_button_rows(&buttons, 1, 0);
+            let rows = button_rows(&buttons, 1);
             let row_index = match kind {
                 CommentRowKind::ActionsTop => 0,
                 CommentRowKind::Actions => 1,
-                CommentRowKind::ActionsBottom => 2,
                 _ => unreachable!(),
             };
             let row = &rows[row_index];

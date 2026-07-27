@@ -177,12 +177,8 @@ pub(in crate::tui) struct ActionButton<'a> {
     pub enabled: bool,
 }
 
-pub(in crate::tui) fn outlined_button_rows(
-    buttons: &[ActionButton<'_>],
-    gap: usize,
-    padding: usize,
-) -> Vec<Line<'static>> {
-    (0..3)
+pub(in crate::tui) fn button_rows(buttons: &[ActionButton<'_>], gap: usize) -> Vec<Line<'static>> {
+    (0..2)
         .map(|row| {
             let mut spans = Vec::new();
             for (index, button) in buttons.iter().enumerate() {
@@ -199,41 +195,31 @@ pub(in crate::tui) fn outlined_button_rows(
                 } else {
                     theme::ACCENT
                 };
-                let border_style = Style::default().fg(background).bg(background);
+                if row == 0 {
+                    spans.push(Span::styled(
+                        format!("┌{}┐", "─".repeat(display_width(button.label))),
+                        Style::default().fg(background).bg(theme::BG),
+                    ));
+                    continue;
+                }
                 let mut label_style = Style::default()
                     .fg(if button.enabled {
                         theme::BG
                     } else {
                         theme::MUTED
                     })
-                    .bg(background);
+                    .bg(background)
+                    .add_modifier(Modifier::UNDERLINED);
                 if button.selected {
                     label_style = label_style.add_modifier(Modifier::BOLD);
                 }
-                let inside_width = display_width(button.label) + padding * 2;
-                match row {
-                    0 => spans.push(Span::styled(
-                        format!("┌{}┐", "─".repeat(inside_width)),
-                        border_style,
-                    )),
-                    1 => {
-                        spans.push(Span::styled("│", border_style));
-                        spans.push(Span::styled(
-                            format!(
-                                "{}{}{}",
-                                " ".repeat(padding),
-                                button.label,
-                                " ".repeat(padding)
-                            ),
-                            label_style,
-                        ));
-                        spans.push(Span::styled("│", border_style));
-                    }
-                    _ => spans.push(Span::styled(
-                        format!("└{}┘", "─".repeat(inside_width)),
-                        border_style,
-                    )),
-                }
+                let edge_style = Style::default()
+                    .fg(background)
+                    .bg(background)
+                    .add_modifier(Modifier::UNDERLINED);
+                spans.push(Span::styled("│", edge_style));
+                spans.push(Span::styled(button.label.to_owned(), label_style));
+                spans.push(Span::styled("│", edge_style));
             }
             Line::from(spans)
         })
