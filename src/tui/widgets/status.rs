@@ -67,7 +67,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             .position(|&index| index == state.display_cursor)
             .map_or(0, |position| position + 1);
         (
-            format!("\u{201c}{query}\u{201d} {current}/{total}  n/N navigate  Esc clear"),
+            format!("\u{201c}{query}\u{201d} {current}/{total}  n/N navigate  ⎋ clear"),
             ratatui::style::Style::default().fg(crate::tui::theme::MUTED),
         )
     } else {

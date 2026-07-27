@@ -8,18 +8,18 @@ expression: "redact_version(screen(&app_with_drafts(3), 80, 24))"
 │ ▾ src/                     ││ Loading diff…                                  │
 │  [ ] M app.rs    0/1 +1 -1 ││                                                │
 │                            ││                                                │
-│                            ││                                                │
 │       ┌ Submit review · COMMENT ─────────────────────────────────────┐       │
 │       │ 3 drafts will be published                                   │       │
 │       │                                                              │       │
 │       │ Summary                                                      │       │
 │       │ Ready to merge▌                                              │       │
 │       │                                                              │       │
-│       │   APPROVE      REQUEST CHANGES      COMMENT                  │       │
+│       │          ┌─────────┐ ┌─────────────────┐ ┌─────────┐         │       │
+│       │          │ APPROVE │ │ REQUEST CHANGES │ │ COMMENT │         │       │
+│       │          └─────────┘ └─────────────────┘ └─────────┘         │       │
 │       │                                                              │       │
-│       │  Tab verdict · Enter submit · ⌥Enter new line · Esc cancel   │       │
+│       │        ⇥ verdict · ↵ submit · ⌥↵ new line · ⎋ cancel         │       │
 │       └──────────────────────────────────────────────────────────────┘       │
-│                            ││                                                │
 │                            ││                                                │
 │                            ││                                                │
 │                            ││                                                │

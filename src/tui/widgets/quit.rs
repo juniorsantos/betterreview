@@ -1,14 +1,10 @@
-use ratatui::{
-    Frame,
-    layout::Rect,
-    text::{Line, Span},
-};
+use ratatui::{Frame, layout::Rect, text::Line};
 
 use crate::{
     app::AppState,
-    tui::{
-        theme,
-        widgets::dialog::{Dialog, Sizing, clamped_width, menu_button, render_dialog},
+    tui::widgets::dialog::{
+        ActionButton, Dialog, Sizing, center_lines, clamped_width, outlined_button_rows,
+        render_dialog,
     },
 };
 
@@ -26,38 +22,33 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             .saturating_sub(3)
             .max(1),
     );
-    let compact = available_width < 61;
-    let spacious = available_width >= 69;
-    let labels = if compact {
-        ["Keep draft", "Discard draft", "Cancel"]
+    let (padding, gap) = if available_width >= 77 {
+        (2, 3)
+    } else if available_width >= 69 {
+        (1, 2)
     } else {
-        OPTIONS
+        (0, 1)
     };
-    let padding = usize::from(spacious) + 1;
-    let mut actions = Vec::new();
-    for (index, label) in labels.into_iter().enumerate() {
-        if index > 0 {
-            actions.push(Span::raw(" ".repeat(padding)));
-        }
-        let color = match index {
-            0 => theme::BUTTON_SUCCESS,
-            1 => theme::BUTTON_DANGER,
-            _ => theme::BUTTON_NEUTRAL,
-        };
-        actions.push(menu_button(
+    let buttons: Vec<ActionButton<'_>> = OPTIONS
+        .iter()
+        .enumerate()
+        .map(|(index, label)| ActionButton {
             label,
-            index == state.quit_selected,
-            color,
-            padding,
-        ));
-    }
+            selected: index == state.quit_selected,
+            enabled: true,
+        })
+        .collect();
+    let actions = center_lines(
+        outlined_button_rows(&buttons, gap, padding),
+        available_width,
+    );
     render_dialog(
         frame,
         area,
         Dialog {
             title: Line::raw(" Quit review "),
-            body: vec![Line::from(actions)],
-            hints: "j/k move · Enter confirm · Esc cancel",
+            body: actions,
+            hints: "⇥ move · ↵ confirm · ⎋ cancel",
             sizing: Sizing::Content {
                 max_width: DIALOG_MAX_WIDTH,
             },

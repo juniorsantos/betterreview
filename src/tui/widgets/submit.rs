@@ -10,7 +10,10 @@ use crate::{
     domain::{ReviewOutcome, Support},
     tui::{
         theme,
-        widgets::dialog::{Dialog, Sizing, clamped_width, render_dialog},
+        widgets::dialog::{
+            ActionButton, Dialog, Sizing, center_lines, clamped_width, outlined_button_rows,
+            render_dialog,
+        },
     },
 };
 
@@ -34,7 +37,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             .saturating_sub(3)
             .max(1),
     );
-    body.push(shortcut_line(state, modal.outcome, action_width));
+    body.extend(shortcut_lines(state, modal.outcome, action_width));
     if let Support::Unsupported { reason } = state.provider.capabilities.for_outcome(modal.outcome)
     {
         body.push(Line::styled(
@@ -50,7 +53,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         Dialog {
             title: title_line(modal.outcome),
             body,
-            hints: "Tab verdict · Enter submit · ⌥Enter new line · Esc cancel",
+            hints: "⇥ verdict · ↵ submit · ⌥↵ new line · ⎋ cancel",
             sizing: Sizing::Fixed {
                 width: DIALOG_WIDTH,
                 height,
@@ -67,7 +70,7 @@ fn title_line(outcome: ReviewOutcome) -> Line<'static> {
         Span::styled(
             format!("{} ", label(outcome)),
             Style::default()
-                .fg(color(outcome))
+                .fg(theme::MUTED)
                 .add_modifier(Modifier::BOLD),
         ),
     ])
@@ -93,40 +96,29 @@ fn summary_lines(summary: &str) -> Vec<Line<'static>> {
     lines
 }
 
-fn shortcut_line(state: &AppState, active: ReviewOutcome, available_width: usize) -> Line<'static> {
-    let spacious = available_width >= 49;
-    let mut spans = Vec::new();
-    for (index, outcome) in [
+fn shortcut_lines(
+    state: &AppState,
+    active: ReviewOutcome,
+    available_width: usize,
+) -> Vec<Line<'static>> {
+    let outcomes = [
         ReviewOutcome::Approve,
         ReviewOutcome::RequestChanges,
         ReviewOutcome::Comment,
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        if index > 0 {
-            spans.push(Span::raw(if spacious { "  " } else { " " }));
-        }
-        let supported = matches!(
-            state.provider.capabilities.for_outcome(outcome),
-            Support::Supported
-        );
-        let text = if spacious {
-            format!("  {}  ", label(outcome))
-        } else {
-            format!(" {} ", label(outcome))
-        };
-        let mut style = if supported {
-            Style::default().fg(theme::FG).bg(color(outcome))
-        } else {
-            Style::default().fg(theme::MUTED).bg(theme::BUTTON_NEUTRAL)
-        };
-        if outcome == active {
-            style = style.add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
-        }
-        spans.push(Span::styled(text, style));
-    }
-    Line::from(spans)
+    ];
+    let buttons: Vec<ActionButton<'_>> = outcomes
+        .iter()
+        .map(|outcome| ActionButton {
+            label: label(*outcome),
+            selected: *outcome == active,
+            enabled: matches!(
+                state.provider.capabilities.for_outcome(*outcome),
+                Support::Supported
+            ),
+        })
+        .collect();
+    let padding = usize::from(available_width >= 52);
+    center_lines(outlined_button_rows(&buttons, 1, padding), available_width)
 }
 
 fn label(outcome: ReviewOutcome) -> &'static str {
@@ -134,13 +126,5 @@ fn label(outcome: ReviewOutcome) -> &'static str {
         ReviewOutcome::Comment => "COMMENT",
         ReviewOutcome::Approve => "APPROVE",
         ReviewOutcome::RequestChanges => "REQUEST CHANGES",
-    }
-}
-
-fn color(outcome: ReviewOutcome) -> ratatui::style::Color {
-    match outcome {
-        ReviewOutcome::Comment => theme::BUTTON_COMMENT,
-        ReviewOutcome::Approve => theme::BUTTON_SUCCESS,
-        ReviewOutcome::RequestChanges => theme::BUTTON_WARNING,
     }
 }

@@ -125,26 +125,25 @@ fn dialog_places_hints_as_the_last_inner_line_with_key_styling() {
     let buffer = terminal.backend().buffer().clone();
     let (_, lines) = screen(&app, 80, 24);
 
-    // Find the box: locate the bottom border row (contains '└').
-    let bottom_row = lines
+    let hint_row = lines
         .iter()
-        .position(|line| line.contains('└'))
-        .expect("dialog has a bottom border");
-    let hint_row = bottom_row - 1;
+        .position(|line| line.contains("⇥ move"))
+        .expect("dialog has a hints row");
+    assert!(lines[hint_row + 1].contains('└'));
     assert!(
-        lines[hint_row].contains("j/k move"),
+        lines[hint_row].contains("⇥ move"),
         "expected the hints line directly above the bottom border, got: {:?}",
         lines[hint_row]
     );
-    assert!(lines[hint_row].contains("Esc cancel"));
+    assert!(lines[hint_row].contains("⎋ cancel"));
 
     // Keys render in accent bold, labels in muted — the shared key-hint
     // styling rule.
-    let byte_offset = lines[hint_row].find("j/k move").unwrap();
+    let byte_offset = lines[hint_row].find("⇥ move").unwrap();
     let key_x = lines[hint_row][..byte_offset].chars().count() as u16;
     let key_cell = buffer.cell((key_x, hint_row as u16)).unwrap();
     assert_eq!(key_cell.fg, betterreview::tui::theme::ACCENT);
-    let label_x = key_x + 4; // first char of "move"
+    let label_x = key_x + 2;
     let label_cell = buffer.cell((label_x, hint_row as u16)).unwrap();
     assert_eq!(label_cell.fg, betterreview::tui::theme::MUTED);
 }
@@ -160,21 +159,20 @@ fn dialog_hints_line_is_horizontally_centered() {
         .iter()
         .position(|line| line.contains("┌ Quit review"))
         .expect("dialog has a top border");
-    let bottom_row = lines
+    let hint_row = lines
         .iter()
-        .position(|line| line.contains('└'))
-        .expect("dialog has a bottom border");
+        .position(|line| line.contains("⇥ move"))
+        .expect("dialog has a hints row");
     let box_chars: Vec<char> = lines[top_row].chars().collect();
     let box_left = box_chars.iter().position(|&c| c == '┌').unwrap();
     let box_right = box_chars.iter().rposition(|&c| c == '┐').unwrap();
 
-    let hint_text = "j/k move · Enter confirm · Esc cancel";
-    let hint_row = bottom_row - 1;
+    let hint_text = "⇥ move · ↵ confirm · ⎋ cancel";
     let hint_chars: Vec<char> = lines[hint_row].chars().collect();
     let hint_start = hint_chars
         .iter()
         .enumerate()
-        .position(|(index, &c)| index > box_left && c == 'j')
+        .position(|(index, &c)| index > box_left && c == '⇥')
         .expect("hint text present on the row above the bottom border");
     let hint_end = hint_start + hint_text.chars().count();
 
@@ -187,7 +185,7 @@ fn dialog_hints_line_is_horizontally_centered() {
 }
 
 #[test]
-fn dialog_actions_are_colored_buttons_with_padding() {
+fn dialog_actions_use_outlines_with_theme_background() {
     let mut app = base_app();
     app.quit_dialog = true;
     app.quit_selected = 0;
@@ -200,16 +198,10 @@ fn dialog_actions_are_colored_buttons_with_padding() {
 
     assert!(!screen.contains('▶'));
 
-    for (label, color) in [
-        (
-            "Quit keeping the draft",
-            betterreview::tui::theme::BUTTON_SUCCESS,
-        ),
-        (
-            "Quit discarding the draft",
-            betterreview::tui::theme::BUTTON_DANGER,
-        ),
-        ("Cancel", betterreview::tui::theme::BUTTON_NEUTRAL),
+    for label in [
+        "Quit keeping the draft",
+        "Quit discarding the draft",
+        "Cancel",
     ] {
         let row = lines
             .iter()
@@ -217,12 +209,10 @@ fn dialog_actions_are_colored_buttons_with_padding() {
             .expect("action rendered");
         let byte = lines[row].find(label).unwrap();
         let x = lines[row][..byte].chars().count() as u16;
-        let label_width = label.chars().count() as u16;
-        for padding_x in [x - 2, x - 1, x + label_width, x + label_width + 1] {
-            let cell = buffer.cell((padding_x, row as u16)).unwrap();
-            assert_eq!(cell.symbol(), " ");
-            assert_eq!(cell.bg, color);
-        }
+        let label_cell = buffer.cell((x, row as u16)).unwrap();
+        assert_eq!(label_cell.fg, betterreview::tui::theme::MUTED);
+        assert_eq!(label_cell.bg, betterreview::tui::theme::BG);
+        assert_eq!(buffer.cell((x - 3, row as u16 - 1)).unwrap().symbol(), "┌");
     }
     let action_rows = [
         "Quit keeping the draft",
@@ -246,7 +236,12 @@ fn dialog_actions_are_colored_buttons_with_padding() {
     assert!(
         selected_style
             .add_modifier
-            .contains(ratatui::style::Modifier::BOLD | ratatui::style::Modifier::UNDERLINED)
+            .contains(ratatui::style::Modifier::BOLD)
+    );
+    assert!(
+        !selected_style
+            .add_modifier
+            .contains(ratatui::style::Modifier::UNDERLINED)
     );
 }
 
@@ -256,9 +251,12 @@ fn quit_actions_stay_inline_on_a_small_terminal() {
     app.quit_dialog = true;
 
     let (_, lines) = screen(&app, 50, 16);
-    assert!(lines.iter().any(|line| {
-        line.contains("Keep draft") && line.contains("Discard draft") && line.contains("Cancel")
-    }));
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.contains("Quit keeping the draft"))
+    );
+    assert!(!lines.iter().any(|line| line.contains("Keep draft")));
 }
 
 #[test]

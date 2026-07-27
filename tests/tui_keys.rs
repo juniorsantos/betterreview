@@ -211,17 +211,12 @@ fn enter_submits_the_review_from_the_modal() {
 }
 
 #[test]
-fn quit_dialog_navigates_with_jk_and_confirms_with_enter() {
+fn quit_dialog_navigates_with_tab_and_confirms_with_enter() {
     let mut app = base_app();
     app.quit_dialog = true;
     let mut keymap = KeyMap::default();
 
-    // Highlight starts on "Sair mantendo"; j moves to "Sair descartando".
-    let moved = handle_key(
-        &mut app,
-        &mut keymap,
-        key(KeyCode::Char('j'), KeyModifiers::NONE),
-    );
+    let moved = handle_key(&mut app, &mut keymap, key(KeyCode::Tab, KeyModifiers::NONE));
     assert!(moved.is_none());
     assert_eq!(app.quit_selected, 1);
 

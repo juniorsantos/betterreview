@@ -6,7 +6,7 @@
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Clear, Paragraph},
 };
@@ -141,7 +141,7 @@ pub fn render_dialog(frame: &mut Frame, area: Rect, dialog: Dialog) -> Vec<Rect>
     frame.render_widget(Clear, outer);
     frame.render_widget(
         Paragraph::new(lines)
-            .style(Style::default().fg(theme::FG).bg(theme::MODAL_BG))
+            .style(Style::default().fg(theme::FG).bg(theme::BG))
             .block(block),
         outer,
     );
@@ -170,33 +170,106 @@ fn split_zones(body: Rect, zones: &[Zone]) -> Vec<Rect> {
         .to_vec()
 }
 
-pub(in crate::tui) fn menu_line(label: &str, selected: bool, background: Color) -> Line<'static> {
-    let text = if selected {
-        format!("  ▶  {label}  ")
-    } else {
-        format!("     {label}  ")
-    };
-    let mut style = Style::default().fg(theme::FG).bg(background);
-    if selected {
-        style = style.add_modifier(Modifier::BOLD);
-    }
-    Line::from(Span::styled(text, style))
+#[derive(Clone, Copy)]
+pub(in crate::tui) struct ActionButton<'a> {
+    pub label: &'a str,
+    pub selected: bool,
+    pub enabled: bool,
 }
 
-pub(in crate::tui) fn menu_button(
-    label: &str,
-    selected: bool,
-    background: Color,
+pub(in crate::tui) fn outlined_button_rows(
+    buttons: &[ActionButton<'_>],
+    gap: usize,
     padding: usize,
-) -> Span<'static> {
-    let mut style = Style::default().fg(theme::FG).bg(background);
-    if selected {
-        style = style.add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
+) -> Vec<Line<'static>> {
+    (0..3)
+        .map(|row| {
+            let mut spans = Vec::new();
+            for (index, button) in buttons.iter().enumerate() {
+                if index > 0 {
+                    spans.push(Span::styled(
+                        " ".repeat(gap),
+                        Style::default().bg(theme::BG),
+                    ));
+                }
+                let border_color = if button.selected {
+                    theme::ACCENT
+                } else {
+                    theme::BORDER
+                };
+                let border_style = Style::default().fg(border_color).bg(theme::BG);
+                let mut label_style = Style::default()
+                    .fg(if button.enabled {
+                        theme::MUTED
+                    } else {
+                        theme::BORDER
+                    })
+                    .bg(theme::BG);
+                if button.selected {
+                    label_style = label_style.add_modifier(Modifier::BOLD);
+                }
+                let inside_width = display_width(button.label) + padding * 2;
+                match row {
+                    0 => spans.push(Span::styled(
+                        format!("┌{}┐", "─".repeat(inside_width)),
+                        border_style,
+                    )),
+                    1 => {
+                        spans.push(Span::styled("│", border_style));
+                        spans.push(Span::styled(
+                            format!(
+                                "{}{}{}",
+                                " ".repeat(padding),
+                                button.label,
+                                " ".repeat(padding)
+                            ),
+                            label_style,
+                        ));
+                        spans.push(Span::styled("│", border_style));
+                    }
+                    _ => spans.push(Span::styled(
+                        format!("└{}┘", "─".repeat(inside_width)),
+                        border_style,
+                    )),
+                }
+            }
+            Line::from(spans)
+        })
+        .collect()
+}
+
+pub(in crate::tui) fn center_lines(lines: Vec<Line<'static>>, width: usize) -> Vec<Line<'static>> {
+    lines
+        .into_iter()
+        .map(|mut line| {
+            let left_pad = width.saturating_sub(line.width()) / 2;
+            if left_pad > 0 {
+                line.spans.insert(
+                    0,
+                    Span::styled(" ".repeat(left_pad), Style::default().bg(theme::BG)),
+                );
+            }
+            line
+        })
+        .collect()
+}
+
+pub(in crate::tui) fn stacked_button_rows(
+    buttons: &[ActionButton<'_>],
+    width: usize,
+    padding: usize,
+) -> Vec<Line<'static>> {
+    let mut lines = Vec::new();
+    for (index, button) in buttons.iter().enumerate() {
+        if index > 0 {
+            lines.push(Line::styled("", Style::default().bg(theme::BG)));
+        }
+        lines.extend(center_lines(
+            outlined_button_rows(&[*button], 0, padding),
+            width,
+        ));
     }
-    Span::styled(
-        format!("{}{label}{}", " ".repeat(padding), " ".repeat(padding)),
-        style,
-    )
+    lines
 }
 
 /// Centers `hints` horizontally within `width` columns, in `theme::MUTED`.

@@ -33,7 +33,7 @@ const COLUMNS: [Column; 4] = [
             ("]u [u", "unreviewed"),
             ("/", "search"),
             ("n N", "match"),
-            ("Tab", "focus"),
+            ("⇥", "focus"),
             ("2 3", "panel"),
         ],
     },
@@ -87,7 +87,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
         Dialog {
             title: Line::raw(" Help "),
             body: body_lines(),
-            hints: "Esc close",
+            hints: "⎋ close",
             sizing: Sizing::Content { max_width: 78 },
             zones: Vec::new(),
         },
@@ -123,11 +123,11 @@ fn body_lines() -> Vec<Line<'static>> {
 
     lines.push(Line::raw(""));
     lines.push(Line::from(vec![
-        Span::styled("Enter", accent()),
+        Span::styled("↵", accent()),
         Span::styled("  save · ", Style::default().fg(theme::MUTED)),
-        Span::styled("Alt+Enter", accent()),
+        Span::styled("⌥↵", accent()),
         Span::styled("  new line · ", Style::default().fg(theme::MUTED)),
-        Span::styled("Esc", accent()),
+        Span::styled("⎋", accent()),
         Span::styled(
             "  close — inside the editor",
             Style::default().fg(theme::MUTED),

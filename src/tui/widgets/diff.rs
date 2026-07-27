@@ -13,6 +13,7 @@ use crate::{
     tui::{
         text::{display_width, expand_tabs, truncate_to_width},
         theme, viewport,
+        widgets::dialog::{ActionButton, outlined_button_rows},
     },
 };
 
@@ -765,11 +766,6 @@ fn comment_line(
     } else {
         theme::ACCENT
     };
-    let card_background = if is_reply {
-        theme::COMMENT_REPLY_BG
-    } else {
-        theme::COMMENT_BG
-    };
     let border_style = Style::default().fg(accent);
     let mut spans = vec![
         Span::styled("\u{258c}", Style::default().fg(accent)),
@@ -816,28 +812,34 @@ fn comment_line(
             ));
             spans.push(Span::styled("┘", border_style));
         }
-        CommentRowKind::Actions => {
+        CommentRowKind::ActionsTop | CommentRowKind::Actions | CommentRowKind::ActionsBottom => {
             let hints: &[(&str, &str)] = match entry {
                 CommentEntry::Draft { .. } => &[("e", "edit"), ("x", "delete")],
                 CommentEntry::Thread { .. } => &[("r", "reply")],
             };
-            spans.push(Span::raw("  "));
-            for (index, (key, label)) in hints.iter().enumerate() {
-                if index > 0 {
-                    spans.push(Span::styled(" · ", Style::default().fg(theme::BORDER)));
-                }
-                spans.push(Span::styled(
-                    (*key).to_owned(),
-                    Style::default()
-                        .fg(theme::ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ));
-                spans.push(Span::raw(" "));
-                spans.push(Span::styled(
-                    (*label).to_owned(),
-                    Style::default().fg(theme::MUTED),
-                ));
-            }
+            let labels: Vec<String> = hints
+                .iter()
+                .map(|(key, label)| format!("{key} {label}"))
+                .collect();
+            let buttons: Vec<ActionButton<'_>> = labels
+                .iter()
+                .map(|label| ActionButton {
+                    label,
+                    selected: false,
+                    enabled: true,
+                })
+                .collect();
+            let rows = outlined_button_rows(&buttons, 2, 2);
+            let row_index = match kind {
+                CommentRowKind::ActionsTop => 0,
+                CommentRowKind::Actions => 1,
+                CommentRowKind::ActionsBottom => 2,
+                _ => unreachable!(),
+            };
+            let row = &rows[row_index];
+            let left_pad = card_width.saturating_sub(row.width()) / 2;
+            spans.push(Span::raw(" ".repeat(left_pad)));
+            spans.extend(row.spans.clone());
         }
     }
     if matches!(
@@ -845,7 +847,7 @@ fn comment_line(
         CommentRowKind::Header | CommentRowKind::Body | CommentRowKind::Footer
     ) {
         for span in &mut spans[card_start..] {
-            span.style = span.style.bg(card_background);
+            span.style = span.style.bg(theme::BG);
         }
     }
     Line::from(spans)

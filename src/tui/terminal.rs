@@ -126,11 +126,11 @@ pub fn handle_key(app: &mut AppState, keymap: &mut KeyMap, key: KeyEvent) -> Opt
         return match key.code {
             KeyCode::Esc => action(AppAction::ConfirmQuit(QuitChoice::Cancel)),
             KeyCode::Char('d') => action(AppAction::ConfirmQuit(QuitChoice::DiscardEditor)),
-            KeyCode::Down | KeyCode::Char('j') => {
+            KeyCode::Tab | KeyCode::Down => {
                 app.quit_selected = (app.quit_selected + 1) % CHOICES.len();
                 None
             }
-            KeyCode::Up | KeyCode::Char('k') => {
+            KeyCode::BackTab | KeyCode::Up => {
                 app.quit_selected = (app.quit_selected + CHOICES.len() - 1) % CHOICES.len();
                 None
             }

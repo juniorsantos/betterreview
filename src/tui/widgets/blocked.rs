@@ -31,7 +31,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
                 Style::default().fg(theme::DANGER),
             ),
             body,
-            hints: "Esc dismiss",
+            hints: "⎋ dismiss",
             sizing: Sizing::Content { max_width: 70 },
             zones: Vec::new(),
         },

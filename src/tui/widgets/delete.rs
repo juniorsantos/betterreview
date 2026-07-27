@@ -2,34 +2,29 @@ use ratatui::{Frame, layout::Rect, text::Line};
 
 use crate::{
     app::AppState,
-    tui::{
-        theme,
-        widgets::dialog::{Dialog, Sizing, menu_line, render_dialog},
-    },
+    tui::widgets::dialog::{ActionButton, Dialog, Sizing, outlined_button_rows, render_dialog},
 };
 
 const OPTIONS: [&str; 2] = ["Delete", "Cancel"];
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
-    let body: Vec<Line> = OPTIONS
+    let buttons: Vec<ActionButton<'_>> = OPTIONS
         .iter()
         .enumerate()
-        .map(|(index, option)| {
-            let color = if index == 0 {
-                theme::BUTTON_DANGER
-            } else {
-                theme::BUTTON_NEUTRAL
-            };
-            menu_line(option, index == state.delete_selected, color)
+        .map(|(index, label)| ActionButton {
+            label,
+            selected: index == state.delete_selected,
+            enabled: true,
         })
         .collect();
+    let body = outlined_button_rows(&buttons, 2, 2);
     render_dialog(
         frame,
         area,
         Dialog {
             title: Line::raw(" Delete comment "),
             body,
-            hints: "j/k move · Enter confirm · Esc cancel",
+            hints: "j/k move · ↵ confirm · ⎋ cancel",
             sizing: Sizing::Content { max_width: 52 },
             zones: Vec::new(),
         },

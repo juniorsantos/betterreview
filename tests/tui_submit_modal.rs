@@ -136,13 +136,13 @@ fn the_summary_carries_a_caret_and_the_verdicts_are_shortcuts() {
     assert!(screen.contains("APPROVE"));
     assert!(screen.contains("REQUEST CHANGES"));
     assert!(
-        screen.contains("Tab verdict"),
+        screen.contains("⇥ verdict"),
         "Tab always reaches the app, unlike option+letter on macOS"
     );
 }
 
 #[test]
-fn verdict_actions_are_filled_buttons() {
+fn verdict_actions_use_outlines_with_theme_background() {
     let backend = TestBackend::new(80, 24);
     let mut terminal = Terminal::new(backend).unwrap();
     terminal
@@ -161,29 +161,19 @@ fn verdict_actions_are_filled_buttons() {
         })
         .expect("action buttons rendered");
 
-    for (label, color) in [
-        ("APPROVE", theme::BUTTON_SUCCESS),
-        ("REQUEST CHANGES", theme::BUTTON_WARNING),
-        ("COMMENT", theme::BUTTON_COMMENT),
-    ] {
+    for label in ["APPROVE", "REQUEST CHANGES", "COMMENT"] {
         let byte = action_line.find(label).expect("button label rendered");
         let x = action_line[..byte].chars().count() as u16;
-        let label_width = label.chars().count() as u16;
-        for padding_x in [x - 2, x - 1, x + label_width, x + label_width + 1] {
-            let cell = buffer.cell((padding_x, action_row)).unwrap();
-            assert_eq!(cell.symbol(), " ");
-            assert_eq!(cell.bg, color);
-        }
+        let cell = buffer.cell((x, action_row)).unwrap();
+        assert_eq!(cell.fg, theme::MUTED);
+        assert_eq!(cell.bg, theme::BG);
         if label == "COMMENT" {
+            let style = cell.style();
+            assert!(style.add_modifier.contains(ratatui::style::Modifier::BOLD));
             assert!(
-                buffer
-                    .cell((x, action_row))
-                    .unwrap()
-                    .style()
+                !style
                     .add_modifier
-                    .contains(
-                        ratatui::style::Modifier::BOLD | ratatui::style::Modifier::UNDERLINED
-                    )
+                    .contains(ratatui::style::Modifier::UNDERLINED)
             );
         }
     }

@@ -1247,7 +1247,7 @@ fn edit_comment(state: &mut AppState, id: DraftId) {
     {
         push_notice(
             state,
-            "you have an unsaved comment; save it (c → Enter) or discard it before editing",
+            "you have an unsaved comment; save it (c → ↵) or discard it before editing",
         );
         return;
     }
@@ -1291,7 +1291,7 @@ fn reply_comment(state: &mut AppState, thread: ThreadId) {
     {
         push_notice(
             state,
-            "you have an unsaved comment; save it (c → Enter) or discard it before replying",
+            "you have an unsaved comment; save it (c → ↵) or discard it before replying",
         );
         return;
     }

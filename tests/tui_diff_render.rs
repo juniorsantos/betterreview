@@ -488,7 +488,9 @@ fn comment_box_renders_under_its_line() {
     assert!(lines[anchor + 2].contains("┌─ @you · draft"));
     assert!(lines[anchor + 4].contains("│   Please double-check this line"));
     assert!(lines[anchor + 6].contains("└─"));
-    assert!(lines[anchor + 7].contains("e edit"));
+    assert!(lines[anchor + 7].contains('┌'));
+    assert!(lines[anchor + 8].contains("e edit"));
+    assert!(lines[anchor + 9].contains('└'));
 }
 
 #[test]
@@ -609,7 +611,7 @@ fn status_shows_query_and_match_count_for_an_active_search() {
     assert!(screen.contains("e"), "sanity: screen renders at all");
     assert!(screen.contains("1/3"));
     assert!(screen.contains("n/N navigate"));
-    assert!(screen.contains("Esc clear"));
+    assert!(screen.contains("⎋ clear"));
 }
 
 #[test]
@@ -641,7 +643,7 @@ fn editor_shows_the_terminal_cursor_at_the_typing_position() {
             .cell((at_col_3.x - 3, at_col_3.y))
             .unwrap()
             .bg,
-        theme::MODAL_BG
+        theme::BG
     );
 
     state.session.editor.as_mut().unwrap().grapheme_col = 0;
@@ -716,7 +718,7 @@ fn comment_card_border_uses_the_accent_colour() {
 }
 
 #[test]
-fn comment_card_uses_a_tinted_background() {
+fn comment_card_uses_the_theme_background() {
     let mut state = app();
     state.provider.drafts.push(draft_at_line_5());
     refresh_display_rows(&mut state);
@@ -733,7 +735,7 @@ fn comment_card_uses_a_tinted_background() {
         })
         .expect("comment body rendered");
 
-    assert_eq!(buffer.cell((x, y)).unwrap().bg, theme::COMMENT_BG);
+    assert_eq!(buffer.cell((x, y)).unwrap().bg, theme::BG);
 }
 
 #[test]
@@ -1059,21 +1061,21 @@ fn a_comment_card_has_square_corners_and_a_gutter_indicator() {
 }
 
 #[test]
-fn the_action_keys_sit_below_the_card_on_a_line_of_their_own() {
+fn the_action_keys_sit_in_outlined_buttons_below_the_card() {
     let mut state = app();
     state.provider.drafts.push(draft_at_line_5());
     refresh_display_rows(&mut state);
 
     let screen = screen_wide(&draw_wide(&state));
-    let actions = screen
-        .lines()
-        .find(|line| line.contains("e edit"))
+    let lines: Vec<&str> = screen.lines().collect();
+    let action_row = lines
+        .iter()
+        .position(|line| line.contains("e edit"))
         .expect("the actions line rendered");
 
-    assert!(
-        !actions.contains('\u{2518}') && !actions.contains('\u{2500}'),
-        "the keys are on their own line, not fighting the border for space: {actions:?}"
-    );
+    assert!(lines[action_row - 1].contains('┌'));
+    assert!(lines[action_row].contains('│'));
+    assert!(lines[action_row + 1].contains('└'));
 }
 
 #[test]
@@ -1356,7 +1358,7 @@ fn a_selection_reaching_past_the_rendered_diff_still_marks_what_it_can() {
 }
 
 #[test]
-fn a_reply_card_is_tinted_apart_from_the_comment_it_answers() {
+fn a_reply_card_uses_a_distinct_border_from_the_comment_it_answers() {
     use betterreview::domain::{ReviewComment, ReviewThread, ThreadId};
 
     let anchor = position(DiffSide::Right, 5);
@@ -1381,10 +1383,10 @@ fn a_reply_card_is_tinted_apart_from_the_comment_it_answers() {
     let buffer = terminal.backend().buffer();
     let corners: Vec<_> = (0..30)
         .filter(|y| {
-            !(0..120)
+            let line = (0..120)
                 .map(|x| buffer.cell((x, *y)).unwrap().symbol())
-                .collect::<String>()
-                .contains("[2] Files")
+                .collect::<String>();
+            line.contains("@alice")
         })
         .filter_map(|y| {
             (0..120)

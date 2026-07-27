@@ -340,8 +340,8 @@ pub fn mark_items(
 /// Right-side hints for the picker's flat status bar (transversal rule 1).
 const PICKER_HINTS: [(&str, &str); 5] = [
     ("j/k", "move"),
-    ("Tab", "focus"),
-    ("Enter", "open"),
+    ("⇥", "focus"),
+    ("↵", "open"),
     ("r", "reload"),
     ("q", "quit"),
 ];
@@ -648,7 +648,7 @@ fn pad_cell(text: &str, width: usize) -> String {
 fn render_detail(frame: &mut Frame, area: Rect, state: &PickerState, focused: bool) {
     let block = Block::default()
         .padding(ratatui::widgets::Padding::horizontal(1))
-        .title(" [1] Description — Tab/1 focus · j/k scroll ")
+        .title(" [1] Description — ⇥/1 focus · j/k scroll ")
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(panel_border_style(focused));

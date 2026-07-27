@@ -1,11 +1,17 @@
-use ratatui::{Frame, layout::Rect, text::Line};
+use ratatui::{Frame, layout::Rect, style::Style, text::Line, widgets::Paragraph};
 
 use crate::{
     app::AppState,
-    tui::widgets::dialog::{Dialog, Sizing, clamped_width, render_dialog},
+    tui::{
+        theme,
+        widgets::dialog::{
+            ActionButton, Dialog, Sizing, clamped_width, render_dialog, stacked_button_rows,
+        },
+    },
 };
 
 const DIALOG_WIDTH: u16 = 76;
+const DIALOG_HEIGHT: u16 = 22;
 
 pub(in crate::tui) fn text_width(terminal_width: u16) -> usize {
     usize::from(
@@ -22,44 +28,66 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let Some(editor) = &state.session.editor else {
         return;
     };
-    let (title, hints) = if editor.stale {
-        (" Stale draft (head changed) ", "c new comment · Esc close")
-    } else if state.editing_draft.is_some() {
+    let (title, labels): (&str, &[&str]) = if editor.stale {
         (
-            " Editing draft ",
-            "Enter save · Alt+Enter new line · Esc close",
+            " Stale draft (head changed) ",
+            &["c new comment", "⎋ close"],
         )
+    } else if state.editing_draft.is_some() {
+        (" Editing draft ", &["↵ save", "⌥↵ new line", "⎋ close"])
     } else if state.replying_thread.is_some() {
-        (" Replying ", "Enter send · Alt+Enter new line · Esc close")
+        (" Replying ", &["↵ send", "⌥↵ new line", "⎋ close"])
     } else {
-        (" Comment ", "Enter save · Alt+Enter new line · Esc close")
+        (" Comment ", &["↵ save", "⌥↵ new line", "⎋ close"])
     };
     let body: Vec<Line> = editor
         .lines
         .iter()
         .map(|line| Line::raw(line.clone()))
         .collect();
+    let buttons: Vec<ActionButton<'_>> = labels
+        .iter()
+        .map(|label| ActionButton {
+            label,
+            selected: false,
+            enabled: true,
+        })
+        .collect();
+    let action_lines = stacked_button_rows(&buttons, text_width(area.width), 2);
     let zones = render_dialog(
         frame,
         area,
         Dialog {
             title: Line::raw(title),
             body,
-            hints,
+            hints: "",
             sizing: Sizing::Fixed {
                 width: DIALOG_WIDTH,
-                height: 14,
+                height: DIALOG_HEIGHT,
             },
             zones: Vec::new(),
         },
     );
     let inner = zones[0];
+    let action_height = u16::try_from(action_lines.len())
+        .unwrap_or(u16::MAX)
+        .min(inner.height);
+    let action_area = Rect {
+        x: inner.x,
+        y: inner.y + inner.height.saturating_sub(action_height),
+        width: inner.width,
+        height: action_height,
+    };
+    frame.render_widget(
+        Paragraph::new(action_lines).style(Style::default().bg(theme::BG)),
+        action_area,
+    );
     if !editor.stale {
         // Show the real terminal cursor at the typing position so the user
         // always knows where input lands. Clamped to the body region
         // `render_dialog` reserved above the blank/hints rows.
         let max_col = inner.width.saturating_sub(1);
-        let max_row = inner.height.saturating_sub(1);
+        let max_row = inner.height.saturating_sub(action_height).saturating_sub(1);
         let col = u16::try_from(editor.grapheme_col)
             .unwrap_or(u16::MAX)
             .min(max_col);
