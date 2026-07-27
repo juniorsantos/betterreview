@@ -1,0 +1,8 @@
+[layout]
+sidebar_width = 32
+diff_mode = "unified"
+wrap_long_lines = false
+
+[keys]
+next_file = "j"
+previous_file = "k"

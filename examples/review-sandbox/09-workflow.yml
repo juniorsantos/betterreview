@@ -1,0 +1,10 @@
+name: review-sandbox
+
+on:
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Review sandbox ready"

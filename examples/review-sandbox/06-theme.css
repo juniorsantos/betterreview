@@ -1,0 +1,9 @@
+.review-panel {
+  display: grid;
+  grid-template-columns: 18rem 1fr;
+  min-height: 24rem;
+}
+
+.review-panel__active {
+  border-left: 3px solid #7c3aed;
+}

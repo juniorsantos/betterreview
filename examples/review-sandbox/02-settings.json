@@ -1,0 +1,6 @@
+{
+  "theme": "dark",
+  "showLineNumbers": true,
+  "contextLines": 5,
+  "defaultAction": "comment"
+}
