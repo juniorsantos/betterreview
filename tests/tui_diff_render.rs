@@ -1435,3 +1435,81 @@ fn a_moved_block_reads_apart_from_a_real_addition() {
         "and an untouched line is not moved"
     );
 }
+
+#[test]
+fn the_blame_column_names_who_wrote_the_old_side() {
+    let mut state = app();
+    state.blame_visible = true;
+    state.blame.insert(
+        RepoPath("src/app.rs".into()),
+        [
+            (
+                3,
+                betterreview::blame::BlameLine {
+                    author: "Ada".into(),
+                    age: "2w".into(),
+                },
+            ),
+            (
+                4,
+                betterreview::blame::BlameLine {
+                    author: "Grace".into(),
+                    age: "1y".into(),
+                },
+            ),
+        ]
+        .into_iter()
+        .collect(),
+    );
+    refresh_display_rows(&mut state);
+
+    let screen = screen_wide(&draw_wide(&state));
+    let row = |needle: &str| {
+        screen
+            .lines()
+            .find(|line| line.contains(needle))
+            .unwrap_or_else(|| panic!("row {needle} rendered"))
+            .to_owned()
+    };
+
+    assert!(row("context").contains("Ada"), "{screen}");
+    assert!(row("context").contains("2w"));
+    assert!(
+        !row("+added").contains("Ada") && !row("+added").contains("Grace"),
+        "an added line has no history yet, so its cell stays blank:\n{screen}"
+    );
+}
+
+#[test]
+fn the_blame_column_is_absent_until_it_is_asked_for() {
+    let screen = screen_wide(&draw_wide(&app()));
+
+    assert!(!screen.contains("Ada"));
+}
+
+#[test]
+fn blame_stays_out_of_the_split_where_there_is_no_room() {
+    let mut state = app();
+    state.diff_layout = betterreview::domain::DiffLayout::Split;
+    state.blame_visible = true;
+    state.blame.insert(
+        RepoPath("src/app.rs".into()),
+        [(
+            3,
+            betterreview::blame::BlameLine {
+                author: "Ada".into(),
+                age: "2w".into(),
+            },
+        )]
+        .into_iter()
+        .collect(),
+    );
+    refresh_display_rows(&mut state);
+
+    let screen = screen_wide(&draw_wide(&state));
+
+    assert!(
+        !screen.contains("Ada"),
+        "two columns plus a gutter plus blame does not fit any real terminal:\n{screen}"
+    );
+}

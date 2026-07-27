@@ -30,6 +30,7 @@ pub enum AppEffect {
     SubmitReview { request: SubmitRequest },
     DiscardReview,
     LoadFileContext { path: RepoPath, revision: CommitOid },
+    LoadBlame { path: RepoPath, revision: CommitOid },
 }
 
 #[derive(Debug)]
@@ -64,6 +65,10 @@ pub enum EffectOutcome {
         result: Result<(), String>,
     },
     Completed(Result<(), String>),
+    BlameLoaded {
+        path: RepoPath,
+        result: Result<std::collections::BTreeMap<u32, crate::blame::BlameLine>, String>,
+    },
     FileContextLoaded {
         path: RepoPath,
         result: Result<String, String>,

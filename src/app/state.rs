@@ -69,6 +69,8 @@ pub struct AppState {
     /// it's toggled. Lines are split on `\n`, indexed from 0 (new-file line
     /// `n` is `file_contexts[path][n - 1]`).
     pub file_contexts: BTreeMap<RepoPath, Vec<String>>,
+    pub blame_visible: bool,
+    pub blame: BTreeMap<RepoPath, BTreeMap<u32, crate::blame::BlameLine>>,
     /// Gap keys — the new-file line number right after which the gap sits —
     /// that are currently expanded into `Context` rows for the active file.
     /// Cleared whenever the active file changes.
@@ -167,6 +169,8 @@ impl AppState {
             search_input: None,
             search_query: None,
             file_contexts: BTreeMap::new(),
+            blame_visible: false,
+            blame: BTreeMap::new(),
             expanded_gaps: BTreeSet::new(),
             pending_gap: None,
             hunk_totals: BTreeMap::new(),

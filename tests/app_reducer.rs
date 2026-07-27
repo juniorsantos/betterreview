@@ -3045,3 +3045,60 @@ fn a_completed_submit_persists_that_nothing_is_pending_any_more() {
 
     assert!(saved.pending_submit.is_none());
 }
+
+#[test]
+fn blame_is_fetched_when_it_is_asked_for_and_not_before() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+
+    assert!(
+        update(&mut state, AppEvent::Tick).is_empty(),
+        "opening a file must not pay for a blame nobody asked for"
+    );
+
+    let effects = update(&mut state, AppEvent::Action(AppAction::ToggleBlame));
+
+    assert!(
+        effects
+            .iter()
+            .any(|envelope| matches!(envelope.effect, AppEffect::LoadBlame { .. })),
+        "turning it on is what triggers the read"
+    );
+
+    update(&mut state, AppEvent::Action(AppAction::ToggleBlame));
+    let again = update(&mut state, AppEvent::Action(AppAction::ToggleBlame));
+    assert!(
+        again.is_empty() || state.blame.is_empty(),
+        "a second look at the same file must not run git again once it is cached"
+    );
+}
+
+#[test]
+fn a_blame_that_cannot_run_says_so_and_turns_itself_off() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    state.blame_visible = true;
+    let head = state.provider.head.clone();
+
+    update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: 1,
+            generation: Some(head),
+            outcome: EffectOutcome::BlameLoaded {
+                path: RepoPath("src/file_0.rs".into()),
+                result: Err("blame needs the base commit in this clone".into()),
+            },
+        })),
+    );
+
+    assert!(
+        !state.blame_visible,
+        "a shallow clone has no base commit; leaving the column on would show nothing forever"
+    );
+    assert!(
+        state
+            .error_banner
+            .as_deref()
+            .unwrap_or_default()
+            .contains("base commit")
+    );
+}

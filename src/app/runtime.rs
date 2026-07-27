@@ -16,6 +16,7 @@ pub struct Runtime {
     key: ChangeRequestKey,
     provider: Arc<dyn ReviewProvider>,
     renderer: Arc<dyn DiffRenderer>,
+    runner: Arc<dyn crate::process::CommandRunner>,
     session: Option<Arc<Mutex<SessionHandle>>>,
 }
 
@@ -24,12 +25,14 @@ impl Runtime {
         key: ChangeRequestKey,
         provider: Arc<dyn ReviewProvider>,
         renderer: Arc<dyn DiffRenderer>,
+        runner: Arc<dyn crate::process::CommandRunner>,
         session: Option<SessionHandle>,
     ) -> Self {
         Self {
             key,
             provider,
             renderer,
+            runner,
             session: session.map(|handle| Arc::new(Mutex::new(handle))),
         }
     }
@@ -147,6 +150,10 @@ impl Runtime {
                     .await
                     .map_err(|error| error.to_string()),
             ),
+            AppEffect::LoadBlame { path, revision } => EffectOutcome::BlameLoaded {
+                path: path.clone(),
+                result: crate::blame::load(self.runner.as_ref(), &path, &revision).await,
+            },
             AppEffect::LoadFileContext { path, revision } => EffectOutcome::FileContextLoaded {
                 path: path.clone(),
                 result: self

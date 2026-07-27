@@ -337,6 +337,7 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
         AppAction::ToggleDiffLayout => toggle_diff_layout(state),
         AppAction::CycleSplitSide => cycle_split_side(state),
         AppAction::ToggleWrap => toggle_wrap(state),
+        AppAction::ToggleBlame => toggle_blame(state),
         AppAction::ToggleComments => {
             state.comments_hidden = !state.comments_hidden;
             refresh_display_rows(state);
@@ -758,6 +759,26 @@ fn config_of(state: &AppState) -> crate::state::AppConfig {
     }
 }
 
+fn toggle_blame(state: &mut AppState) -> Vec<EffectEnvelope> {
+    state.blame_visible = !state.blame_visible;
+    let Some(file) = state.provider.files.get(state.active_file_index) else {
+        return Vec::new();
+    };
+    if !state.blame_visible || state.blame.contains_key(&file.path) {
+        return Vec::new();
+    }
+    let path = file.path.clone();
+    let base = state.provider.base.clone();
+    vec![envelope(
+        state,
+        Some(state.provider.head.clone()),
+        AppEffect::LoadBlame {
+            path,
+            revision: base,
+        },
+    )]
+}
+
 fn toggle_wrap(state: &mut AppState) -> Vec<EffectEnvelope> {
     state.wrap_lines = !state.wrap_lines;
     vec![envelope(
@@ -1101,6 +1122,15 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
                 state.dirty = true;
             }
             Err(message) => state.error_banner = Some(message),
+        },
+        EffectOutcome::BlameLoaded { path, result } => match result {
+            Ok(lines) => {
+                state.blame.insert(path, lines);
+            }
+            Err(message) => {
+                state.blame_visible = false;
+                state.error_banner = Some(message);
+            }
         },
         EffectOutcome::FileContextLoaded { path, result } => match result {
             Ok(content) => {

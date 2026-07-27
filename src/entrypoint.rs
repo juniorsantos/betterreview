@@ -112,7 +112,13 @@ impl InstalledRuntime {
             SessionAccess::ReadOnly { .. } => (None, true),
         };
         let renderer = Arc::new(DeltaRenderer::new(self.runner.clone()));
-        let runtime = Arc::new(crate::app::Runtime::new(key, provider, renderer, handle));
+        let runtime = Arc::new(crate::app::Runtime::new(
+            key,
+            provider,
+            renderer,
+            self.runner.clone(),
+            handle,
+        ));
         let mut app = crate::app::AppState::new(fresh, snapshot);
         let config = crate::state::AppConfig::load(store.paths());
         app.diff_layout = config.diff_layout;

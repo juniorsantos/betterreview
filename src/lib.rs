@@ -1,4 +1,5 @@
 pub mod app;
+pub mod blame;
 pub mod cli;
 pub mod context;
 pub mod diff;

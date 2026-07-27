@@ -9,7 +9,7 @@ use ratatui::{
 use crate::{
     app::{AppFocus, AppState, CommentEntry, CommentRowKind, DisplayRow},
     diff::{RenderedDiff, RenderedRow},
-    domain::{DiffSide, PatchAvailability},
+    domain::{DiffLayout, DiffSide, PatchAvailability},
     tui::{
         text::{display_width, expand_tabs, truncate_to_width},
         theme, viewport,
@@ -19,6 +19,7 @@ use crate::{
 const GUTTER_SPANS: usize = 3;
 const SIDE_GUTTER_WIDTH: usize = 6;
 const MIN_GUTTER_DIGITS: usize = 2;
+const MAX_BLAME_WIDTH: usize = 22;
 
 struct RowLayout<'a> {
     inner_width: usize,
@@ -26,12 +27,37 @@ struct RowLayout<'a> {
     gutter: Gutter,
     commented: &'a std::collections::BTreeSet<usize>,
     moved: &'a std::collections::BTreeSet<usize>,
+    blame: Blame<'a>,
 }
 
 #[derive(Clone, Copy)]
 struct CardLayout {
     inner_width: usize,
     gutter: Gutter,
+}
+
+#[derive(Clone, Copy, Default)]
+struct Blame<'a> {
+    lines: Option<&'a std::collections::BTreeMap<u32, crate::blame::BlameLine>>,
+    width: usize,
+}
+
+impl Blame<'_> {
+    fn cell(self, old: Option<u32>) -> Option<Span<'static>> {
+        let lines = self.lines?;
+        let text = old
+            .and_then(|line| lines.get(&line))
+            .map(|entry| format!("{} {}", entry.author, entry.age))
+            .unwrap_or_default();
+        Some(Span::styled(
+            format!(
+                "{:<width$} ",
+                truncate_to_width(&text, self.width),
+                width = self.width
+            ),
+            Style::default().fg(theme::MUTED),
+        ))
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -117,6 +143,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             .as_ref()
             .map(crate::diff::moved_rows)
             .unwrap_or_default(),
+        blame: blame_for(state),
     };
     let lines = match &state.rendered_diff {
         Some(diff) => state
@@ -177,6 +204,26 @@ fn lift(color: ratatui::style::Color) -> ratatui::style::Color {
             .max(value.saturating_add(24))
     };
     ratatui::style::Color::Rgb(raise(red), raise(green), raise(blue))
+}
+
+fn blame_for(state: &AppState) -> Blame<'_> {
+    if !state.blame_visible || crate::app::effective_layout(state) == DiffLayout::Split {
+        return Blame::default();
+    }
+    let lines = state
+        .provider
+        .files
+        .get(state.active_file_index)
+        .and_then(|file| state.blame.get(&file.path));
+    let width = lines.map_or(0, |lines| {
+        lines
+            .values()
+            .map(|entry| display_width(&entry.author) + 1 + display_width(&entry.age))
+            .max()
+            .unwrap_or(0)
+            .min(MAX_BLAME_WIDTH)
+    });
+    Blame { lines, width }
 }
 
 fn expand_span_tabs(spans: &[Span<'static>], tab_width: usize) -> Vec<Span<'static>> {
@@ -376,6 +423,7 @@ fn render_display_row(
         gutter,
         commented,
         moved,
+        blame,
     } = layout;
     let cursor_on_block = match display_row {
         DisplayRow::Comment { entry, .. } => matches!(
@@ -389,10 +437,13 @@ fn render_display_row(
             diff,
             *row,
             inner_width,
-            gutter,
-            state.tab_width,
-            index == state.display_cursor || commented.contains(row),
-            moved.contains(row),
+            RowStyle {
+                gutter,
+                tab_width: state.tab_width,
+                on_cursor: index == state.display_cursor || commented.contains(row),
+                moved: moved.contains(row),
+                blame,
+            },
         ),
         DisplayRow::Comment {
             entry,
@@ -522,15 +573,27 @@ fn hunk_header_line(state: &AppState, hunk: u32, gutter: Gutter) -> Line<'static
     Line::from(spans)
 }
 
-fn diff_line(
-    diff: &RenderedDiff,
-    row: usize,
-    inner_width: usize,
+struct RowStyle<'a> {
     gutter: Gutter,
     tab_width: usize,
     on_cursor: bool,
     moved: bool,
+    blame: Blame<'a>,
+}
+
+fn diff_line(
+    diff: &RenderedDiff,
+    row: usize,
+    inner_width: usize,
+    style: RowStyle<'_>,
 ) -> Line<'static> {
+    let RowStyle {
+        gutter,
+        tab_width,
+        on_cursor,
+        moved,
+        blame,
+    } = style;
     let Some(rendered_row): Option<&RenderedRow> = diff.rows.get(row) else {
         return Line::default();
     };
@@ -548,6 +611,9 @@ fn diff_line(
         ),
         Span::styled("\u{2502} ", Style::default().fg(theme::BORDER)),
     ];
+    if let Some(cell) = blame.cell(line_of(&rendered_row.binding.left)) {
+        spans.insert(GUTTER_SPANS - 1, cell);
+    }
     spans.extend(expand_span_tabs(&rendered_row.text.spans, tab_width));
     let mut line = Line::from(spans);
     let detected = line

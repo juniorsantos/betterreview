@@ -65,6 +65,7 @@ pub fn key_to_action(event: KeyEvent) -> Option<AppAction> {
         (KeyCode::Char('\\'), _) => Some(AppAction::ToggleDiffLayout),
         (KeyCode::Char('|'), _) => Some(AppAction::CycleSplitSide),
         (KeyCode::Char('w'), KeyModifiers::NONE) => Some(AppAction::ToggleWrap),
+        (KeyCode::Char('b'), KeyModifiers::NONE) => Some(AppAction::ToggleBlame),
         (KeyCode::Char('?'), _) => Some(AppAction::ToggleHelp),
         _ => None,
     };
