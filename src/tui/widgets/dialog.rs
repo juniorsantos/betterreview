@@ -6,7 +6,7 @@
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Clear, Paragraph},
 };
@@ -168,23 +168,23 @@ fn split_zones(body: Rect, zones: &[Zone]) -> Vec<Rect> {
         .to_vec()
 }
 
-/// One row of a menu-style dialog (quit/delete): the selected row carries a
-/// `▶ ` marker, a `theme::SELECTION` background and bold text spanning the
-/// whole row (padding to the inner width happens in `render_dialog`);
-/// unselected rows are plain text with a two-space indent.
-pub(in crate::tui) fn menu_line(label: &str, selected: bool) -> Line<'static> {
-    if selected {
-        // The background must live on the Line itself (not a Span) so
-        // `render_dialog`'s fill-to-width padding below can detect and
-        // extend it — matching the diff/files panel highlight convention.
-        Line::raw(format!("▶ {label}")).style(
-            Style::default()
-                .bg(theme::SELECTION)
-                .add_modifier(Modifier::BOLD),
-        )
+pub(in crate::tui) fn menu_line(label: &str, selected: bool, background: Color) -> Line<'static> {
+    let text = if selected {
+        format!("  ▶  {label}  ")
     } else {
-        Line::raw(format!("  {label}"))
+        format!("     {label}  ")
+    };
+    let mut style = Style::default()
+        .fg(if background == theme::FILLER {
+            theme::FG
+        } else {
+            theme::BG
+        })
+        .bg(background);
+    if selected {
+        style = style.add_modifier(Modifier::BOLD);
     }
+    Line::from(Span::styled(text, style))
 }
 
 /// Centers `hints` horizontally within `width` columns, in `theme::MUTED`.

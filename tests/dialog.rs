@@ -187,7 +187,7 @@ fn dialog_hints_line_is_horizontally_centered() {
 }
 
 #[test]
-fn dialog_selected_menu_row_gets_a_filled_background_and_the_new_marker() {
+fn dialog_actions_are_colored_buttons_with_padding() {
     let mut app = base_app();
     app.quit_dialog = true;
     app.quit_selected = 0;
@@ -198,48 +198,33 @@ fn dialog_selected_menu_row_gets_a_filled_background_and_the_new_marker() {
     let buffer = terminal.backend().buffer().clone();
     let (screen, lines) = screen(&app, 80, 24);
 
-    assert!(screen.contains("▶ Quit keeping the draft"));
+    assert!(screen.contains("▶  Quit keeping the draft"));
     assert!(
         !screen.contains("▸ Quit keeping the draft"),
         "old marker must be gone"
     );
 
-    let selected_row = lines
-        .iter()
-        .position(|line| line.contains("▶ Quit keeping the draft"))
-        .expect("selected row rendered");
-
-    // Derive the dialog's left/right columns from the square top border
-    // (not the selected row's own '│' chars — the underlying files panel
-    // also has '│' borders further left on the same screen row).
-    let top_row = lines
-        .iter()
-        .position(|line| line.contains("┌ Quit review"))
-        .expect("dialog has a top border");
-    let top_chars: Vec<char> = lines[top_row].chars().collect();
-    let box_left = top_chars.iter().position(|&c| c == '┌').unwrap();
-    let box_right = top_chars.iter().rposition(|&c| c == '┐').unwrap();
-
-    // The selection background spans the full row width between the
-    // borders, not just the marker/text glyphs.
-    for x in (box_left as u16 + 1)..(box_right as u16) {
-        let cell = buffer.cell((x, selected_row as u16)).unwrap();
-        assert_eq!(
-            cell.bg,
-            betterreview::tui::theme::SELECTION,
-            "column {x} of the selected row is missing the fill background"
-        );
+    for (label, color) in [
+        ("Quit keeping the draft", betterreview::tui::theme::SUCCESS),
+        (
+            "Quit discarding the draft",
+            betterreview::tui::theme::DANGER,
+        ),
+        ("Cancel", betterreview::tui::theme::FILLER),
+    ] {
+        let row = lines
+            .iter()
+            .position(|line| line.contains(label))
+            .expect("action rendered");
+        let byte = lines[row].find(label).unwrap();
+        let x = lines[row][..byte].chars().count() as u16;
+        let label_width = label.chars().count() as u16;
+        for padding_x in [x - 2, x - 1, x + label_width, x + label_width + 1] {
+            let cell = buffer.cell((padding_x, row as u16)).unwrap();
+            assert_eq!(cell.symbol(), " ");
+            assert_eq!(cell.bg, color);
+        }
     }
-
-    let unselected_row = lines
-        .iter()
-        .position(|line| line.contains("Quit discarding the draft"))
-        .expect("unselected row rendered");
-    assert!(lines[unselected_row].contains("  Quit discarding the draft"));
-    let cell = buffer
-        .cell((box_left as u16 + 1, unselected_row as u16))
-        .unwrap();
-    assert_ne!(cell.bg, betterreview::tui::theme::SELECTION);
 }
 
 #[test]

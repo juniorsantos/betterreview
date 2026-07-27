@@ -130,7 +130,7 @@ fn the_summary_carries_a_caret_and_the_verdicts_are_shortcuts() {
         "the caret marks the focus"
     );
     assert!(
-        screen.contains("[COMMENT]"),
+        screen.contains("[  COMMENT  ]"),
         "the active verdict is highlighted"
     );
     assert!(screen.contains("APPROVE"));
@@ -168,7 +168,12 @@ fn verdict_actions_are_filled_buttons() {
     ] {
         let byte = action_line.find(label).expect("button label rendered");
         let x = action_line[..byte].chars().count() as u16;
-        assert_eq!(buffer.cell((x, action_row)).unwrap().bg, color);
+        let label_width = label.chars().count() as u16;
+        for padding_x in [x - 2, x - 1, x + label_width, x + label_width + 1] {
+            let cell = buffer.cell((padding_x, action_row)).unwrap();
+            assert_eq!(cell.symbol(), " ");
+            assert_eq!(cell.bg, color);
+        }
     }
 }
 

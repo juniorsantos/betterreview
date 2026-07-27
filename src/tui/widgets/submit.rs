@@ -10,9 +10,11 @@ use crate::{
     domain::{ReviewOutcome, Support},
     tui::{
         theme,
-        widgets::dialog::{Dialog, Sizing, render_dialog},
+        widgets::dialog::{Dialog, Sizing, clamped_width, render_dialog},
     },
 };
+
+const DIALOG_WIDTH: u16 = 70;
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let Some(modal) = &state.submission_modal else {
@@ -27,7 +29,12 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let mut body = vec![Line::raw(draft_label), Line::raw("")];
     body.extend(summary_lines(&modal.summary));
     body.push(Line::raw(""));
-    body.push(shortcut_line(state, modal.outcome));
+    let action_width = usize::from(
+        clamped_width(DIALOG_WIDTH, area.width)
+            .saturating_sub(3)
+            .max(1),
+    );
+    body.push(shortcut_line(state, modal.outcome, action_width));
     if let Support::Unsupported { reason } = state.provider.capabilities.for_outcome(modal.outcome)
     {
         body.push(Line::styled(
@@ -44,7 +51,10 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             title: title_line(modal.outcome),
             body,
             hints: "Tab verdict · Enter submit · ⌥Enter new line · Esc cancel",
-            sizing: Sizing::Fixed { width: 70, height },
+            sizing: Sizing::Fixed {
+                width: DIALOG_WIDTH,
+                height,
+            },
             zones: Vec::new(),
         },
     );
@@ -83,7 +93,8 @@ fn summary_lines(summary: &str) -> Vec<Line<'static>> {
     lines
 }
 
-fn shortcut_line(state: &AppState, active: ReviewOutcome) -> Line<'static> {
+fn shortcut_line(state: &AppState, active: ReviewOutcome, available_width: usize) -> Line<'static> {
+    let spacious = available_width >= 49;
     let mut spans = Vec::new();
     for (index, outcome) in [
         ReviewOutcome::Approve,
@@ -94,14 +105,20 @@ fn shortcut_line(state: &AppState, active: ReviewOutcome) -> Line<'static> {
     .enumerate()
     {
         if index > 0 {
-            spans.push(Span::raw(" "));
+            spans.push(Span::raw(if spacious { "  " } else { " " }));
         }
         let supported = matches!(
             state.provider.capabilities.for_outcome(outcome),
             Support::Supported
         );
         let text = if outcome == active {
-            format!("[{}]", label(outcome))
+            if spacious {
+                format!(" [  {}  ] ", label(outcome))
+            } else {
+                format!("[{}]", label(outcome))
+            }
+        } else if spacious {
+            format!("  {}  ", label(outcome))
         } else {
             format!(" {} ", label(outcome))
         };

@@ -2,7 +2,10 @@ use ratatui::{Frame, layout::Rect, text::Line};
 
 use crate::{
     app::AppState,
-    tui::widgets::dialog::{Dialog, Sizing, menu_line, render_dialog},
+    tui::{
+        theme,
+        widgets::dialog::{Dialog, Sizing, menu_line, render_dialog},
+    },
 };
 
 const OPTIONS: [&str; 3] = [
@@ -15,7 +18,14 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let body: Vec<Line> = OPTIONS
         .iter()
         .enumerate()
-        .map(|(index, option)| menu_line(option, index == state.quit_selected))
+        .map(|(index, option)| {
+            let color = match index {
+                0 => theme::SUCCESS,
+                1 => theme::DANGER,
+                _ => theme::FILLER,
+            };
+            menu_line(option, index == state.quit_selected, color)
+        })
         .collect();
     render_dialog(
         frame,

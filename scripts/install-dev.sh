@@ -18,6 +18,8 @@ install -m 755 target/release/betterreview "$DEST/$NAME"
 printf '\n%s instalado em %s\n' "$NAME" "$DEST/$NAME"
 printf '  origem: %s @ %s%s\n' "$BRANCH" "$SHA" "$DIRTY"
 printf '  versão: %s\n' "$("$DEST/$NAME" --version)"
+printf '  executar: %s\n' "$DEST/$NAME"
+printf '  sessões abertas antes da instalação precisam ser encerradas e reabertas\n'
 
 case ":$PATH:" in
   *":$DEST:"*) ;;
