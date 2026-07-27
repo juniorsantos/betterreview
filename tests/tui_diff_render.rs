@@ -635,6 +635,10 @@ fn editor_shows_the_terminal_cursor_at_the_typing_position() {
 
     let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
     terminal.draw(|frame| render(frame, &state)).unwrap();
+    let editor_screen = screen(&terminal);
+    assert!(editor_screen.lines().any(|line| {
+        line.contains("↵ save") && line.contains("⌥↵ new line") && line.contains("⎋ close")
+    }));
     let at_col_3 = terminal.get_cursor_position().unwrap();
     assert_eq!(
         terminal
@@ -1072,10 +1076,17 @@ fn the_action_keys_sit_in_outlined_buttons_below_the_card() {
         .iter()
         .position(|line| line.contains("e edit"))
         .expect("the actions line rendered");
+    let card_row = lines
+        .iter()
+        .position(|line| line.contains("┌─ @you"))
+        .expect("the comment card rendered");
+    let card_left = lines[card_row].find('┌').unwrap();
+    let actions_left = lines[action_row - 1].find('┌').unwrap();
 
     assert!(lines[action_row - 1].contains('┌'));
     assert!(lines[action_row].contains('│'));
     assert!(lines[action_row + 1].contains('└'));
+    assert_eq!(actions_left, card_left);
 }
 
 #[test]

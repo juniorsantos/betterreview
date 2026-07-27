@@ -198,11 +198,14 @@ fn dialog_actions_use_outlines_with_theme_background() {
 
     assert!(!screen.contains('▶'));
 
-    for label in [
+    for (index, label) in [
         "Quit keeping the draft",
         "Quit discarding the draft",
         "Cancel",
-    ] {
+    ]
+    .into_iter()
+    .enumerate()
+    {
         let row = lines
             .iter()
             .position(|line| line.contains(label))
@@ -210,8 +213,13 @@ fn dialog_actions_use_outlines_with_theme_background() {
         let byte = lines[row].find(label).unwrap();
         let x = lines[row][..byte].chars().count() as u16;
         let label_cell = buffer.cell((x, row as u16)).unwrap();
-        assert_eq!(label_cell.fg, betterreview::tui::theme::MUTED);
-        assert_eq!(label_cell.bg, betterreview::tui::theme::BG);
+        let background = if index == 0 {
+            betterreview::tui::theme::ACCENT
+        } else {
+            betterreview::tui::theme::BORDER
+        };
+        assert_eq!(label_cell.fg, betterreview::tui::theme::BG);
+        assert_eq!(label_cell.bg, background);
         assert_eq!(buffer.cell((x - 3, row as u16 - 1)).unwrap().symbol(), "┌");
     }
     let action_rows = [

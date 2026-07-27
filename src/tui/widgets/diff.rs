@@ -837,8 +837,6 @@ fn comment_line(
                 _ => unreachable!(),
             };
             let row = &rows[row_index];
-            let left_pad = card_width.saturating_sub(row.width()) / 2;
-            spans.push(Span::raw(" ".repeat(left_pad)));
             spans.extend(row.spans.clone());
         }
     }

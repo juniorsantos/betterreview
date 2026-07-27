@@ -165,8 +165,15 @@ fn verdict_actions_use_outlines_with_theme_background() {
         let byte = action_line.find(label).expect("button label rendered");
         let x = action_line[..byte].chars().count() as u16;
         let cell = buffer.cell((x, action_row)).unwrap();
-        assert_eq!(cell.fg, theme::MUTED);
-        assert_eq!(cell.bg, theme::BG);
+        assert_eq!(cell.fg, theme::BG);
+        assert_eq!(
+            cell.bg,
+            if label == "COMMENT" {
+                theme::ACCENT
+            } else {
+                theme::BORDER
+            }
+        );
         if label == "COMMENT" {
             let style = cell.style();
             assert!(style.add_modifier.contains(ratatui::style::Modifier::BOLD));

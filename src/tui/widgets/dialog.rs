@@ -192,19 +192,21 @@ pub(in crate::tui) fn outlined_button_rows(
                         Style::default().bg(theme::BG),
                     ));
                 }
-                let border_color = if button.selected {
+                let background = if button.selected {
                     theme::ACCENT
-                } else {
+                } else if button.enabled {
                     theme::BORDER
+                } else {
+                    theme::FILLER
                 };
-                let border_style = Style::default().fg(border_color).bg(theme::BG);
+                let border_style = Style::default().fg(background).bg(background);
                 let mut label_style = Style::default()
                     .fg(if button.enabled {
-                        theme::MUTED
+                        theme::BG
                     } else {
-                        theme::BORDER
+                        theme::MUTED
                     })
-                    .bg(theme::BG);
+                    .bg(background);
                 if button.selected {
                     label_style = label_style.add_modifier(Modifier::BOLD);
                 }
@@ -252,24 +254,6 @@ pub(in crate::tui) fn center_lines(lines: Vec<Line<'static>>, width: usize) -> V
             line
         })
         .collect()
-}
-
-pub(in crate::tui) fn stacked_button_rows(
-    buttons: &[ActionButton<'_>],
-    width: usize,
-    padding: usize,
-) -> Vec<Line<'static>> {
-    let mut lines = Vec::new();
-    for (index, button) in buttons.iter().enumerate() {
-        if index > 0 {
-            lines.push(Line::styled("", Style::default().bg(theme::BG)));
-        }
-        lines.extend(center_lines(
-            outlined_button_rows(&[*button], 0, padding),
-            width,
-        ));
-    }
-    lines
 }
 
 /// Centers `hints` horizontally within `width` columns, in `theme::MUTED`.
