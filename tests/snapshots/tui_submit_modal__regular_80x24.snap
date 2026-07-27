@@ -9,16 +9,16 @@ expression: "redact_version(screen(&app_with_drafts(3), 80, 24))"
 │  [ ] M app.rs    0/1 +1 -1 ││                                                │
 │                            ││                                                │
 │                            ││                                                │
-│       ╭ Submit review · COMMENT ─────────────────────────────────────╮       │
+│       ┌ Submit review · COMMENT ─────────────────────────────────────┐       │
 │       │ 3 drafts will be published                                   │       │
 │       │                                                              │       │
 │       │ Summary                                                      │       │
 │       │ Ready to merge▌                                              │       │
 │       │                                                              │       │
-│       │ approve · request changes · [COMMENT]                        │       │
+│       │  APPROVE   REQUEST CHANGES  [COMMENT]                        │       │
 │       │                                                              │       │
 │       │  Tab verdict · Enter submit · ⌥Enter new line · Esc cancel   │       │
-│       ╰──────────────────────────────────────────────────────────────╯       │
+│       └──────────────────────────────────────────────────────────────┘       │
 │                            ││                                                │
 │                            ││                                                │
 │                            ││                                                │

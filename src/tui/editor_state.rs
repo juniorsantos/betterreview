@@ -1,4 +1,5 @@
 use unicode_segmentation::UnicodeSegmentation;
+use unicode_width::UnicodeWidthStr;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EditorState {
@@ -35,6 +36,21 @@ impl EditorState {
     pub fn insert_char(&mut self, value: char) {
         let mut encoded = [0; 4];
         self.insert_text(value.encode_utf8(&mut encoded));
+    }
+
+    pub fn insert_char_wrapped(&mut self, value: char, max_width: usize) {
+        if self.read_only {
+            return;
+        }
+        self.normalize_cursor();
+        let byte = byte_index(&self.lines[self.row], self.grapheme_col);
+        let prefix_width = UnicodeWidthStr::width(&self.lines[self.row][..byte]);
+        let mut encoded = [0; 4];
+        let value = value.encode_utf8(&mut encoded);
+        if prefix_width > 0 && prefix_width + UnicodeWidthStr::width(value) > max_width.max(1) {
+            self.insert_text("\n");
+        }
+        self.insert_text(value);
     }
 
     pub fn insert_text(&mut self, value: &str) {

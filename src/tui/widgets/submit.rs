@@ -94,30 +94,26 @@ fn shortcut_line(state: &AppState, active: ReviewOutcome) -> Line<'static> {
     .enumerate()
     {
         if index > 0 {
-            spans.push(Span::styled(" · ", Style::default().fg(theme::BORDER)));
+            spans.push(Span::raw(" "));
         }
         let supported = matches!(
             state.provider.capabilities.for_outcome(outcome),
             Support::Supported
         );
-        spans.push(if outcome == active {
-            Span::styled(
-                format!("[{}]", label(outcome)),
-                Style::default()
-                    .fg(theme::BG)
-                    .bg(color(outcome))
-                    .add_modifier(Modifier::BOLD),
-            )
+        let text = if outcome == active {
+            format!("[{}]", label(outcome))
         } else {
-            Span::styled(
-                label(outcome).to_lowercase(),
-                Style::default().fg(if supported {
-                    theme::MUTED
-                } else {
-                    theme::BORDER
-                }),
-            )
-        });
+            format!(" {} ", label(outcome))
+        };
+        let mut style = if supported {
+            Style::default().fg(theme::BG).bg(color(outcome))
+        } else {
+            Style::default().fg(theme::MUTED).bg(theme::FILLER)
+        };
+        if outcome == active {
+            style = style.add_modifier(Modifier::BOLD);
+        }
+        spans.push(Span::styled(text, style));
     }
     Line::from(spans)
 }
@@ -132,7 +128,7 @@ fn label(outcome: ReviewOutcome) -> &'static str {
 
 fn color(outcome: ReviewOutcome) -> ratatui::style::Color {
     match outcome {
-        ReviewOutcome::Comment => theme::ACCENT,
+        ReviewOutcome::Comment => theme::COMMENT,
         ReviewOutcome::Approve => theme::SUCCESS,
         ReviewOutcome::RequestChanges => theme::WARNING,
     }

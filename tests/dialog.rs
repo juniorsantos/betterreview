@@ -94,13 +94,14 @@ fn screen(state: &AppState, width: u16, height: u16) -> (String, Vec<String>) {
 }
 
 #[test]
-fn dialog_uses_a_rounded_border() {
+fn dialog_uses_a_square_border() {
     let mut app = base_app();
     app.quit_dialog = true;
 
     let (screen, _) = screen(&app, 80, 24);
 
-    assert!(screen.contains('╭'), "expected a rounded corner glyph");
+    assert!(screen.contains('┌'), "expected a square corner glyph");
+    assert!(!screen.contains('╭'), "rounded corners must not be used");
 }
 
 #[test]
@@ -124,10 +125,10 @@ fn dialog_places_hints_as_the_last_inner_line_with_key_styling() {
     let buffer = terminal.backend().buffer().clone();
     let (_, lines) = screen(&app, 80, 24);
 
-    // Find the box: locate the bottom border row (contains '╰').
+    // Find the box: locate the bottom border row (contains '└').
     let bottom_row = lines
         .iter()
-        .position(|line| line.contains('╰'))
+        .position(|line| line.contains('└'))
         .expect("dialog has a bottom border");
     let hint_row = bottom_row - 1;
     assert!(
@@ -157,15 +158,15 @@ fn dialog_hints_line_is_horizontally_centered() {
 
     let top_row = lines
         .iter()
-        .position(|line| line.contains('╭'))
+        .position(|line| line.contains("┌ Quit review"))
         .expect("dialog has a top border");
     let bottom_row = lines
         .iter()
-        .position(|line| line.contains('╰'))
+        .position(|line| line.contains('└'))
         .expect("dialog has a bottom border");
     let box_chars: Vec<char> = lines[top_row].chars().collect();
-    let box_left = box_chars.iter().position(|&c| c == '╭').unwrap();
-    let box_right = box_chars.iter().rposition(|&c| c == '╮').unwrap();
+    let box_left = box_chars.iter().position(|&c| c == '┌').unwrap();
+    let box_right = box_chars.iter().rposition(|&c| c == '┐').unwrap();
 
     let hint_text = "j/k move · Enter confirm · Esc cancel";
     let hint_row = bottom_row - 1;
@@ -208,16 +209,16 @@ fn dialog_selected_menu_row_gets_a_filled_background_and_the_new_marker() {
         .position(|line| line.contains("▶ Quit keeping the draft"))
         .expect("selected row rendered");
 
-    // Derive the dialog's left/right columns from the rounded top border
+    // Derive the dialog's left/right columns from the square top border
     // (not the selected row's own '│' chars — the underlying files panel
     // also has '│' borders further left on the same screen row).
     let top_row = lines
         .iter()
-        .position(|line| line.contains('╭'))
+        .position(|line| line.contains("┌ Quit review"))
         .expect("dialog has a top border");
     let top_chars: Vec<char> = lines[top_row].chars().collect();
-    let box_left = top_chars.iter().position(|&c| c == '╭').unwrap();
-    let box_right = top_chars.iter().rposition(|&c| c == '╮').unwrap();
+    let box_left = top_chars.iter().position(|&c| c == '┌').unwrap();
+    let box_right = top_chars.iter().rposition(|&c| c == '┐').unwrap();
 
     // The selection background spans the full row width between the
     // borders, not just the marker/text glyphs.
@@ -250,13 +251,13 @@ fn dialog_is_centered_and_never_wider_than_eighty_percent_of_the_area() {
 
     let top_row = lines
         .iter()
-        .position(|line| line.contains('╭'))
+        .position(|line| line.contains("┌ Quit review"))
         .expect("dialog has a top border");
     // `symbol()` cells are joined as UTF-8 text, so box-drawing glyphs are
     // multi-byte: locate columns by character index, not byte offset.
     let chars: Vec<char> = lines[top_row].chars().collect();
-    let left = chars.iter().position(|&c| c == '╭').unwrap();
-    let right = chars.iter().rposition(|&c| c == '╮').unwrap();
+    let left = chars.iter().position(|&c| c == '┌').unwrap();
+    let right = chars.iter().rposition(|&c| c == '┐').unwrap();
     let width = right - left + 1;
 
     assert!(
@@ -306,8 +307,8 @@ fn box_height(screen: &str) -> usize {
 fn box_width(screen: &str) -> usize {
     screen
         .lines()
-        .find(|line| line.contains('╭'))
-        .map(|line| line.trim_end().len() - line.find('╭').unwrap())
+        .find(|line| line.contains('┌'))
+        .map(|line| line.trim_end().len() - line.find('┌').unwrap())
         .unwrap_or(0)
 }
 

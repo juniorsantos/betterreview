@@ -20,7 +20,10 @@ use super::{
     EditorState, KeyMap,
     layout::screen_layout,
     render, viewport,
-    widgets::files::{self, FilesRow},
+    widgets::{
+        editor as editor_widget,
+        files::{self, FilesRow},
+    },
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -323,7 +326,7 @@ fn editor_key(app: &mut AppState, key: KeyEvent) -> Option<AppEvent> {
     };
     match (key.code, key.modifiers) {
         (KeyCode::Char(value), KeyModifiers::NONE | KeyModifiers::SHIFT) => {
-            editor.insert_char(value)
+            editor.insert_char_wrapped(value, editor_widget::text_width(app.terminal_width))
         }
         (KeyCode::Enter, modifiers) if modifiers.contains(KeyModifiers::ALT) => {
             editor.insert_text("\n")

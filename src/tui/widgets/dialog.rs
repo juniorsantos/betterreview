@@ -1,4 +1,4 @@
-//! Unified modal component: a rounded box with the title on the border and a
+//! Unified modal component: a square box with the title on the border and a
 //! standardized muted hint footer as the last inner line. Every dialog in the
 //! TUI (quit, delete, help, submit, editor) renders through this so the look
 //! stays identical everywhere.
@@ -63,10 +63,14 @@ impl Dialog<'_> {
             }
         };
         (
-            width.min(((area.width as u32) * 4 / 5) as u16).max(1),
+            clamped_width(width, area.width),
             height.min(((area.height as u32) * 4 / 5) as u16).max(1),
         )
     }
+}
+
+pub(in crate::tui) fn clamped_width(width: u16, area_width: u16) -> u16 {
+    width.min(((area_width as u32) * 4 / 5) as u16).max(1)
 }
 
 /// Renders `dialog` centered in `area` (clamped to 80% of it) and returns the
@@ -85,7 +89,7 @@ pub fn render_dialog(frame: &mut Frame, area: Rect, dialog: Dialog) -> Vec<Rect>
     let block = Block::default()
         .title(dialog.title)
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(BorderType::Plain)
         .border_style(Style::default().fg(theme::ACCENT));
     let inner = block.inner(outer);
 

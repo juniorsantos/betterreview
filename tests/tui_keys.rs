@@ -153,6 +153,27 @@ fn alt_enter_inserts_a_newline_instead_of_saving() {
 }
 
 #[test]
+fn typing_at_the_comment_edge_inserts_a_real_newline() {
+    let mut app = app_with_editor(vec!["x".repeat(61)]);
+    app.terminal_width = 80;
+    let editor = app.session.editor.as_mut().unwrap();
+    editor.grapheme_col = 61;
+    let mut keymap = KeyMap::default();
+
+    let event = handle_key(
+        &mut app,
+        &mut keymap,
+        key(KeyCode::Char('y'), KeyModifiers::NONE),
+    );
+
+    assert!(event.is_none());
+    assert_eq!(
+        app.session.editor.as_ref().unwrap().lines,
+        vec!["x".repeat(61), "y".into()]
+    );
+}
+
+#[test]
 fn ctrl_s_remains_an_alias_to_save_the_editor() {
     let mut app = app_with_editor(vec!["corpo".into()]);
     let mut keymap = KeyMap::default();

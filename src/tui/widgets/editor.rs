@@ -2,8 +2,18 @@ use ratatui::{Frame, layout::Rect, text::Line};
 
 use crate::{
     app::AppState,
-    tui::widgets::dialog::{Dialog, Sizing, render_dialog},
+    tui::widgets::dialog::{Dialog, Sizing, clamped_width, render_dialog},
 };
+
+const DIALOG_WIDTH: u16 = 76;
+
+pub(in crate::tui) fn text_width(terminal_width: u16) -> usize {
+    usize::from(
+        clamped_width(DIALOG_WIDTH, terminal_width)
+            .saturating_sub(3)
+            .max(1),
+    )
+}
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     if !state.editor_open {
@@ -37,7 +47,7 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             body,
             hints,
             sizing: Sizing::Fixed {
-                width: 76,
+                width: DIALOG_WIDTH,
                 height: 14,
             },
             zones: Vec::new(),

@@ -8,7 +8,7 @@ use betterreview::{
         ReviewOutcome, Support,
     },
     state::{ContentIdentity, FileProgress, ReviewSync, SESSION_SCHEMA_VERSION, SessionSnapshot},
-    tui::render,
+    tui::{render, theme},
 };
 use ratatui::{Terminal, backend::TestBackend};
 use time::OffsetDateTime;
@@ -133,12 +133,51 @@ fn the_summary_carries_a_caret_and_the_verdicts_are_shortcuts() {
         screen.contains("[COMMENT]"),
         "the active verdict is highlighted"
     );
-    assert!(screen.contains("approve"));
-    assert!(screen.contains("request changes"));
+    assert!(screen.contains("APPROVE"));
+    assert!(screen.contains("REQUEST CHANGES"));
     assert!(
         screen.contains("Tab verdict"),
         "Tab always reaches the app, unlike option+letter on macOS"
     );
+}
+
+#[test]
+fn verdict_actions_are_filled_buttons() {
+    let backend = TestBackend::new(80, 24);
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal
+        .draw(|frame| render(frame, &app_with_drafts(1)))
+        .unwrap();
+    let buffer = terminal.backend().buffer();
+    let (action_row, action_line) = (0..24)
+        .find_map(|y| {
+            let line = (0..80)
+                .map(|x| buffer.cell((x, y)).unwrap().symbol())
+                .collect::<String>();
+            (line.contains("APPROVE")
+                && line.contains("REQUEST CHANGES")
+                && line.contains("COMMENT"))
+            .then_some((y, line))
+        })
+        .expect("action buttons rendered");
+
+    for (label, color) in [
+        ("APPROVE", theme::SUCCESS),
+        ("REQUEST CHANGES", theme::WARNING),
+        ("COMMENT", theme::COMMENT),
+    ] {
+        let byte = action_line.find(label).expect("button label rendered");
+        let x = action_line[..byte].chars().count() as u16;
+        assert_eq!(buffer.cell((x, action_row)).unwrap().bg, color);
+    }
+}
+
+#[test]
+fn submission_modal_uses_square_corners() {
+    let screen = screen(&app_with_drafts(1), 80, 24);
+
+    assert!(screen.contains("┌ Submit review"));
+    assert!(!screen.contains("╭ Submit review"));
 }
 
 #[test]
@@ -173,7 +212,7 @@ fn submission_modal_remains_usable_on_a_small_terminal() {
 
     assert!(screen.contains("Submit review"));
     assert!(screen.contains("2 drafts"));
-    assert!(screen.contains("approve"));
+    assert!(screen.contains("APPROVE"));
 }
 
 fn redact_version(screen: String) -> String {
@@ -204,11 +243,11 @@ fn the_modal_grows_with_the_summary_instead_of_leaving_dead_rows() {
         let lines: Vec<&str> = screen.lines().collect();
         let top = lines
             .iter()
-            .position(|line| line.contains("╭ Submit review"))
+            .position(|line| line.contains("┌ Submit review"))
             .expect("modal top border");
         let bottom = lines
             .iter()
-            .position(|line| line.contains('╰'))
+            .position(|line| line.contains('└'))
             .expect("modal bottom border");
         bottom - top
     };
