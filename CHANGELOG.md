@@ -3,6 +3,28 @@
 All notable changes to this project are documented in this file, generated
 from conventional commits by [release-please](https://github.com/googleapis/release-please).
 
+## [1.1.0](https://github.com/juniorsantos/betterreview/compare/v1.0.0...v1.1.0)
+
+
+### Features
+
+* outline modal and comment actions ([86a1ebc](https://github.com/juniorsantos/betterreview/commit/86a1ebc5dce6445950b6979d5f3ebece2b6124fc))
+* polish modal and comment surfaces ([b23eaa4](https://github.com/juniorsantos/betterreview/commit/b23eaa4352ea480a06bb97ed5896559880917f44))
+* refine modal styling and comment wrapping ([23c40a6](https://github.com/juniorsantos/betterreview/commit/23c40a63b5c40deb2435160b714d09ca107ff79d))
+
+
+### Bug Fixes
+
+* adjust action button padding ([50a55c6](https://github.com/juniorsantos/betterreview/commit/50a55c690e5957e8ed1b48c9fd5b4d4464a268d9))
+* align and fill action buttons ([6ecba39](https://github.com/juniorsantos/betterreview/commit/6ecba39f8e77c4498666585f9227980e76782e48))
+* clean compact button borders ([c71d149](https://github.com/juniorsantos/betterreview/commit/c71d1499ec7f9f37172ae14931b861a51ae34935))
+* compact themed action buttons ([bb5d446](https://github.com/juniorsantos/betterreview/commit/bb5d4467a1d4dce10162b6e8c5629abebeea89b4))
+* reduce action button footprint ([a0eef79](https://github.com/juniorsantos/betterreview/commit/a0eef79ad5e36311e165d4d48369305de3e2a4aa))
+* reduce action button height ([e41ee74](https://github.com/juniorsantos/betterreview/commit/e41ee746f5d497034ec0c70347ec7bbd925218a5))
+* refine review dialogs and comment actions ([b7d09c3](https://github.com/juniorsantos/betterreview/commit/b7d09c31eab385a3dc2e90190a1c41da3a7b10e8))
+* simplify action button surfaces ([ae39d28](https://github.com/juniorsantos/betterreview/commit/ae39d28cc85f5a9dce3ecef65ec9df3a7192a5a8))
+* strengthen modal action buttons ([19d59b2](https://github.com/juniorsantos/betterreview/commit/19d59b2d16eda61f0fe8fd30b7e2a1ac41ec8f88))
+
 ## [1.0.0](https://github.com/juniorsantos/betterreview/compare/v0.5.0...v1.0.0)
 
 
