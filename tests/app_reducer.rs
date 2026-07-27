@@ -3064,3 +3064,87 @@ fn a_failed_write_reports_the_error_instead_of_refetching() {
     );
     assert_eq!(state.error_banner.as_deref(), Some("nope"));
 }
+
+#[test]
+fn finishing_a_reply_persists_the_closed_editor() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    state.session.editor = Some(betterreview::state::EditorSnapshot {
+        lines: vec!["answered already".into()],
+        cursor_row: 0,
+        grapheme_col: 0,
+        original_head: state.provider.head.clone(),
+        path: RepoPath("src/file_0.rs".into()),
+        selection: DiffSelection {
+            start: comment_pos(&RepoPath("src/file_0.rs".into()), DiffSide::Right, 1),
+            end: comment_pos(&RepoPath("src/file_0.rs".into()), DiffSide::Right, 1),
+        },
+        stale: false,
+    });
+    state.editor_open = true;
+    state.dirty = false;
+    let head = state.provider.head.clone();
+
+    update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: 1,
+            generation: Some(head),
+            outcome: EffectOutcome::ThreadUpdated(Ok(betterreview::domain::ReviewThread {
+                id: betterreview::domain::ThreadId("t1".into()),
+                path: RepoPath("src/file_0.rs".into()),
+                resolved: false,
+                outdated: false,
+                comments: Vec::new(),
+            })),
+        })),
+    );
+
+    assert!(state.session.editor.is_none(), "the editor closed");
+
+    let effects = update(&mut state, AppEvent::Tick);
+    let saved = effects
+        .iter()
+        .find_map(|envelope| match &envelope.effect {
+            AppEffect::SaveSession { snapshot } => Some(snapshot),
+            _ => None,
+        })
+        .expect("closing the editor has to reach the session file, or it comes back on relaunch");
+
+    assert!(saved.editor.is_none());
+}
+
+#[test]
+fn a_completed_submit_persists_that_nothing_is_pending_any_more() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    state.session.pending_submit = Some(betterreview::state::PendingSubmit {
+        summary: "done".into(),
+        outcome: betterreview::domain::ReviewOutcome::Comment,
+        mode: betterreview::domain::SubmitMode::Full,
+    });
+    state.dirty = false;
+    let head = state.provider.head.clone();
+
+    update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: 1,
+            generation: Some(head),
+            outcome: EffectOutcome::ReviewSubmitted(Ok(
+                betterreview::domain::SubmitResult::Complete,
+            )),
+        })),
+    );
+
+    assert!(state.session.pending_submit.is_none());
+
+    let effects = update(&mut state, AppEvent::Tick);
+    let saved = effects
+        .iter()
+        .find_map(|envelope| match &envelope.effect {
+            AppEffect::SaveSession { snapshot } => Some(snapshot),
+            _ => None,
+        })
+        .expect("a submitted review must not come back as pending on relaunch");
+
+    assert!(saved.pending_submit.is_none());
+}

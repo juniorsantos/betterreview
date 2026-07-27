@@ -1051,6 +1051,7 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
                 state.session.editor = None;
                 state.editor_open = false;
                 state.editing_draft = None;
+                state.dirty = true;
                 refresh_display_rows(state);
             }
             Err(message) => state.error_banner = Some(message),
@@ -1062,6 +1063,7 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
                 state.session.editor = None;
                 state.editor_open = false;
                 state.replying_thread = None;
+                state.dirty = true;
                 refresh_display_rows(state);
                 return vec![envelope(
                     state,
@@ -1081,6 +1083,7 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
         EffectOutcome::ReviewSubmitted(result) => match result {
             Ok(SubmitResult::Complete) => {
                 state.session.pending_submit = None;
+                state.dirty = true;
                 // Published drafts are still sitting in provider.drafts as
                 // interactive blocks; refresh the snapshot so they turn into
                 // read-only submitted comments.
