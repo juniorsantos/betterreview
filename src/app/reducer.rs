@@ -108,6 +108,10 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
             copy_to_clipboard(state, super::copy::CopyTarget::LineOrSelection)
         }
         AppAction::CopyHunk => copy_to_clipboard(state, super::copy::CopyTarget::Hunk),
+        AppAction::CopyPatchHunk => copy_to_clipboard(state, super::copy::CopyTarget::PatchHunk),
+        AppAction::CopyAllComments => {
+            copy_to_clipboard(state, super::copy::CopyTarget::AllComments)
+        }
         AppAction::MoveCursor(delta) => match state.focus {
             AppFocus::Files => navigate_by(state, delta.signum()),
             AppFocus::Diff => move_display_cursor(state, delta),

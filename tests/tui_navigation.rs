@@ -300,7 +300,7 @@ fn maps_navigation_keys_and_ignores_release_events() {
 }
 
 #[test]
-fn maps_clean_copy_shortcuts() {
+fn maps_copy_shortcuts() {
     assert_eq!(
         format!(
             "{:?}",
@@ -314,6 +314,20 @@ fn maps_clean_copy_shortcuts() {
             key_to_action(KeyEvent::new(KeyCode::Char('Y'), KeyModifiers::SHIFT))
         ),
         "Some(CopyHunk)"
+    );
+    assert_eq!(
+        format!(
+            "{:?}",
+            key_to_action(KeyEvent::new(KeyCode::Char('p'), KeyModifiers::NONE))
+        ),
+        "Some(CopyPatchHunk)"
+    );
+    assert_eq!(
+        format!(
+            "{:?}",
+            key_to_action(KeyEvent::new(KeyCode::Char('C'), KeyModifiers::SHIFT))
+        ),
+        "Some(CopyAllComments)"
     );
 }
 

@@ -22,6 +22,7 @@ Aprove, solicite mudanças ou comente sem perder o diff e os rascunhos visíveis
 - Comentários inline em cartões: criar (`c`), editar (`e`), excluir (`x`), responder (`r`) e sugestões de código (`s`)
 - Seleção de linha ou bloco (`v`) para comentar exatamente como no GitHub
 - Cópia limpa para o clipboard: linha ou seleção atual (`y`) e hunk atual (`Y`)
+- Compartilhamento da revisão: hunk como patch bruto (`p`) ou todos os comentários como Markdown (`C`)
 - Arquivos em árvore com checkbox de revisado (`m`), pastas recolhíveis e arquivos gerados de-emfatizados
 - Saltos rápidos: primeira/última linha do diff ou arquivo (`gg`/`G`), próximo hunk (`]h`), próximo comentário (`]c`), próximo arquivo (`]f`), próximo não revisado (`]u`)
 - Busca no diff (`/`, `n`/`N`), suporte a mouse (scroll e clique)
@@ -141,6 +142,7 @@ betterreview completions fish > ~/.config/fish/completions/betterreview.fish
 | `c` | comentar na linha ou seleção |
 | `s` | sugerir código na seleção |
 | `y` / `Y` | copiar a linha ou seleção atual / hunk atual |
+| `p` / `C` | copiar o hunk como patch bruto / todos os comentários como Markdown |
 | `e` / `x` / `r` | editar / excluir / responder comentário sob o cursor |
 | `m` | marcar arquivo como revisado |
 | `z` | expandir trecho oculto do diff (ou recolher pasta no painel Arquivos) |

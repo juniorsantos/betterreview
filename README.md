@@ -22,6 +22,7 @@ Approve, request changes or comment without losing the diff and draft context be
 - Inline comments as cards: create (`c`), edit (`e`), delete (`x`), reply (`r`) and code suggestions (`s`)
 - Line or block selection (`v`) to comment exactly like on GitHub
 - Clean clipboard copying: current line or selection (`y`) and current hunk (`Y`)
+- Portable review sharing: raw patch hunk (`p`) or every comment as Markdown (`C`)
 - File tree with reviewed checkboxes (`m`), collapsible folders and de-emphasized generated files
 - Quick jumps: first/last diff row or file (`gg`/`G`), next hunk (`]h`), next comment (`]c`), next file (`]f`), next unreviewed (`]u`)
 - In-diff search (`/`, `n`/`N`), mouse support (scroll and click)
@@ -141,6 +142,7 @@ betterreview completions fish > ~/.config/fish/completions/betterreview.fish
 | `c` | comment on the line or selection |
 | `s` | suggest code on the selection |
 | `y` / `Y` | copy the current line or selection / current hunk |
+| `p` / `C` | copy the current raw patch hunk / all comments as Markdown |
 | `e` / `x` / `r` | edit / delete / reply to the comment under the cursor |
 | `m` | mark file as reviewed |
 | `z` | expand hidden diff context (or collapse folder in the Files panel) |
