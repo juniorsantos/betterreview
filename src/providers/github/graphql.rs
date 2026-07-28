@@ -36,7 +36,11 @@ pub const LIST_OPEN_QUERY: &str = r#"
 query ListOpen($owner: String!, $name: String!) {
   repository(owner: $owner, name: $name) {
     pullRequests(states: OPEN, first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) {
-      nodes { number title isDraft updatedAt headRefName url body author { login } }
+      nodes {
+        number title isDraft updatedAt headRefName headRefOid url body
+        author { login }
+        viewerLatestReview { state commit { oid } }
+      }
     }
   }
 }

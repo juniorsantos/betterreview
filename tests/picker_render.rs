@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use betterreview::{
-    domain::ChangeRequestSummary,
+    domain::{ChangeRequestSummary, CommitOid},
     tui::{
         picker::{PickerItem, PickerState, age, render},
         theme,
@@ -20,6 +20,8 @@ fn summary(number: u64, author: &str, branch: &str, draft: bool) -> ChangeReques
         draft,
         web_url: format!("https://github.com/owner/repo/pull/{number}"),
         description: String::new(),
+        head: CommitOid(format!("head-{number}")),
+        reviewed_head: None,
     }
 }
 
@@ -101,6 +103,22 @@ fn renders_items_with_pin_and_metadata() {
     assert!(screen.contains("@jsjunior"));
     assert!(screen.contains("feature/login"));
     assert!(screen.contains("draft"));
+}
+
+#[test]
+fn renders_reviewed_only_when_the_review_matches_the_current_head() {
+    let mut reviewed = item(42, "jsjunior", "feature/login", false, false);
+    reviewed.summary.reviewed_head = Some(reviewed.summary.head.clone());
+    let mut stale = item(43, "dev", "feature/changed", false, false);
+    stale.summary.reviewed_head = Some(CommitOid("previous-head".into()));
+    let picker = state(vec![reviewed, stale], 0);
+
+    let screen = screen(&draw(&picker));
+    let reviewed_row = screen.lines().find(|line| line.contains("#42")).unwrap();
+    let stale_row = screen.lines().find(|line| line.contains("#43")).unwrap();
+
+    assert!(reviewed_row.contains("✓ reviewed"));
+    assert!(!stale_row.contains("✓ reviewed"));
 }
 
 #[test]

@@ -19,6 +19,8 @@ fn summary(number: u64, branch: &str) -> ChangeRequestSummary {
         draft: false,
         web_url: format!("https://example.com/{number}"),
         description: String::new(),
+        head: CommitOid(format!("head-{number}")),
+        reviewed_head: None,
     }
 }
 

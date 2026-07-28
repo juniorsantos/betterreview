@@ -116,7 +116,23 @@ pub struct MergeRequestSummary {
     pub draft: bool,
     pub updated_at: String,
     pub source_branch: String,
+    pub sha: String,
     pub web_url: String,
     pub author: Author,
     pub description: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct MergeRequestDiffVersion {
+    pub head_commit_sha: String,
+    pub created_at: String,
+}
+
+#[derive(Deserialize)]
+pub struct MergeRequestNote {
+    pub author: Author,
+    pub body: String,
+    pub created_at: String,
+    #[serde(default)]
+    pub system: bool,
 }

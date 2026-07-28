@@ -13,6 +13,7 @@ use url::form_urlencoded::byte_serialize;
 
 /// How many repository blob lookups may run at once.
 const BLOB_CONCURRENCY: usize = 8;
+const REVIEW_CONCURRENCY: usize = 8;
 
 use crate::{
     context::DiscoveryInput,
@@ -29,8 +30,8 @@ use self::{
     client::GlabClient,
     position::{position, selection},
     wire::{
-        Approvals, Blob, Changes, Diff, Discussion, DraftNote, MergeRequest, MergeRequestSummary,
-        VersionInfo,
+        Approvals, Author, Blob, Changes, Diff, Discussion, DraftNote, MergeRequest,
+        MergeRequestDiffVersion, MergeRequestNote, MergeRequestSummary, VersionInfo,
     },
 };
 use super::{DraftBody, NewDraftComment, ProviderError, ReviewProvider};
@@ -68,6 +69,60 @@ where
                 },
                 error => error,
             })
+    }
+
+    async fn reviewed_head(
+        &self,
+        host: &str,
+        project: &str,
+        number: u64,
+        head: &CommitOid,
+        viewer: &str,
+    ) -> Option<CommitOid> {
+        let root = format!("projects/{project}/merge_requests/{number}");
+        let versions_endpoint = format!("{root}/versions");
+        let notes_endpoint = format!("{root}/notes?order_by=created_at&sort=desc&per_page=100");
+        let (versions, notes) = tokio::join!(
+            self.read_api(
+                host,
+                api_args(host, [versions_endpoint.as_str()]),
+                "load merge request versions",
+            ),
+            self.read_api(
+                host,
+                api_args(host, [notes_endpoint.as_str()]),
+                "load merge request notes",
+            ),
+        );
+        let versions: Vec<MergeRequestDiffVersion> =
+            parse_json(&versions.ok()?, "load merge request versions").ok()?;
+        let notes: Vec<MergeRequestNote> =
+            parse_json(&notes.ok()?, "load merge request notes").ok()?;
+        let version = versions
+            .into_iter()
+            .find(|version| version.head_commit_sha == head.as_ref())?;
+        let version_created = time::OffsetDateTime::parse(
+            &version.created_at,
+            &time::format_description::well_known::Rfc3339,
+        )
+        .ok()?;
+        notes
+            .into_iter()
+            .filter(|note| note.author.username == viewer)
+            .filter(|note| {
+                !note.system
+                    || note.body.contains("approved this merge request")
+                    || note.body.contains("requested changes")
+            })
+            .filter_map(|note| {
+                time::OffsetDateTime::parse(
+                    &note.created_at,
+                    &time::format_description::well_known::Rfc3339,
+                )
+                .ok()
+            })
+            .any(|created_at| created_at >= version_created)
+            .then(|| head.clone())
     }
 
     async fn load_diffs(
@@ -394,7 +449,7 @@ where
                 .await?,
             "list open merge requests",
         )?;
-        summaries
+        let items: Vec<ChangeRequestSummary> = summaries
             .into_iter()
             .map(|summary| {
                 Ok(ChangeRequestSummary {
@@ -410,9 +465,32 @@ where
                     draft: summary.draft,
                     web_url: summary.web_url,
                     description: summary.description.unwrap_or_default(),
+                    head: CommitOid(summary.sha),
+                    reviewed_head: None,
                 })
             })
-            .collect()
+            .collect::<Result<_, ProviderError>>()?;
+        let viewer: Author = match self
+            .read_api(host, api_args(host, ["user"]), "load current user")
+            .await
+            .and_then(|bytes| parse_json(&bytes, "load current user"))
+        {
+            Ok(viewer) => viewer,
+            Err(_) => return Ok(items),
+        };
+        Ok(stream::iter(items.into_iter().map(|mut item| {
+            let project = project.clone();
+            let viewer = viewer.username.clone();
+            async move {
+                item.reviewed_head = self
+                    .reviewed_head(host, &project, item.number, &item.head, &viewer)
+                    .await;
+                item
+            }
+        }))
+        .buffered(REVIEW_CONCURRENCY)
+        .collect()
+        .await)
     }
 
     async fn load(&self, key: &ChangeRequestKey) -> Result<ProviderSnapshot, ProviderError> {

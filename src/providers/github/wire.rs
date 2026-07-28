@@ -139,9 +139,23 @@ pub struct ListNode {
     pub is_draft: bool,
     pub updated_at: String,
     pub head_ref_name: String,
+    pub head_ref_oid: String,
     pub url: String,
     pub author: Option<Author>,
     pub body: Option<String>,
+    pub viewer_latest_review: Option<ListReview>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListReview {
+    pub state: String,
+    pub commit: Option<ListCommit>,
+}
+
+#[derive(Deserialize)]
+pub struct ListCommit {
+    pub oid: String,
 }
 
 #[derive(Deserialize)]

@@ -600,6 +600,12 @@ fn item_line(
             Style::default().fg(theme::WARNING),
         ));
     }
+    if item.summary.reviewed_current_head() {
+        spans.push(Span::styled(
+            " ✓ reviewed",
+            Style::default().fg(theme::SUCCESS),
+        ));
+    }
 
     let mut line = Line::from(spans);
 
@@ -1059,6 +1065,8 @@ mod tests {
                     draft: false,
                     web_url: String::new(),
                     description: String::new(),
+                    head: crate::domain::CommitOid(format!("head-{number}")),
+                    reviewed_head: None,
                 },
                 has_session: false,
                 current_branch: false,

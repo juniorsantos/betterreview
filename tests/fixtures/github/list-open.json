@@ -9,9 +9,14 @@
             "isDraft": false,
             "updatedAt": "2026-07-23T10:00:00Z",
             "headRefName": "feature/picker",
+            "headRefOid": "picker-head",
             "url": "https://ghe.acme.test/acme/api/pull/7",
             "author": { "login": "jsjunior" },
-            "body": "Adds the review picker prefetch flow."
+            "body": "Adds the review picker prefetch flow.",
+            "viewerLatestReview": {
+              "state": "COMMENTED",
+              "commit": { "oid": "picker-head" }
+            }
           },
           {
             "number": 5,
@@ -19,9 +24,14 @@
             "isDraft": true,
             "updatedAt": "2026-07-22T09:00:00Z",
             "headRefName": "chore/deps",
+            "headRefOid": "deps-head",
             "url": "https://ghe.acme.test/acme/api/pull/5",
             "author": null,
-            "body": null
+            "body": null,
+            "viewerLatestReview": {
+              "state": "APPROVED",
+              "commit": { "oid": "old-deps-head" }
+            }
           }
         ]
       }

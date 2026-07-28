@@ -49,6 +49,14 @@ pub struct ChangeRequestSummary {
     pub draft: bool,
     pub web_url: String,
     pub description: String,
+    pub head: CommitOid,
+    pub reviewed_head: Option<CommitOid>,
+}
+
+impl ChangeRequestSummary {
+    pub fn reviewed_current_head(&self) -> bool {
+        self.reviewed_head.as_ref() == Some(&self.head)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
