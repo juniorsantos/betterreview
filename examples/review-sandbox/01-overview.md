@@ -1,6 +1,9 @@
 # Review Sandbox
 
-This pull request contains ten independent files for exercising BetterReview.
+This pull request exercises several kinds of changes in BetterReview.
 
-Each file uses a different format so navigation, syntax rendering, and inline
-comments can be tested across varied diffs.
+## Review checklist
+
+- Navigate between modified, removed, renamed, and added files.
+- Create comments on additions and deletions.
+- Confirm that reviewed state survives file navigation.

@@ -1,0 +1,8 @@
+[notifications]
+on_comment = true
+on_approval = true
+on_changes_requested = false
+
+[delivery]
+channel = "terminal"
+sound = false

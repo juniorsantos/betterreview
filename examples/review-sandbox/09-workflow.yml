@@ -2,9 +2,14 @@ name: review-sandbox
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "examples/review-sandbox/**"
 
 jobs:
   inspect:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Review sandbox ready"
+      - uses: actions/checkout@v4
+      - name: Count changed fixtures
+        run: git diff --name-only origin/main...HEAD | wc -l
