@@ -249,6 +249,13 @@ fn copied_content(effects: &[betterreview::app::EffectEnvelope]) -> String {
     format!("{:?}", effects.first().map(|effect| &effect.effect))
 }
 
+fn copied_text(effects: &[betterreview::app::EffectEnvelope]) -> Option<&str> {
+    effects.first().and_then(|effect| match &effect.effect {
+        AppEffect::CopyToClipboard { content } => Some(content.as_str()),
+        _ => None,
+    })
+}
+
 #[test]
 fn next_unreviewed_skips_reviewed_files_and_wraps() {
     let mut state = app_with_reviewed_pattern([true, false, true, false]);
@@ -367,6 +374,89 @@ fn copy_hunk_uses_the_side_under_the_cursor_and_omits_patch_syntax() {
     assert_eq!(
         copied_content(&effects),
         "Some(CopyToClipboard { content: \"fn main() {\\n    new();\\n    next();\\n}\" })"
+    );
+}
+
+#[test]
+fn copy_patch_hunk_preserves_the_header_and_diff_markers() {
+    let mut state = state_with_copyable_hunk();
+    state.session.cursor_row = 3;
+    refresh_display_rows(&mut state);
+
+    let effects = update(&mut state, AppEvent::Action(AppAction::CopyPatchHunk));
+
+    assert_eq!(
+        copied_text(&effects),
+        Some("@@ -1,3 +1,4 @@\n fn main() {\n-    old();\n+    new();\n+    next();\n }")
+    );
+    assert_eq!(
+        state.notices.last().map(String::as_str),
+        Some("copied patch hunk")
+    );
+}
+
+#[test]
+fn copy_all_comments_formats_threads_replies_and_drafts_as_markdown() {
+    let mut state = state_with_copyable_hunk();
+    let path = RepoPath("src/file_0.rs".into());
+    state.provider.threads = vec![ReviewThread {
+        id: ThreadId("thread-1".into()),
+        path: path.clone(),
+        resolved: false,
+        outdated: false,
+        comments: vec![
+            ReviewComment {
+                id: "comment-1".into(),
+                author: "alice".into(),
+                body: "Please rename this.".into(),
+                position: Some(comment_pos(&path, DiffSide::Right, 2)),
+                pending: false,
+            },
+            ReviewComment {
+                id: "comment-2".into(),
+                author: "bob".into(),
+                body: "Done.".into(),
+                position: None,
+                pending: false,
+            },
+        ],
+    }];
+    state.provider.drafts = vec![DraftComment {
+        id: DraftId("draft-1".into()),
+        body: "Need a test.".into(),
+        selection: Some(DiffSelection {
+            start: comment_pos(&path, DiffSide::Right, 3),
+            end: comment_pos(&path, DiffSide::Right, 4),
+        }),
+        thread_id: None,
+    }];
+
+    let effects = update(&mut state, AppEvent::Action(AppAction::CopyAllComments));
+
+    assert_eq!(
+        copied_text(&effects),
+        Some(
+            "### `src/file_0.rs:2`\n\n**@alice**\n\nPlease rename this.\n\n\
+             ### `src/file_0.rs:2`\n\n**@bob**\n\nDone.\n\n\
+             ### `src/file_0.rs:3-4`\n\n**you · draft**\n\nNeed a test."
+        )
+    );
+    assert_eq!(
+        state.notices.last().map(String::as_str),
+        Some("copied all comments")
+    );
+}
+
+#[test]
+fn copy_all_comments_reports_when_the_review_has_none() {
+    let mut state = state_with_copyable_hunk();
+
+    let effects = update(&mut state, AppEvent::Action(AppAction::CopyAllComments));
+
+    assert!(effects.is_empty());
+    assert_eq!(
+        state.notices.last().map(String::as_str),
+        Some("no comments to copy")
     );
 }
 

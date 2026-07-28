@@ -108,6 +108,7 @@ fn help_shows_the_dialog_title_and_key_bindings() {
     assert!(screen.contains("search"));
     assert!(screen.contains("gg G"));
     assert!(screen.contains("y Y"));
+    assert!(screen.contains("p C"));
 }
 
 #[test]

@@ -1,8 +1,8 @@
 use std::ops::Range;
 
 use crate::{
-    diff::{DiffCursor, ParsedFileDiff, validate_selection},
-    domain::DiffSide,
+    diff::{DiffCursor, DiffHunk, DiffRowKind, ParsedFileDiff, validate_selection},
+    domain::{DiffPosition, DiffSelection, DiffSide, RepoPath},
     tui::SplitSide,
 };
 
@@ -11,6 +11,8 @@ use super::{AppState, DisplayRow};
 pub(super) enum CopyTarget {
     LineOrSelection,
     Hunk,
+    PatchHunk,
+    AllComments,
 }
 
 pub(super) struct PreparedCopy {
@@ -22,6 +24,8 @@ pub(super) fn prepare(state: &AppState, target: CopyTarget) -> Result<PreparedCo
     match target {
         CopyTarget::LineOrSelection => line_or_selection(state),
         CopyTarget::Hunk => hunk(state),
+        CopyTarget::PatchHunk => patch_hunk(state),
+        CopyTarget::AllComments => all_comments(state),
     }
 }
 
@@ -64,20 +68,8 @@ fn hunk(state: &AppState) -> Result<PreparedCopy, String> {
         .parsed_diff
         .as_ref()
         .ok_or_else(|| "diff is still loading".to_owned())?;
-    let display_row = state.display_rows.get(state.display_cursor);
     let row_index = display_code_row(state);
-    let hunk_id = match display_row {
-        Some(DisplayRow::HunkHeader { hunk }) => Some(*hunk),
-        _ => row_index.and_then(|index| {
-            diff.rows
-                .get(index)
-                .and_then(|row| row.right.as_ref().or(row.left.as_ref()))
-                .map(|position| position.hunk)
-        }),
-    };
-    let hunk = hunk_id
-        .and_then(|id| diff.hunks.iter().find(|hunk| hunk.id == id))
-        .ok_or_else(|| "move to a hunk".to_owned())?;
+    let hunk = hunk_at_cursor(state, diff).ok_or_else(|| "move to a hunk".to_owned())?;
     let side = row_index
         .and_then(|index| copy_side(state, index))
         .or_else(|| hunk_side(state, diff, hunk.row_range.clone()))
@@ -90,6 +82,118 @@ fn hunk(state: &AppState) -> Result<PreparedCopy, String> {
         content,
         notice: "copied hunk",
     })
+}
+
+fn patch_hunk(state: &AppState) -> Result<PreparedCopy, String> {
+    let diff = state
+        .parsed_diff
+        .as_ref()
+        .ok_or_else(|| "diff is still loading".to_owned())?;
+    let hunk = hunk_at_cursor(state, diff).ok_or_else(|| "move to a hunk".to_owned())?;
+    let header = hunk
+        .row_range
+        .start
+        .checked_sub(1)
+        .filter(|&index| {
+            diff.rows
+                .get(index)
+                .is_some_and(|row| row.kind == DiffRowKind::HunkHeader)
+        })
+        .ok_or_else(|| "move to a hunk".to_owned())?;
+    let content = diff.rows[header..hunk.row_range.end]
+        .iter()
+        .map(|row| row.raw.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    Ok(PreparedCopy {
+        content,
+        notice: "copied patch hunk",
+    })
+}
+
+fn all_comments(state: &AppState) -> Result<PreparedCopy, String> {
+    let mut comments = Vec::new();
+    for thread in &state.provider.threads {
+        let anchor = thread
+            .comments
+            .iter()
+            .find_map(|comment| comment.position.as_ref());
+        for comment in &thread.comments {
+            comments.push(markdown_comment(
+                location(&thread.path, comment.position.as_ref().or(anchor)),
+                &format!("@{}", comment.author),
+                &comment.body,
+            ));
+        }
+    }
+    for draft in &state.provider.drafts {
+        let location = draft
+            .selection
+            .as_ref()
+            .map(selection_location)
+            .or_else(|| draft_thread_location(state, draft.thread_id.as_ref()))
+            .unwrap_or_else(|| "review (unanchored)".into());
+        comments.push(markdown_comment(location, "you · draft", &draft.body));
+    }
+    if comments.is_empty() {
+        return Err("no comments to copy".into());
+    }
+    Ok(PreparedCopy {
+        content: comments.join("\n\n"),
+        notice: "copied all comments",
+    })
+}
+
+fn hunk_at_cursor<'a>(state: &AppState, diff: &'a ParsedFileDiff) -> Option<&'a DiffHunk> {
+    let hunk_id = match state.display_rows.get(state.display_cursor) {
+        Some(DisplayRow::HunkHeader { hunk }) => Some(*hunk),
+        _ => display_code_row(state).and_then(|index| {
+            diff.rows
+                .get(index)
+                .and_then(|row| row.right.as_ref().or(row.left.as_ref()))
+                .map(|position| position.hunk)
+        }),
+    }?;
+    diff.hunks.iter().find(|hunk| hunk.id == hunk_id)
+}
+
+fn draft_thread_location(
+    state: &AppState,
+    thread_id: Option<&crate::domain::ThreadId>,
+) -> Option<String> {
+    let thread = state
+        .provider
+        .threads
+        .iter()
+        .find(|thread| Some(&thread.id) == thread_id)?;
+    let position = thread
+        .comments
+        .iter()
+        .find_map(|comment| comment.position.as_ref());
+    Some(location(&thread.path, position))
+}
+
+fn selection_location(selection: &DiffSelection) -> String {
+    let path = &selection.end.path.0;
+    let first = selection.start.line.min(selection.end.line);
+    let last = selection.start.line.max(selection.end.line);
+    if first == last {
+        format!("{path}:{last}")
+    } else {
+        format!("{path}:{first}-{last}")
+    }
+}
+
+fn location(path: &RepoPath, position: Option<&DiffPosition>) -> String {
+    match position {
+        Some(position) => format!("{}:{}", position.path.0, position.line),
+        None if !path.0.is_empty() => format!("{} (unanchored)", path.0),
+        None => "review (unanchored)".into(),
+    }
+}
+
+fn markdown_comment(location: String, author: &str, body: &str) -> String {
+    format!("### `{location}`\n\n**{author}**\n\n{}", body.trim())
 }
 
 fn display_code_row(state: &AppState) -> Option<usize> {

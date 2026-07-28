@@ -45,6 +45,7 @@ const COLUMNS: [Column; 4] = [
             ("M", "hunk done"),
             ("v", "select"),
             ("y Y", "copy code/hunk"),
+            ("p C", "patch/comments"),
             ("c", "comment"),
             ("s", "suggestion"),
             ("r", "reply"),
