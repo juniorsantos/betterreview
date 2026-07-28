@@ -197,6 +197,7 @@ fn list_panel_shows_the_table_header() {
     assert!(screen.contains("AUTHOR"));
     assert!(screen.contains("BRANCH"));
     assert!(screen.contains("WHEN"));
+    assert!(screen.contains("STATUS"));
 }
 
 #[test]
@@ -222,6 +223,42 @@ fn item_rows_share_the_same_author_column_start() {
     let author_one = char_offset(row_one, "@ann").expect("author one present");
     let author_two = char_offset(row_two, "@longname").expect("author two present");
     assert_eq!(author_one, author_two);
+}
+
+#[test]
+fn wide_metadata_columns_keep_long_author_and_branch_values() {
+    let picker = state(
+        vec![item(
+            1,
+            "alexandre-montgomery",
+            "feature/reviewer-status-layout",
+            false,
+            false,
+        )],
+        0,
+    );
+
+    let terminal = draw_sized(&picker, 140, 30);
+    let screen = screen_sized(&terminal, 140, 30);
+
+    assert!(screen.contains("@alexandre-montgomery"));
+    assert!(screen.contains("feature/reviewer-status-layout"));
+}
+
+#[test]
+fn status_values_start_under_the_status_header() {
+    let mut reviewed = item(1, "dev", "main", false, false);
+    reviewed.summary.reviewed_head = Some(reviewed.summary.head.clone());
+    let picker = state(vec![reviewed], 0);
+
+    let rows = lines(&draw(&picker));
+    let header = rows.iter().find(|line| line.contains("STATUS")).unwrap();
+    let item = rows.iter().find(|line| line.contains("#1")).unwrap();
+
+    assert_eq!(
+        char_offset(header, "STATUS"),
+        char_offset(item, "✓ reviewed")
+    );
 }
 
 #[test]
