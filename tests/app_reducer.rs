@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use betterreview::{
     app::{
         AppAction, AppEffect, AppEvent, AppState, DisplayRow, EffectOutcome, EffectResult,
-        QuitChoice, RenderedFile, SubmissionModal, update,
+        QuitChoice, RenderedFile, SubmissionModal, refresh_display_rows, update,
     },
     diff::{ParsedFileDiff, RenderedDiff, RenderedRow, RowBinding},
     domain::{
@@ -204,6 +204,51 @@ fn rendered_file_with_rows(count: usize) -> RenderedFile {
     }
 }
 
+fn state_with_copyable_hunk() -> AppState {
+    use betterreview::diff::{DiffHunk, DiffRow, DiffRowKind};
+
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let path = RepoPath("src/file_0.rs".into());
+    let row = |raw: &str, kind, old, new| DiffRow {
+        raw: raw.into(),
+        kind,
+        old_line: old,
+        new_line: new,
+        left: old.map(|line| comment_pos(&path, DiffSide::Left, line)),
+        right: new.map(|line| comment_pos(&path, DiffSide::Right, line)),
+    };
+    state.parsed_diff = Some(ParsedFileDiff {
+        path: path.clone(),
+        head: CommitOid("new-head".into()),
+        rows: vec![
+            row("@@ -1,3 +1,4 @@", DiffRowKind::HunkHeader, None, None),
+            row(" fn main() {", DiffRowKind::Context, Some(1), Some(1)),
+            row("-    old();", DiffRowKind::Removed, Some(2), None),
+            row("+    new();", DiffRowKind::Added, None, Some(2)),
+            row("+    next();", DiffRowKind::Added, None, Some(3)),
+            row(" }", DiffRowKind::Context, Some(3), Some(4)),
+        ],
+        hunks: vec![DiffHunk {
+            id: 0,
+            old_start: 1,
+            old_count: 3,
+            new_start: 1,
+            new_count: 4,
+            row_range: 1..6,
+            section: None,
+        }],
+    });
+    state.rendered_diff = Some(RenderedDiff {
+        rows: (0..6).map(|index| diff_row(index, None, None)).collect(),
+    });
+    refresh_display_rows(&mut state);
+    state
+}
+
+fn copied_content(effects: &[betterreview::app::EffectEnvelope]) -> String {
+    format!("{:?}", effects.first().map(|effect| &effect.effect))
+}
+
 #[test]
 fn next_unreviewed_skips_reviewed_files_and_wraps() {
     let mut state = app_with_reviewed_pattern([true, false, true, false]);
@@ -258,6 +303,105 @@ fn direct_file_navigation_stops_at_both_boundaries() {
 
     assert_eq!(state.active_file_index, 3);
     assert!(effects.is_empty());
+}
+
+#[test]
+fn copy_line_emits_clean_code_without_the_diff_marker() {
+    let mut state = state_with_copyable_hunk();
+    state.session.cursor_row = 3;
+    refresh_display_rows(&mut state);
+
+    let effects = update(&mut state, AppEvent::Action(AppAction::CopyLineOrSelection));
+
+    assert_eq!(
+        copied_content(&effects),
+        "Some(CopyToClipboard { content: \"    new();\" })"
+    );
+    assert_eq!(
+        state.notices.last().map(String::as_str),
+        Some("copied line")
+    );
+}
+
+#[test]
+fn copy_selection_emits_all_selected_lines_and_keeps_the_selection() {
+    let mut state = state_with_copyable_hunk();
+    state.selection_anchor = Some(3);
+    state.session.cursor_row = 4;
+    refresh_display_rows(&mut state);
+
+    let effects = update(&mut state, AppEvent::Action(AppAction::CopyLineOrSelection));
+
+    assert_eq!(
+        copied_content(&effects),
+        "Some(CopyToClipboard { content: \"    new();\\n    next();\" })"
+    );
+    assert_eq!(state.selection_anchor, Some(3));
+    assert_eq!(
+        state.notices.last().map(String::as_str),
+        Some("copied selection")
+    );
+}
+
+#[test]
+fn copy_hunk_uses_the_side_under_the_cursor_and_omits_patch_syntax() {
+    let mut state = state_with_copyable_hunk();
+    state.session.cursor_row = 2;
+    refresh_display_rows(&mut state);
+
+    let effects = update(&mut state, AppEvent::Action(AppAction::CopyHunk));
+
+    assert_eq!(
+        copied_content(&effects),
+        "Some(CopyToClipboard { content: \"fn main() {\\n    old();\\n}\" })"
+    );
+    assert_eq!(
+        state.notices.last().map(String::as_str),
+        Some("copied hunk")
+    );
+
+    state.session.cursor_row = 3;
+    refresh_display_rows(&mut state);
+    let effects = update(&mut state, AppEvent::Action(AppAction::CopyHunk));
+
+    assert_eq!(
+        copied_content(&effects),
+        "Some(CopyToClipboard { content: \"fn main() {\\n    new();\\n    next();\\n}\" })"
+    );
+}
+
+#[test]
+fn clipboard_completion_does_not_refresh_the_review() {
+    let mut state = state_with_copyable_hunk();
+
+    let effects = update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: 1,
+            generation: None,
+            outcome: EffectOutcome::ClipboardCopied(Ok(())),
+        })),
+    );
+
+    assert!(effects.is_empty());
+    assert!(state.error_banner.is_none());
+}
+
+#[test]
+fn clipboard_failure_is_shown_without_refreshing_the_review() {
+    let mut state = state_with_copyable_hunk();
+
+    let effects = update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: 1,
+            generation: None,
+            outcome: EffectOutcome::ClipboardCopied(Err("clipboard unavailable".into())),
+        })),
+    );
+
+    assert!(effects.is_empty());
+    assert_eq!(state.error_banner.as_deref(), Some("clipboard unavailable"));
 }
 
 #[test]

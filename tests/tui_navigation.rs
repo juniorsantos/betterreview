@@ -300,6 +300,24 @@ fn maps_navigation_keys_and_ignores_release_events() {
 }
 
 #[test]
+fn maps_clean_copy_shortcuts() {
+    assert_eq!(
+        format!(
+            "{:?}",
+            key_to_action(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE))
+        ),
+        "Some(CopyLineOrSelection)"
+    );
+    assert_eq!(
+        format!(
+            "{:?}",
+            key_to_action(KeyEvent::new(KeyCode::Char('Y'), KeyModifiers::SHIFT))
+        ),
+        "Some(CopyHunk)"
+    );
+}
+
+#[test]
 fn maps_prefixed_file_and_unreviewed_navigation() {
     let mut keys = KeyMap::default();
     assert_eq!(

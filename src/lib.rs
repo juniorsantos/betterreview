@@ -1,6 +1,7 @@
 pub mod app;
 pub mod blame;
 pub mod cli;
+mod clipboard;
 pub mod context;
 pub mod diff;
 pub mod doctor;

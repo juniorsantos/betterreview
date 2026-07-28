@@ -162,6 +162,9 @@ impl Runtime {
                     .await
                     .map_err(|error| error.to_string()),
             },
+            AppEffect::CopyToClipboard { content } => EffectOutcome::ClipboardCopied(
+                crate::clipboard::copy(&content).map_err(|error| error.to_string()),
+            ),
         };
         EffectResult {
             id: envelope.id,

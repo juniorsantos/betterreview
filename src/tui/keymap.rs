@@ -48,6 +48,8 @@ pub fn key_to_action(event: KeyEvent) -> Option<AppAction> {
         (KeyCode::Char('j') | KeyCode::Down, KeyModifiers::NONE) => Some(AppAction::MoveCursor(1)),
         (KeyCode::Char('k') | KeyCode::Up, KeyModifiers::NONE) => Some(AppAction::MoveCursor(-1)),
         (KeyCode::Char('G'), _) => Some(AppAction::JumpToEnd),
+        (KeyCode::Char('y'), KeyModifiers::NONE) => Some(AppAction::CopyLineOrSelection),
+        (KeyCode::Char('Y'), _) => Some(AppAction::CopyHunk),
         (KeyCode::Char('m'), KeyModifiers::NONE) => Some(AppAction::ToggleReviewed),
         (KeyCode::Char('M'), _) => Some(AppAction::ToggleHunkReviewed),
         (KeyCode::Char('v'), KeyModifiers::NONE) => Some(AppAction::ToggleSelection),

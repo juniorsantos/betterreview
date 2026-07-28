@@ -104,6 +104,10 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
         AppAction::PreviousComment => jump_comment(state, -1),
         AppAction::JumpToStart => jump_to_boundary(state, false),
         AppAction::JumpToEnd => jump_to_boundary(state, true),
+        AppAction::CopyLineOrSelection => {
+            copy_to_clipboard(state, super::copy::CopyTarget::LineOrSelection)
+        }
+        AppAction::CopyHunk => copy_to_clipboard(state, super::copy::CopyTarget::Hunk),
         AppAction::MoveCursor(delta) => match state.focus {
             AppFocus::Files => navigate_by(state, delta.signum()),
             AppFocus::Diff => move_display_cursor(state, delta),
@@ -542,6 +546,25 @@ fn jump_to_boundary(state: &mut AppState, end: bool) -> Vec<EffectEnvelope> {
             Vec::new()
         }
         AppFocus::Threads => Vec::new(),
+    }
+}
+
+fn copy_to_clipboard(state: &mut AppState, target: super::copy::CopyTarget) -> Vec<EffectEnvelope> {
+    match super::copy::prepare(state, target) {
+        Ok(copy) => {
+            push_notice(state, copy.notice);
+            vec![envelope(
+                state,
+                None,
+                AppEffect::CopyToClipboard {
+                    content: copy.content,
+                },
+            )]
+        }
+        Err(message) => {
+            push_notice(state, message);
+            Vec::new()
+        }
     }
 }
 
@@ -1205,6 +1228,7 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
                 state.error_banner = Some(message);
             }
         },
+        EffectOutcome::ClipboardCopied(result) => set_error(state, result),
     }
     Vec::new()
 }
