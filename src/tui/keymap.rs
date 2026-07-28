@@ -22,11 +22,12 @@ impl KeyMap {
                 ('[', KeyCode::Char('h')) => Some(AppAction::PreviousHunk),
                 (']', KeyCode::Char('c')) => Some(AppAction::NextComment),
                 ('[', KeyCode::Char('c')) => Some(AppAction::PreviousComment),
+                ('g', KeyCode::Char('g')) => Some(AppAction::JumpToStart),
                 _ => key_to_action(event),
             };
         }
         match event.code {
-            KeyCode::Char(prefix @ (']' | '[')) => {
+            KeyCode::Char(prefix @ (']' | '[' | 'g')) => {
                 self.prefix = Some(prefix);
                 None
             }
@@ -46,6 +47,7 @@ pub fn key_to_action(event: KeyEvent) -> Option<AppAction> {
         (KeyCode::Char('l') | KeyCode::Right, KeyModifiers::NONE) => Some(AppAction::FocusRight),
         (KeyCode::Char('j') | KeyCode::Down, KeyModifiers::NONE) => Some(AppAction::MoveCursor(1)),
         (KeyCode::Char('k') | KeyCode::Up, KeyModifiers::NONE) => Some(AppAction::MoveCursor(-1)),
+        (KeyCode::Char('G'), _) => Some(AppAction::JumpToEnd),
         (KeyCode::Char('m'), KeyModifiers::NONE) => Some(AppAction::ToggleReviewed),
         (KeyCode::Char('M'), _) => Some(AppAction::ToggleHunkReviewed),
         (KeyCode::Char('v'), KeyModifiers::NONE) => Some(AppAction::ToggleSelection),
