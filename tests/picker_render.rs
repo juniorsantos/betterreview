@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use betterreview::{
-    domain::ChangeRequestSummary,
+    domain::{ChangeRequestSummary, CommitOid},
     tui::{
         picker::{PickerItem, PickerState, age, render},
         theme,
@@ -20,6 +20,8 @@ fn summary(number: u64, author: &str, branch: &str, draft: bool) -> ChangeReques
         draft,
         web_url: format!("https://github.com/owner/repo/pull/{number}"),
         description: String::new(),
+        head: CommitOid(format!("head-{number}")),
+        reviewed_head: None,
     }
 }
 
@@ -104,6 +106,22 @@ fn renders_items_with_pin_and_metadata() {
 }
 
 #[test]
+fn renders_reviewed_only_when_the_review_matches_the_current_head() {
+    let mut reviewed = item(42, "jsjunior", "feature/login", false, false);
+    reviewed.summary.reviewed_head = Some(reviewed.summary.head.clone());
+    let mut stale = item(43, "dev", "feature/changed", false, false);
+    stale.summary.reviewed_head = Some(CommitOid("previous-head".into()));
+    let picker = state(vec![reviewed, stale], 0);
+
+    let screen = screen(&draw(&picker));
+    let reviewed_row = screen.lines().find(|line| line.contains("#42")).unwrap();
+    let stale_row = screen.lines().find(|line| line.contains("#43")).unwrap();
+
+    assert!(reviewed_row.contains("✓ reviewed"));
+    assert!(!stale_row.contains("✓ reviewed"));
+}
+
+#[test]
 fn renders_the_current_branch_dot_before_the_author() {
     let picker = state(
         vec![
@@ -179,6 +197,7 @@ fn list_panel_shows_the_table_header() {
     assert!(screen.contains("AUTHOR"));
     assert!(screen.contains("BRANCH"));
     assert!(screen.contains("WHEN"));
+    assert!(screen.contains("STATUS"));
 }
 
 #[test]
@@ -204,6 +223,42 @@ fn item_rows_share_the_same_author_column_start() {
     let author_one = char_offset(row_one, "@ann").expect("author one present");
     let author_two = char_offset(row_two, "@longname").expect("author two present");
     assert_eq!(author_one, author_two);
+}
+
+#[test]
+fn wide_metadata_columns_keep_long_author_and_branch_values() {
+    let picker = state(
+        vec![item(
+            1,
+            "alexandre-montgomery",
+            "feature/reviewer-status-layout",
+            false,
+            false,
+        )],
+        0,
+    );
+
+    let terminal = draw_sized(&picker, 140, 30);
+    let screen = screen_sized(&terminal, 140, 30);
+
+    assert!(screen.contains("@alexandre-montgomery"));
+    assert!(screen.contains("feature/reviewer-status-layout"));
+}
+
+#[test]
+fn status_values_start_under_the_status_header() {
+    let mut reviewed = item(1, "dev", "main", false, false);
+    reviewed.summary.reviewed_head = Some(reviewed.summary.head.clone());
+    let picker = state(vec![reviewed], 0);
+
+    let rows = lines(&draw(&picker));
+    let header = rows.iter().find(|line| line.contains("STATUS")).unwrap();
+    let item = rows.iter().find(|line| line.contains("#1")).unwrap();
+
+    assert_eq!(
+        char_offset(header, "STATUS"),
+        char_offset(item, "✓ reviewed")
+    );
 }
 
 #[test]

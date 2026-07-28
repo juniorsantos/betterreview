@@ -466,39 +466,71 @@ struct Columns {
     show_author: bool,
     show_branch: bool,
     title_width: usize,
+    author_text_width: usize,
+    branch_width: usize,
+    when_width: usize,
+    status_width: usize,
 }
 
 const CURSOR_WIDTH: usize = 2;
 const PR_WIDTH: usize = 7;
 const AUTHOR_DOT_WIDTH: usize = 2;
-const AUTHOR_TEXT_WIDTH: usize = 14;
-const AUTHOR_WIDTH: usize = AUTHOR_DOT_WIDTH + AUTHOR_TEXT_WIDTH;
-const BRANCH_WIDTH: usize = 20;
-const WHEN_WIDTH: usize = 8;
-/// Room reserved after WHEN for the ragged " draft"/" session" badges, so
-/// they never get clipped by the panel's right edge.
-const BADGE_RESERVE: usize = 14;
+const AUTHOR_TEXT_WIDTH: usize = 16;
+const WIDE_AUTHOR_TEXT_WIDTH: usize = 24;
+const BRANCH_WIDTH: usize = 24;
+const WIDE_BRANCH_WIDTH: usize = 36;
+const WHEN_WIDTH: usize = 12;
+const STATUS_WIDTH: usize = 24;
+const NARROW_WHEN_WIDTH: usize = 8;
+const NARROW_STATUS_WIDTH: usize = 14;
 /// Below this inner width the BRANCH column is dropped so the title keeps
 /// room to breathe.
-const NARROW_BRANCH_THRESHOLD: usize = 70;
+const NARROW_BRANCH_THRESHOLD: usize = 91;
+const WIDE_METADATA_THRESHOLD: usize = 120;
 /// Below this inner width the AUTOR column is dropped too.
-const NARROW_AUTHOR_THRESHOLD: usize = 50;
+const NARROW_AUTHOR_THRESHOLD: usize = 53;
 
 fn columns_for(width: usize) -> Columns {
     let show_branch = width >= NARROW_BRANCH_THRESHOLD;
     let show_author = width >= NARROW_AUTHOR_THRESHOLD;
-    let mut reserved = CURSOR_WIDTH + PR_WIDTH + WHEN_WIDTH + BADGE_RESERVE;
+    let wide_metadata = width >= WIDE_METADATA_THRESHOLD;
+    let author_text_width = if wide_metadata {
+        WIDE_AUTHOR_TEXT_WIDTH
+    } else {
+        AUTHOR_TEXT_WIDTH
+    };
+    let author_width = AUTHOR_DOT_WIDTH + author_text_width;
+    let branch_width = if wide_metadata {
+        WIDE_BRANCH_WIDTH
+    } else {
+        BRANCH_WIDTH
+    };
+    let when_width = if show_branch {
+        WHEN_WIDTH
+    } else {
+        NARROW_WHEN_WIDTH
+    };
+    let status_width = if show_branch {
+        STATUS_WIDTH
+    } else {
+        NARROW_STATUS_WIDTH
+    };
+    let mut reserved = CURSOR_WIDTH + PR_WIDTH + when_width + status_width;
     if show_author {
-        reserved += AUTHOR_WIDTH;
+        reserved += author_width;
     }
     if show_branch {
-        reserved += BRANCH_WIDTH;
+        reserved += branch_width;
     }
     let title_width = width.saturating_sub(reserved).max(4);
     Columns {
         show_author,
         show_branch,
         title_width,
+        author_text_width,
+        branch_width,
+        when_width,
+        status_width,
     }
 }
 
@@ -523,7 +555,7 @@ fn render_list(frame: &mut Frame, area: Rect, state: &PickerState) {
     frame.render_widget(Paragraph::new(lines).scroll((scroll, 0)), area);
 }
 
-/// The `PR TITLE AUTHOR BRANCH WHEN` column header: MUTED BOLD uppercase,
+/// The `PR TITLE AUTHOR BRANCH WHEN STATUS` column header: MUTED BOLD uppercase,
 /// aligned to the same column widths as the item rows below it.
 fn header_line(columns: Columns) -> Line<'static> {
     let style = Style::default()
@@ -535,20 +567,23 @@ fn header_line(columns: Columns) -> Line<'static> {
         pad_cell("TITLE", columns.title_width)
     );
     if columns.show_author {
-        text.push_str(&pad_cell("AUTHOR", AUTHOR_WIDTH));
+        text.push_str(&pad_cell(
+            "AUTHOR",
+            AUTHOR_DOT_WIDTH + columns.author_text_width,
+        ));
     }
     if columns.show_branch {
-        text.push_str(&pad_cell("BRANCH", BRANCH_WIDTH));
+        text.push_str(&pad_cell("BRANCH", columns.branch_width));
     }
-    text.push_str("WHEN");
+    text.push_str(&pad_cell("WHEN", columns.when_width));
+    text.push_str("STATUS");
     Line::styled(text, style)
 }
 
 /// One row of the list: `▶ ` marker + selection background when
 /// highlighted (transversal rule 2), otherwise a plain two-space indent.
 /// Number BOLD, title FG (truncated with `…`), AUTOR/BRANCH/QUANDO MUTED,
-/// `●` ACCENT before the author for the current-branch item, and badges
-/// after WHEN: `draft` MUTED, `session` WARNING.
+/// `●` ACCENT before the author for the current-branch item.
 fn item_line(
     item: &PickerItem,
     now: OffsetDateTime,
@@ -570,36 +605,31 @@ fn item_line(
         if item.current_branch {
             spans.push(Span::styled("● ", Style::default().fg(theme::ACCENT)));
             spans.push(Span::styled(
-                pad_cell("you", AUTHOR_TEXT_WIDTH),
+                pad_cell("you", columns.author_text_width),
                 Style::default().fg(theme::MUTED),
             ));
         } else {
             spans.push(Span::raw("  "));
             spans.push(Span::styled(
-                pad_cell(&format!("@{}", item.summary.author), AUTHOR_TEXT_WIDTH),
+                pad_cell(
+                    &format!("@{}", item.summary.author),
+                    columns.author_text_width,
+                ),
                 Style::default().fg(theme::MUTED),
             ));
         }
     }
     if columns.show_branch {
         spans.push(Span::styled(
-            pad_cell(&item.summary.source_branch, BRANCH_WIDTH),
+            pad_cell(&item.summary.source_branch, columns.branch_width),
             Style::default().fg(theme::MUTED),
         ));
     }
     spans.push(Span::styled(
-        age(now, item.summary.updated_at),
+        pad_cell(&age(now, item.summary.updated_at), columns.when_width),
         Style::default().fg(theme::MUTED),
     ));
-    if item.summary.draft {
-        spans.push(Span::styled(" draft", Style::default().fg(theme::MUTED)));
-    }
-    if item.has_session {
-        spans.push(Span::styled(
-            " session",
-            Style::default().fg(theme::WARNING),
-        ));
-    }
+    spans.extend(status_spans(item, columns.status_width));
 
     let mut line = Line::from(spans);
 
@@ -620,6 +650,39 @@ fn item_line(
         );
     }
     line
+}
+
+fn status_spans(item: &PickerItem, width: usize) -> Vec<Span<'static>> {
+    let mut candidates = Vec::new();
+    if item.summary.reviewed_current_head() {
+        candidates.push(("✓ reviewed", Style::default().fg(theme::SUCCESS)));
+    }
+    if item.summary.draft {
+        candidates.push(("draft", Style::default().fg(theme::MUTED)));
+    }
+    if item.has_session {
+        candidates.push(("session", Style::default().fg(theme::WARNING)));
+    }
+
+    let mut spans = Vec::new();
+    let mut used = 0;
+    for (label, style) in candidates {
+        let separator = usize::from(used > 0);
+        let label_width = display_width(label);
+        if used + separator + label_width > width {
+            continue;
+        }
+        if separator > 0 {
+            spans.push(Span::raw(" "));
+            used += 1;
+        }
+        spans.push(Span::styled(label, style));
+        used += label_width;
+    }
+    if used < width {
+        spans.push(Span::raw(" ".repeat(width - used)));
+    }
+    spans
 }
 
 fn truncate_title(title: &str, budget: usize) -> String {
@@ -1059,6 +1122,8 @@ mod tests {
                     draft: false,
                     web_url: String::new(),
                     description: String::new(),
+                    head: crate::domain::CommitOid(format!("head-{number}")),
+                    reviewed_head: None,
                 },
                 has_session: false,
                 current_branch: false,

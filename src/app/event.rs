@@ -22,6 +22,10 @@ pub enum AppAction {
     PreviousHunk,
     NextComment,
     PreviousComment,
+    JumpToStart,
+    JumpToEnd,
+    CopyLineOrSelection,
+    CopyHunk,
     MoveCursor(i32),
     /// Selects the file at this index in `provider.files`, mirroring
     /// `NextFile`/`PreviousFile`'s `activate_file` landing — used by a mouse

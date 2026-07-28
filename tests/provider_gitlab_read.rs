@@ -240,11 +240,30 @@ async fn maps_malformed_ndjson_and_authentication() {
 }
 
 #[tokio::test]
-async fn lists_open_merge_requests_in_one_call() {
-    let runner = Arc::new(RoutingRunner::new(vec![(
-        "projects/group%2Fapi/merge_requests?state=opened&order_by=updated_at&sort=desc&per_page=50",
-        fixture("merge-requests-list.json"),
-    )]));
+async fn lists_open_merge_requests_with_reviews_on_the_current_head() {
+    let runner = Arc::new(RoutingRunner::new(vec![
+        (
+            "projects/group%2Fapi/merge_requests?state=opened&order_by=updated_at&sort=desc&per_page=50",
+            fixture("merge-requests-list.json"),
+        ),
+        ("user", fixture("current-user.json")),
+        (
+            "projects/group%2Fapi/merge_requests/12/versions",
+            fixture("merge-request-12-versions.json"),
+        ),
+        (
+            "projects/group%2Fapi/merge_requests/12/notes?order_by=created_at&sort=desc&per_page=100",
+            fixture("merge-request-12-notes.json"),
+        ),
+        (
+            "projects/group%2Fapi/merge_requests/9/versions",
+            fixture("merge-request-9-versions.json"),
+        ),
+        (
+            "projects/group%2Fapi/merge_requests/9/notes?order_by=created_at&sort=desc&per_page=100",
+            fixture("merge-request-9-notes.json"),
+        ),
+    ]));
     let provider = GitLabProvider::new(runner.clone());
 
     let list = provider
@@ -256,9 +275,28 @@ async fn lists_open_merge_requests_in_one_call() {
     assert_eq!(list[0].number, 12);
     assert_eq!(list[0].source_branch, "feature/picker");
     assert_eq!(list[0].description, "Adds the review picker prefetch flow.");
+    assert!(list[0].reviewed_current_head());
     assert!(list[1].draft);
     assert_eq!(list[1].description, "");
-    assert_eq!(runner.calls.lock().unwrap().len(), 1);
+    assert!(!list[1].reviewed_current_head());
+    assert_eq!(runner.calls.lock().unwrap().len(), 6);
+}
+
+#[tokio::test]
+async fn list_still_opens_when_review_enrichment_fails() {
+    let runner = Arc::new(RoutingRunner::new(vec![(
+        "projects/group%2Fapi/merge_requests?state=opened&order_by=updated_at&sort=desc&per_page=50",
+        fixture("merge-requests-list.json"),
+    )]));
+    let provider = GitLabProvider::new(runner);
+
+    let list = provider
+        .list_open("git.acme.test", "group/api")
+        .await
+        .unwrap();
+
+    assert_eq!(list.len(), 2);
+    assert!(list.iter().all(|item| !item.reviewed_current_head()));
 }
 
 #[tokio::test]

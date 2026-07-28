@@ -8,19 +8,25 @@ Terminal code review for GitHub pull requests and GitLab merge requests. Navigat
 
 ![Review screen](assets/review.svg)
 
-When launched inside a repository, the picker lists the open reviews and prefetches the highlighted PR:
+When launched inside a repository, the picker lists open reviews, shows the status for the current HEAD and prefetches the highlighted PR:
 
 ![PR picker](assets/picker.svg)
+
+Approve, request changes or comment without losing the diff and draft context behind the modal:
+
+![Approve review modal](assets/approve-review.svg)
 
 ## Features
 
 - Diff with GitHub visual parity: edge-to-edge green/red backgrounds, a single line-number column, file name on top and expandable hidden context (`z`)
 - Inline comments as cards: create (`c`), edit (`e`), delete (`x`), reply (`r`) and code suggestions (`s`)
 - Line or block selection (`v`) to comment exactly like on GitHub
+- Clean clipboard copying: current line or selection (`y`) and current hunk (`Y`)
 - File tree with reviewed checkboxes (`m`), collapsible folders and de-emphasized generated files
-- Quick jumps: next hunk (`]h`), next comment (`]c`), next file (`]f`), next unreviewed (`]u`)
+- Quick jumps: first/last diff row or file (`gg`/`G`), next hunk (`]h`), next comment (`]c`), next file (`]f`), next unreviewed (`]u`)
 - In-diff search (`/`, `n`/`N`), mouse support (scroll and click)
 - Persistent sessions: quit and resume the review where you left off (`betterreview resume`)
+- Review status tied to the current HEAD: a new commit automatically returns the review to unreviewed
 - Full review submission (`R`): approve, request changes or comment
 
 ## Comparison
@@ -82,7 +88,8 @@ Download the binary for your platform from the [releases page](https://github.co
 
 ```sh
 # macOS Apple Silicon
-curl -sSL https://github.com/juniorsantos/betterreview/releases/latest/download/betterreview-v0.1.0-aarch64-apple-darwin.tar.gz | tar xz
+VERSION=v1.2.0
+curl -sSL "https://github.com/juniorsantos/betterreview/releases/download/${VERSION}/betterreview-${VERSION}-aarch64-apple-darwin.tar.gz" | tar xz
 sudo mv betterreview /usr/local/bin/
 ```
 
@@ -128,10 +135,12 @@ betterreview completions fish > ~/.config/fish/completions/betterreview.fish
 | Key | Action |
 |---|---|
 | `j`/`k` | move cursor |
+| `gg` / `G` | jump to the first / last diff row or file |
 | `Tab`, `2`/`3` | switch focus between Files and Diff |
 | `v` | start/end line selection |
 | `c` | comment on the line or selection |
 | `s` | suggest code on the selection |
+| `y` / `Y` | copy the current line or selection / current hunk |
 | `e` / `x` / `r` | edit / delete / reply to the comment under the cursor |
 | `m` | mark file as reviewed |
 | `z` | expand hidden diff context (or collapse folder in the Files panel) |
@@ -147,7 +156,8 @@ betterreview completions fish > ~/.config/fish/completions/betterreview.fish
 ```sh
 cargo test          # full suite
 cargo clippy --all-targets -- -D warnings
-cargo fmt --check
+cargo fmt --all --check
+cargo run --example readme_screenshots
 ```
 
 Releases are automated: `feat:`/`fix:` commits on `main` produce a semantic version bump, tag and release with binaries via GitHub Actions.

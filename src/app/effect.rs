@@ -31,6 +31,7 @@ pub enum AppEffect {
     DiscardReview,
     LoadFileContext { path: RepoPath, revision: CommitOid },
     LoadBlame { path: RepoPath, revision: CommitOid },
+    CopyToClipboard { content: String },
 }
 
 #[derive(Debug)]
@@ -73,4 +74,5 @@ pub enum EffectOutcome {
         path: RepoPath,
         result: Result<String, String>,
     },
+    ClipboardCopied(Result<(), String>),
 }

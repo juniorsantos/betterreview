@@ -1,14 +1,14 @@
 use std::collections::BTreeMap;
 
 use betterreview::{
-    app::{AppAction, AppFocus, AppState, refresh_display_rows},
+    app::{AppAction, AppFocus, AppState, refresh_display_rows, update},
     diff::{RenderedDiff, RenderedRow, RowBinding},
     domain::{
         ChangeRequestKey, ChangedFile, CommitOid, DiffPosition, DiffSide, FileStatus,
         PatchAvailability, ProviderCapabilities, ProviderKind, ProviderSnapshot, RepoPath,
     },
     state::{ContentIdentity, FileProgress, ReviewSync, SESSION_SCHEMA_VERSION, SessionSnapshot},
-    tui::{KeyMap, key_to_action, render},
+    tui::{KeyMap, handle_key, key_to_action, render},
 };
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::{Terminal, backend::TestBackend, text::Line};
@@ -180,6 +180,12 @@ fn screen(state: &AppState, width: u16, height: u16) -> String {
         .join("\n")
 }
 
+fn press(state: &mut AppState, keys: &mut KeyMap, code: KeyCode) {
+    if let Some(event) = handle_key(state, keys, KeyEvent::new(code, KeyModifiers::NONE)) {
+        update(state, event);
+    }
+}
+
 #[test]
 fn renders_wide_file_panel_canonical_diff_and_shortcuts() {
     let screen = screen(&app(), 120, 36);
@@ -294,6 +300,24 @@ fn maps_navigation_keys_and_ignores_release_events() {
 }
 
 #[test]
+fn maps_clean_copy_shortcuts() {
+    assert_eq!(
+        format!(
+            "{:?}",
+            key_to_action(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE))
+        ),
+        "Some(CopyLineOrSelection)"
+    );
+    assert_eq!(
+        format!(
+            "{:?}",
+            key_to_action(KeyEvent::new(KeyCode::Char('Y'), KeyModifiers::SHIFT))
+        ),
+        "Some(CopyHunk)"
+    );
+}
+
+#[test]
 fn maps_prefixed_file_and_unreviewed_navigation() {
     let mut keys = KeyMap::default();
     assert_eq!(
@@ -349,6 +373,44 @@ fn maps_prefixed_hunk_and_comment_navigation() {
         keys.feed(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE)),
         Some(AppAction::PreviousComment)
     );
+}
+
+#[test]
+fn gg_jumps_to_the_first_diff_row_and_first_file() {
+    let mut state = app_with_long_content();
+    let mut keys = KeyMap::default();
+    state.focus = AppFocus::Diff;
+    state.session.cursor_row = 12;
+    refresh_display_rows(&mut state);
+
+    press(&mut state, &mut keys, KeyCode::Char('g'));
+    press(&mut state, &mut keys, KeyCode::Char('g'));
+
+    assert_eq!(state.session.cursor_row, 0);
+
+    state.focus = AppFocus::Files;
+    state.active_file_index = 12;
+    state.session.active_file = Some(RepoPath("src/file_12.rs".into()));
+    press(&mut state, &mut keys, KeyCode::Char('g'));
+    press(&mut state, &mut keys, KeyCode::Char('g'));
+
+    assert_eq!(state.active_file_index, 0);
+}
+
+#[test]
+fn capital_g_jumps_to_the_last_diff_row_and_last_file() {
+    let mut state = app_with_long_content();
+    let mut keys = KeyMap::default();
+    state.focus = AppFocus::Diff;
+
+    press(&mut state, &mut keys, KeyCode::Char('G'));
+
+    assert_eq!(state.session.cursor_row, 19);
+
+    state.focus = AppFocus::Files;
+    press(&mut state, &mut keys, KeyCode::Char('G'));
+
+    assert_eq!(state.active_file_index, 19);
 }
 
 #[test]

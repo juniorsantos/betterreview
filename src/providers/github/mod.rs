@@ -350,6 +350,17 @@ where
         nodes
             .into_iter()
             .map(|node| {
+                let head = CommitOid(node.head_ref_oid);
+                let reviewed_head = node
+                    .viewer_latest_review
+                    .filter(|review| {
+                        matches!(
+                            review.state.as_str(),
+                            "APPROVED" | "CHANGES_REQUESTED" | "COMMENTED"
+                        )
+                    })
+                    .and_then(|review| review.commit)
+                    .map(|commit| CommitOid(commit.oid));
                 Ok(ChangeRequestSummary {
                     number: node.number,
                     title: node.title,
@@ -365,6 +376,8 @@ where
                     draft: node.is_draft,
                     web_url: node.url,
                     description: node.body.unwrap_or_default(),
+                    head,
+                    reviewed_head,
                 })
             })
             .collect()

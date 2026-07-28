@@ -1,3 +1,4 @@
+mod copy;
 mod display;
 mod effect;
 mod event;

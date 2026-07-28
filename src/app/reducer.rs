@@ -102,6 +102,12 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
         AppAction::PreviousHunk => jump_hunk(state, -1),
         AppAction::NextComment => jump_comment(state, 1),
         AppAction::PreviousComment => jump_comment(state, -1),
+        AppAction::JumpToStart => jump_to_boundary(state, false),
+        AppAction::JumpToEnd => jump_to_boundary(state, true),
+        AppAction::CopyLineOrSelection => {
+            copy_to_clipboard(state, super::copy::CopyTarget::LineOrSelection)
+        }
+        AppAction::CopyHunk => copy_to_clipboard(state, super::copy::CopyTarget::Hunk),
         AppAction::MoveCursor(delta) => match state.focus {
             AppFocus::Files => navigate_by(state, delta.signum()),
             AppFocus::Diff => move_display_cursor(state, delta),
@@ -492,6 +498,74 @@ fn jump_to_display_row(state: &mut AppState, index: usize) -> Vec<EffectEnvelope
     let target = snap_to_stop(&state.display_rows, clamped);
     land_on_display_row(state, target);
     Vec::new()
+}
+
+fn jump_to_boundary(state: &mut AppState, end: bool) -> Vec<EffectEnvelope> {
+    match state.focus {
+        AppFocus::Files => {
+            let target = if end {
+                state
+                    .provider
+                    .files
+                    .iter()
+                    .enumerate()
+                    .rev()
+                    .find_map(|(index, _)| {
+                        (!is_folded(state, index) || is_directory_representative(state, index))
+                            .then_some(index)
+                    })
+            } else {
+                state
+                    .provider
+                    .files
+                    .iter()
+                    .enumerate()
+                    .find_map(|(index, _)| {
+                        (!is_folded(state, index) || is_directory_representative(state, index))
+                            .then_some(index)
+                    })
+            };
+            match target {
+                Some(index) if index != state.active_file_index => activate_file(state, index),
+                Some(_) => {
+                    state.folder_selected = false;
+                    Vec::new()
+                }
+                None => Vec::new(),
+            }
+        }
+        AppFocus::Diff => {
+            let target = if end {
+                state.display_rows.iter().rposition(is_display_stop)
+            } else {
+                state.display_rows.iter().position(is_display_stop)
+            };
+            if let Some(index) = target {
+                land_on_display_row(state, index);
+            }
+            Vec::new()
+        }
+        AppFocus::Threads => Vec::new(),
+    }
+}
+
+fn copy_to_clipboard(state: &mut AppState, target: super::copy::CopyTarget) -> Vec<EffectEnvelope> {
+    match super::copy::prepare(state, target) {
+        Ok(copy) => {
+            push_notice(state, copy.notice);
+            vec![envelope(
+                state,
+                None,
+                AppEffect::CopyToClipboard {
+                    content: copy.content,
+                },
+            )]
+        }
+        Err(message) => {
+            push_notice(state, message);
+            Vec::new()
+        }
+    }
 }
 
 /// Walks backward from `index` to the nearest display-stop row. Comment
@@ -1154,6 +1228,7 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
                 state.error_banner = Some(message);
             }
         },
+        EffectOutcome::ClipboardCopied(result) => set_error(state, result),
     }
     Vec::new()
 }
