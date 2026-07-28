@@ -8,7 +8,15 @@ from conventional commits by [release-please](https://github.com/googleapis/rele
 
 ### Features
 
-* prepare BetterReview v1.2.0 ([#80](https://github.com/juniorsantos/betterreview/issues/80)) ([eac9435](https://github.com/juniorsantos/betterreview/commit/eac94351aaa379db06e07d6372021f5665ebab8a))
+* jump to the first and last diff row or file ([#30](https://github.com/juniorsantos/betterreview/issues/30))
+* copy the current line, selection or hunk as clean code through OSC-52 ([#76](https://github.com/juniorsantos/betterreview/issues/76))
+* keep reviewed status tied to the current HEAD ([#75](https://github.com/juniorsantos/betterreview/issues/75))
+* add a dedicated status column and expand author and branch metadata ([#80](https://github.com/juniorsantos/betterreview/pull/80))
+
+
+### Documentation
+
+* refresh both READMEs and all screenshots, including the approval review modal ([#80](https://github.com/juniorsantos/betterreview/pull/80))
 
 ## [1.1.0](https://github.com/juniorsantos/betterreview/compare/v1.0.0...v1.1.0)
 
