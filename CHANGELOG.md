@@ -3,6 +3,13 @@
 All notable changes to this project are documented in this file, generated
 from conventional commits by [release-please](https://github.com/googleapis/release-please).
 
+## [1.2.0](https://github.com/juniorsantos/betterreview/compare/v1.1.0...v1.2.0) (2026-07-28)
+
+
+### Features
+
+* prepare BetterReview v1.2.0 ([#80](https://github.com/juniorsantos/betterreview/issues/80)) ([eac9435](https://github.com/juniorsantos/betterreview/commit/eac94351aaa379db06e07d6372021f5665ebab8a))
+
 ## [1.1.0](https://github.com/juniorsantos/betterreview/compare/v1.0.0...v1.1.0)
 
 
