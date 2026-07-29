@@ -1,4 +1,6 @@
 use std::io;
+#[cfg(unix)]
+use std::io::Write;
 
 use crossterm::event::{
     DisableMouseCapture, EnableMouseCapture, KeyCode, KeyEvent, KeyEventKind, KeyModifiers,
@@ -19,6 +21,7 @@ pub(crate) fn is_requested(key: KeyEvent) -> bool {
 trait Lifecycle {
     fn disable_mouse(&mut self) -> io::Result<()>;
     fn restore_terminal(&mut self) -> io::Result<()>;
+    fn show_resume_hint(&mut self) -> io::Result<()>;
     fn stop_process(&mut self) -> io::Result<()>;
     fn initialize_terminal(&mut self) -> io::Result<()>;
     fn enable_mouse(&mut self) -> io::Result<()>;
@@ -29,6 +32,7 @@ trait Lifecycle {
 fn run_with(lifecycle: &mut impl Lifecycle) -> io::Result<()> {
     lifecycle.disable_mouse()?;
     lifecycle.restore_terminal()?;
+    lifecycle.show_resume_hint()?;
     lifecycle.stop_process()?;
     lifecycle.initialize_terminal()?;
     lifecycle.enable_mouse()?;
@@ -49,6 +53,10 @@ impl Lifecycle for SystemLifecycle<'_> {
 
     fn restore_terminal(&mut self) -> io::Result<()> {
         ratatui::try_restore()
+    }
+
+    fn show_resume_hint(&mut self) -> io::Result<()> {
+        write_resume_hint(io::stdout().lock())
     }
 
     fn stop_process(&mut self) -> io::Result<()> {
@@ -75,6 +83,12 @@ impl Lifecycle for SystemLifecycle<'_> {
 #[cfg(unix)]
 pub(crate) fn run(terminal: &mut ratatui::DefaultTerminal) -> io::Result<()> {
     run_with(&mut SystemLifecycle { terminal })
+}
+
+#[cfg(unix)]
+fn write_resume_hint(mut output: impl Write) -> io::Result<()> {
+    writeln!(output, "betterreview suspended — resume with fg")?;
+    output.flush()
 }
 
 #[cfg(not(unix))]
@@ -128,6 +142,11 @@ mod tests {
                 Ok(())
             }
 
+            fn show_resume_hint(&mut self) -> io::Result<()> {
+                self.0.push("show_resume_hint");
+                Ok(())
+            }
+
             fn stop_process(&mut self) -> io::Result<()> {
                 self.0.push("stop_process");
                 Ok(())
@@ -158,11 +177,25 @@ mod tests {
             [
                 "disable_mouse",
                 "restore_terminal",
+                "show_resume_hint",
                 "stop_process",
                 "initialize_terminal",
                 "enable_mouse",
                 "clear_terminal",
             ]
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn resume_hint_names_the_shell_command() {
+        let mut output = Vec::new();
+
+        write_resume_hint(&mut output).unwrap();
+
+        assert_eq!(
+            String::from_utf8(output).unwrap(),
+            "betterreview suspended — resume with fg\n"
         );
     }
 }

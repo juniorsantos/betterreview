@@ -110,7 +110,7 @@ fn help_shows_the_dialog_title_and_key_bindings() {
     assert!(screen.contains("y Y"));
     assert!(screen.contains("p C"));
     assert!(screen.contains("Ctrl+Z"));
-    assert!(screen.contains("shell"));
+    assert!(screen.contains("use fg"));
 }
 
 #[test]
