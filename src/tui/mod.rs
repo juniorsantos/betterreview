@@ -5,6 +5,7 @@ mod layout;
 pub mod picker;
 mod render;
 mod splash;
+mod suspend;
 mod terminal;
 pub mod text;
 pub mod theme;

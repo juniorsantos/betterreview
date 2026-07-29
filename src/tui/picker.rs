@@ -25,7 +25,7 @@ use crate::{
 };
 
 use super::{
-    TuiError,
+    TuiError, suspend,
     text::{display_width, truncate_to_width},
     theme,
     widgets::{header, status},
@@ -915,6 +915,11 @@ pub async fn run(
             event = event_rx.recv() => event,
             terminal_event = events.next() => match terminal_event {
                 Some(Ok(Event::Key(key))) if is_interrupt(key) => return Ok(PickerOutcome::Quit),
+                Some(Ok(Event::Key(key))) if suspend::is_requested(key) => {
+                    suspend::run(terminal).map_err(TuiError::Suspend)?;
+                    events = EventStream::new();
+                    None
+                }
                 Some(Ok(Event::Key(key))) => Some(PickerEvent::Key(key)),
                 Some(Ok(Event::Mouse(mouse))) => wheel_to_key(mouse.kind)
                     .map(PickerEvent::Key)
