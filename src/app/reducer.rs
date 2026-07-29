@@ -112,6 +112,10 @@ fn action_update(state: &mut AppState, action: AppAction) -> Vec<EffectEnvelope>
         AppAction::CopyAllComments => {
             copy_to_clipboard(state, super::copy::CopyTarget::AllComments)
         }
+        AppAction::OpenLink(url) => {
+            push_notice(state, "opening link");
+            vec![envelope(state, None, AppEffect::OpenLink { url })]
+        }
         AppAction::MoveCursor(delta) => match state.focus {
             AppFocus::Files => navigate_by(state, delta.signum()),
             AppFocus::Diff => move_display_cursor(state, delta),
@@ -1233,6 +1237,7 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
             }
         },
         EffectOutcome::ClipboardCopied(result) => set_error(state, result),
+        EffectOutcome::LinkOpened(result) => set_error(state, result),
     }
     Vec::new()
 }

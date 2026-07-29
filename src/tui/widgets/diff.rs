@@ -122,16 +122,7 @@ impl Gutter {
 }
 
 pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
-    let border = if state.focus == AppFocus::Diff {
-        theme::ACCENT
-    } else {
-        theme::BORDER
-    };
-    let block = Block::default()
-        .title(crate::tui::text::panel_title("[3] Diff", None, area.width))
-        .borders(Borders::ALL)
-        .padding(ratatui::widgets::Padding::horizontal(1))
-        .border_style(Style::default().fg(border));
+    let block = panel_block(area, state);
     let inner = block.inner(area);
     let inner_width = inner.width as usize;
     let columns = crate::tui::diff_columns(area, state);
@@ -249,6 +240,38 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             );
         }
     }
+}
+
+pub(in crate::tui) fn file_link_target(state: &AppState, area: Rect) -> Option<hyperlink::Target> {
+    let Some(DisplayRow::FileHeader { path, .. }) = state.display_rows.first() else {
+        return None;
+    };
+    let file = state.provider.files.get(state.active_file_index)?;
+    if path != &file.path.0 {
+        return None;
+    }
+    let links = ReviewLinks::new(&state.provider.key, &state.provider.web_url)?;
+    let inner = panel_block(area, state).inner(area);
+    let width = u16::try_from(display_width(&file.path.0))
+        .unwrap_or(u16::MAX)
+        .min(inner.width);
+    (width > 0).then(|| hyperlink::Target {
+        area: Rect::new(inner.x, inner.y, width, 1),
+        url: links.file_url(&file.path),
+    })
+}
+
+fn panel_block(area: Rect, state: &AppState) -> Block<'static> {
+    let border = if state.focus == AppFocus::Diff {
+        theme::ACCENT
+    } else {
+        theme::BORDER
+    };
+    Block::default()
+        .title(crate::tui::text::panel_title("[3] Diff", None, area.width))
+        .borders(Borders::ALL)
+        .padding(ratatui::widgets::Padding::horizontal(1))
+        .border_style(Style::default().fg(border))
 }
 
 fn lift(color: ratatui::style::Color) -> ratatui::style::Color {

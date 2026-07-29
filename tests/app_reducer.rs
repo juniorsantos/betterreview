@@ -257,6 +257,43 @@ fn copied_text(effects: &[betterreview::app::EffectEnvelope]) -> Option<&str> {
 }
 
 #[test]
+fn opening_a_link_emits_the_browser_effect_and_notice() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+    let url = "https://github.com/owner/repo/pull/10";
+
+    let effects = update(
+        &mut state,
+        AppEvent::Action(AppAction::OpenLink(url.into())),
+    );
+
+    assert!(matches!(
+        &effects[0].effect,
+        AppEffect::OpenLink { url: effect_url } if effect_url == url
+    ));
+    assert_eq!(
+        state.notices.last().map(String::as_str),
+        Some("opening link")
+    );
+}
+
+#[test]
+fn link_opener_failure_is_shown_without_refreshing_the_review() {
+    let mut state = app_with_reviewed_pattern([false; 4]);
+
+    let effects = update(
+        &mut state,
+        AppEvent::EffectFinished(Box::new(EffectResult {
+            id: 1,
+            generation: None,
+            outcome: EffectOutcome::LinkOpened(Err("browser unavailable".into())),
+        })),
+    );
+
+    assert!(effects.is_empty());
+    assert_eq!(state.error_banner.as_deref(), Some("browser unavailable"));
+}
+
+#[test]
 fn next_unreviewed_skips_reviewed_files_and_wraps() {
     let mut state = app_with_reviewed_pattern([true, false, true, false]);
 

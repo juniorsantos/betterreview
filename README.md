@@ -151,6 +151,7 @@ betterreview completions fish > ~/.config/fish/completions/betterreview.fish
 | `]f` `[f` / `]u` `[u` | next/previous file / unreviewed file |
 | `/`, `n`/`N` | search in the diff |
 | `R` | submit review (approve / request changes / comment) |
+| click `#PR`, head hash or active file | open the link in the default browser |
 | `Ctrl+Z` | suspend to the shell (`fg` returns to the review) |
 | `?` | help with all shortcuts |
 | `q` | quit |
