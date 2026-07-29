@@ -111,6 +111,7 @@ fn help_shows_the_dialog_title_and_key_bindings() {
     assert!(screen.contains("p C"));
     assert!(screen.contains("Ctrl+Z"));
     assert!(screen.contains("use fg"));
+    assert!(screen.contains("open link"));
 }
 
 #[test]

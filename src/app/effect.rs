@@ -32,6 +32,7 @@ pub enum AppEffect {
     LoadFileContext { path: RepoPath, revision: CommitOid },
     LoadBlame { path: RepoPath, revision: CommitOid },
     CopyToClipboard { content: String },
+    OpenLink { url: String },
 }
 
 #[derive(Debug)]
@@ -75,4 +76,5 @@ pub enum EffectOutcome {
         result: Result<String, String>,
     },
     ClipboardCopied(Result<(), String>),
+    LinkOpened(Result<(), String>),
 }

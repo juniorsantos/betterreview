@@ -151,6 +151,8 @@ betterreview completions fish > ~/.config/fish/completions/betterreview.fish
 | `]f` `[f` / `]u` `[u` | próximo/anterior arquivo / arquivo não revisado |
 | `/`, `n`/`N` | buscar no diff |
 | `R` | enviar revisão (aprovar / solicitar mudanças / comentar) |
+| clicar no `#PR`, hash HEAD ou arquivo ativo | abrir o link no navegador padrão |
+| `Ctrl+Z` | suspender para o shell (`fg` retorna à revisão) |
 | `?` | ajuda com todos os atalhos |
 | `q` | sair |
 

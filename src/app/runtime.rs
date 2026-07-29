@@ -165,6 +165,9 @@ impl Runtime {
             AppEffect::CopyToClipboard { content } => EffectOutcome::ClipboardCopied(
                 crate::clipboard::copy(&content).map_err(|error| error.to_string()),
             ),
+            AppEffect::OpenLink { url } => {
+                EffectOutcome::LinkOpened(crate::browser::open(self.runner.as_ref(), &url).await)
+            }
         };
         EffectResult {
             id: envelope.id,

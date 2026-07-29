@@ -66,6 +66,7 @@ const COLUMNS: [Column; 4] = [
             ("T", "comments"),
             ("b", "blame"),
             ("\u{2588}", "moved code"),
+            ("click", "open link"),
         ],
     },
     Column {

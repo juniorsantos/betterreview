@@ -1,5 +1,6 @@
 pub mod app;
 pub mod blame;
+mod browser;
 pub mod cli;
 mod clipboard;
 pub mod context;

@@ -17,7 +17,7 @@ use crate::{
 };
 
 use super::{
-    EditorState, KeyMap,
+    EditorState, KeyMap, hyperlink,
     layout::screen_layout,
     render, suspend, viewport,
     widgets::{
@@ -383,8 +383,23 @@ fn click_event(app: &mut AppState, terminal_size: Rect, mouse: MouseEvent) -> Op
     if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
         return None;
     }
+    if app.help_visible
+        || app.blocked.is_some()
+        || app.quit_dialog
+        || app.delete_dialog.is_some()
+        || app.editor_open
+        || app.submission_modal.is_some()
+    {
+        return None;
+    }
     let layout = screen_layout(terminal_size, app);
     let point = (mouse.column, mouse.row);
+    if let Some(target) = hyperlink::header_targets(app, terminal_size)
+        .into_iter()
+        .find(|target| contains(target.area, point))
+    {
+        return action(AppAction::OpenLink(target.url));
+    }
     if let Some(files_rect) = layout.files
         && contains(files_rect, point)
     {
@@ -392,6 +407,11 @@ fn click_event(app: &mut AppState, terminal_size: Rect, mouse: MouseEvent) -> Op
         return files_click(app, files_rect, mouse.row).map(AppEvent::Action);
     }
     if contains(layout.diff, point) {
+        if let Some(target) = super::widgets::diff::file_link_target(app, layout.diff)
+            && contains(target.area, point)
+        {
+            return action(AppAction::OpenLink(target.url));
+        }
         app.focus = AppFocus::Diff;
         return diff_click(app, layout.diff, mouse.row).map(AppEvent::Action);
     }
@@ -482,7 +502,7 @@ mod tests {
             key: key.clone(),
             title: String::new(),
             author: String::new(),
-            web_url: String::new(),
+            web_url: "https://github.com/owner/repo/pull/1".into(),
             base: CommitOid("base".into()),
             head: CommitOid("head".into()),
             files: ["a/one.rs", "a/two.rs", "b/three.rs"]
@@ -508,6 +528,10 @@ mod tests {
         };
         let mut state = AppState::new(provider, session);
         state.display_rows = vec![
+            DisplayRow::FileHeader {
+                path: "a/one.rs".into(),
+                previous_path: None,
+            },
             DisplayRow::Diff { row: 0 },
             DisplayRow::Diff { row: 1 },
             DisplayRow::Diff { row: 2 },
@@ -528,6 +552,92 @@ mod tests {
     /// a diff panel at `(30, 2, 70, 27)` — see the row/column math in
     /// `layout::tests`.
     const TERMINAL_SIZE: Rect = Rect::new(0, 0, 100, 30);
+
+    #[test]
+    fn clicking_the_review_number_opens_the_review() {
+        let mut app = state_with_two_directories();
+
+        let event = click_event(&mut app, TERMINAL_SIZE, left_click(26, 0));
+
+        assert!(matches!(
+            event,
+            Some(AppEvent::Action(AppAction::OpenLink(url)))
+                if url == "https://github.com/owner/repo/pull/1"
+        ));
+    }
+
+    #[test]
+    fn clicking_the_head_hash_opens_the_commit() {
+        let mut app = state_with_two_directories();
+
+        let event = click_event(&mut app, TERMINAL_SIZE, left_click(31, 0));
+
+        assert!(matches!(
+            event,
+            Some(AppEvent::Action(AppAction::OpenLink(url)))
+                if url == "https://github.com/owner/repo/commit/head"
+        ));
+    }
+
+    #[test]
+    fn clicking_the_header_separator_does_not_open_a_link() {
+        let mut app = state_with_two_directories();
+
+        let event = click_event(&mut app, TERMINAL_SIZE, left_click(29, 0));
+
+        assert!(event.is_none());
+    }
+
+    #[test]
+    fn clicking_the_active_file_label_opens_the_file() {
+        let mut app = state_with_two_directories();
+
+        let event = click_event(&mut app, TERMINAL_SIZE, left_click(32, 3));
+
+        assert!(matches!(
+            event,
+            Some(AppEvent::Action(AppAction::OpenLink(url)))
+                if url == "https://github.com/owner/repo/pull/1/files#diff-021a8f4ddeb3fcd0258cbc36198e950943c0d56508776dfab1755b973685e34b"
+        ));
+    }
+
+    #[test]
+    fn clicking_next_to_the_active_file_keeps_diff_navigation() {
+        let mut app = state_with_two_directories();
+
+        let event = click_event(&mut app, TERMINAL_SIZE, left_click(41, 3));
+
+        assert!(matches!(
+            event,
+            Some(AppEvent::Action(AppAction::JumpToDisplayRow(0)))
+        ));
+    }
+
+    #[test]
+    fn a_stale_file_header_does_not_open_the_active_file_link() {
+        let mut app = state_with_two_directories();
+        app.display_rows[0] = DisplayRow::FileHeader {
+            path: "stale.rs".into(),
+            previous_path: None,
+        };
+
+        let event = click_event(&mut app, TERMINAL_SIZE, left_click(32, 3));
+
+        assert!(matches!(
+            event,
+            Some(AppEvent::Action(AppAction::JumpToDisplayRow(0)))
+        ));
+    }
+
+    #[test]
+    fn links_are_not_opened_behind_a_modal() {
+        let mut app = state_with_two_directories();
+        app.help_visible = true;
+
+        let event = click_event(&mut app, TERMINAL_SIZE, left_click(26, 0));
+
+        assert!(event.is_none());
+    }
 
     #[test]
     fn clicking_a_file_row_focuses_files_and_activates_it() {
