@@ -3,6 +3,20 @@
 All notable changes to this project are documented in this file, generated
 from conventional commits by [release-please](https://github.com/googleapis/release-please).
 
+## [1.3.0](https://github.com/juniorsantos/betterreview/compare/v1.2.0...v1.3.0) (2026-07-29)
+
+
+### Features
+
+* add clickable review links ([#85](https://github.com/juniorsantos/betterreview/issues/85)) ([69521ed](https://github.com/juniorsantos/betterreview/commit/69521ed538bea7a8ffd35c8ef21b4f2bfb398781))
+* copy patch hunks and comments ([#83](https://github.com/juniorsantos/betterreview/issues/83)) ([339c30d](https://github.com/juniorsantos/betterreview/commit/339c30dbf58345555ae45261cb25d33611e991ad))
+* suspend reviews with Ctrl+Z ([#86](https://github.com/juniorsantos/betterreview/issues/86)) ([7064be2](https://github.com/juniorsantos/betterreview/commit/7064be219dfc955bd344d3c2cc838524edf917b8))
+
+
+### Bug Fixes
+
+* open review links on click ([#88](https://github.com/juniorsantos/betterreview/issues/88)) ([eee1fad](https://github.com/juniorsantos/betterreview/commit/eee1fad5061e823c335a145816953c13588b3ff2))
+
 ## [1.2.0](https://github.com/juniorsantos/betterreview/compare/v1.1.0...v1.2.0)
 
 
