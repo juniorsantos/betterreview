@@ -2,7 +2,7 @@
 source: tests/tui_navigation.rs
 expression: "redact_version(screen(&app(), 50, 16))"
 ---
- betterreview  owner/repo #42 · Add terminal revie
+ betterreview  owner/repo #42 · head · Add termina
 
 ┌─ [3] Diff ─────────────────────────────────────┐
 │   8    │ -old                                  │

@@ -2,7 +2,9 @@ use std::collections::BTreeMap;
 
 use betterreview::{
     app::{AppState, DisplayRow, refresh_display_rows},
-    diff::{DiffRow, DiffRowKind, ParsedFileDiff, RenderedDiff, RenderedRow, RowBinding},
+    diff::{
+        DiffRow, DiffRowKind, ParsedFileDiff, RenderedDiff, RenderedRow, RowBinding, sanitize_ansi,
+    },
     domain::{
         ChangeRequestKey, ChangedFile, CommitOid, DiffPosition, DiffSelection, DiffSide,
         DraftComment, DraftId, FileStatus, PatchAvailability, ProviderCapabilities, ProviderKind,
@@ -411,6 +413,20 @@ fn screen(terminal: &Terminal<TestBackend>) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+#[test]
+fn review_header_and_file_header_emit_only_app_owned_hyperlinks() {
+    let terminal = draw(&app_with_gap());
+    let screen = screen(&terminal);
+
+    assert!(screen.contains("\x1b]8;;https://github.com/owner/repo/pull/42\x1b\\"));
+    assert!(screen.contains("\x1b]8;;https://github.com/owner/repo/commit/head\x1b\\"));
+    assert!(screen.contains(
+        "\x1b]8;;https://github.com/owner/repo/pull/42/files#diff-0b979b6de560b29c1d97336878db56179224aa21d96fe099630c6628479ed020\x1b\\"
+    ));
+    let visible = String::from_utf8(sanitize_ansi(screen.as_bytes()).unwrap()).unwrap();
+    assert!(visible.contains("owner/repo #42 · head · Review terminal · @dev"));
 }
 
 #[test]

@@ -2,7 +2,7 @@
 source: tests/tui_submit_modal.rs
 expression: "redact_version(screen(&app_with_drafts(3), 80, 24))"
 ---
- betterreview  owner/repo #42 · Review terminal · @dev                   vX.Y.Z 
+ betterreview  owner/repo #42 · head · Review terminal · @dev            vX.Y.Z
                                                                                 
 ┌─ [2] Files (0/1) ──────────┐┌─ [3] Diff ─────────────────────────────────────┐
 │ ▾ src/                     ││ Loading diff…                                  │

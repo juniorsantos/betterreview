@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use betterreview::{
     app::{AppState, SubmissionModal},
+    diff::sanitize_ansi,
     domain::{
         ChangeRequestKey, ChangedFile, CommitOid, DraftComment, DraftId, FileStatus,
         PatchAvailability, ProviderCapabilities, ProviderKind, ProviderSnapshot, RepoPath,
@@ -89,14 +90,20 @@ fn screen(state: &AppState, width: u16, height: u16) -> String {
     let mut terminal = Terminal::new(backend).unwrap();
     terminal.draw(|frame| render(frame, state)).unwrap();
     let buffer = terminal.backend().buffer();
-    (0..height)
+    let raw = (0..height)
         .map(|y| {
-            (0..width)
+            let line = (0..width)
                 .map(|x| buffer.cell((x, y)).unwrap().symbol())
-                .collect::<String>()
+                .collect::<String>();
+            if y == 0 {
+                line.trim_end().to_owned()
+            } else {
+                line
+            }
         })
         .collect::<Vec<_>>()
-        .join("\n")
+        .join("\n");
+    String::from_utf8(sanitize_ansi(raw.as_bytes()).unwrap()).unwrap()
 }
 
 #[test]

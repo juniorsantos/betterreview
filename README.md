@@ -23,6 +23,7 @@ Approve, request changes or comment without losing the diff and draft context be
 - Line or block selection (`v`) to comment exactly like on GitHub
 - Clean clipboard copying: current line or selection (`y`) and current hunk (`Y`)
 - Portable review sharing: raw patch hunk (`p`) or every comment as Markdown (`C`)
+- Clickable terminal links for the review, current HEAD commit and active file on GitHub or GitLab
 - File tree with reviewed checkboxes (`m`), collapsible folders and de-emphasized generated files
 - Quick jumps: first/last diff row or file (`gg`/`G`), next hunk (`]h`), next comment (`]c`), next file (`]f`), next unreviewed (`]u`)
 - In-diff search (`/`, `n`/`N`), mouse support (scroll and click)

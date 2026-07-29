@@ -10,7 +10,9 @@ use crate::{
     app::{AppFocus, AppState, CommentEntry, CommentRowKind, DisplayRow},
     diff::{RenderedDiff, RenderedRow},
     domain::{DiffLayout, DiffSide, PatchAvailability},
+    providers::ReviewLinks,
     tui::{
+        hyperlink,
         text::{display_width, expand_tabs, truncate_to_width},
         theme, viewport,
         widgets::dialog::{ActionButton, button_line},
@@ -153,46 +155,100 @@ pub(in crate::tui) fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             .enumerate()
             .map(|(index, display_row)| {
                 let line = render_display_row(state, diff, display_row, index, &layout);
-                if state.wrap_lines {
+                let line = if state.wrap_lines {
                     line
                 } else {
                     mark_if_cut(line, inner_width)
-                }
+                };
+                (line, matches!(display_row, DisplayRow::FileHeader { .. }))
             })
             .collect(),
-        None => vec![Line::raw(unavailable_reason(state))],
+        None => vec![(Line::raw(unavailable_reason(state)), false)],
     };
     frame.render_widget(block, area);
 
     let full = inner.height as usize;
-    let rows: Vec<Vec<Line<'static>>> = lines
+    let rows: Vec<(Vec<Line<'static>>, bool)> = lines
         .into_iter()
-        .map(|line| {
-            if state.wrap_lines {
+        .map(|(line, linked)| {
+            let lines = if state.wrap_lines {
                 wrap_with_gutter(line, inner.width as usize, gutter.width())
             } else {
                 vec![line]
-            }
+            };
+            (lines, linked)
         })
         .collect();
-    let heights: Vec<usize> = rows.iter().map(Vec::len).collect();
+    let heights: Vec<usize> = rows.iter().map(|(lines, _)| lines.len()).collect();
     let pinned = viewport::start_wrapped(state.display_cursor, &heights, full) > 0;
     let visible = if pinned { full.saturating_sub(1) } else { full };
     let start = viewport::start_wrapped(state.display_cursor, &heights, visible);
     let scroll = u16::try_from(start).unwrap_or(u16::MAX);
+    let file_url = state
+        .provider
+        .files
+        .get(state.active_file_index)
+        .and_then(|file| {
+            ReviewLinks::new(&state.provider.key, &state.provider.web_url)
+                .map(|links| links.file_url(&file.path))
+        });
 
     let body = if pinned {
+        let line = pinned_line(state);
         frame.render_widget(
-            Paragraph::new(pinned_line(state)),
+            Paragraph::new(line),
             Rect::new(inner.x, inner.y, inner.width, 1),
         );
+        if let (Some(url), Some(path)) =
+            (&file_url, state.parsed_diff.as_ref().map(|diff| &diff.path))
+        {
+            hyperlink::apply(
+                frame,
+                Rect::new(
+                    inner.x,
+                    inner.y,
+                    u16::try_from(display_width(&path.0))
+                        .unwrap_or(u16::MAX)
+                        .min(inner.width),
+                    1,
+                ),
+                url,
+            );
+        }
         Rect::new(inner.x, inner.y + 1, inner.width, inner.height - 1)
     } else {
         inner
     };
-    let paragraph =
-        Paragraph::new(rows.into_iter().flatten().collect::<Vec<_>>()).scroll((scroll, 0));
+    let mut paragraph_lines = Vec::new();
+    let mut linked_lines = Vec::new();
+    for (lines, linked) in rows {
+        for line in lines {
+            if linked {
+                linked_lines.push((paragraph_lines.len(), line.width()));
+            }
+            paragraph_lines.push(line);
+        }
+    }
+    let paragraph = Paragraph::new(paragraph_lines).scroll((scroll, 0));
     frame.render_widget(paragraph, body);
+    if let Some(url) = file_url {
+        let bottom = start.saturating_add(body.height as usize);
+        for (line, width) in linked_lines {
+            if !(start..bottom).contains(&line) {
+                continue;
+            }
+            hyperlink::apply(
+                frame,
+                Rect::new(
+                    body.x,
+                    body.y + u16::try_from(line - start).unwrap_or(u16::MAX),
+                    u16::try_from(width).unwrap_or(u16::MAX).min(body.width),
+                    1,
+                ),
+                &url,
+            );
+        }
+    }
 }
 
 fn lift(color: ratatui::style::Color) -> ratatui::style::Color {

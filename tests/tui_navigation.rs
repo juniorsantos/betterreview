@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use betterreview::{
     app::{AppAction, AppFocus, AppState, refresh_display_rows, update},
-    diff::{RenderedDiff, RenderedRow, RowBinding},
+    diff::{RenderedDiff, RenderedRow, RowBinding, sanitize_ansi},
     domain::{
         ChangeRequestKey, ChangedFile, CommitOid, DiffPosition, DiffSide, FileStatus,
         PatchAvailability, ProviderCapabilities, ProviderKind, ProviderSnapshot, RepoPath,
@@ -169,7 +169,7 @@ fn screen(state: &AppState, width: u16, height: u16) -> String {
     let mut terminal = Terminal::new(backend).unwrap();
     terminal.draw(|frame| render(frame, state)).unwrap();
     let buffer = terminal.backend().buffer();
-    (0..height)
+    let raw = (0..height)
         .map(|y| {
             let line = (0..width)
                 .map(|x| buffer.cell((x, y)).unwrap().symbol())
@@ -177,7 +177,8 @@ fn screen(state: &AppState, width: u16, height: u16) -> String {
             line.trim_end().to_owned()
         })
         .collect::<Vec<_>>()
-        .join("\n")
+        .join("\n");
+    String::from_utf8(sanitize_ansi(raw.as_bytes()).unwrap()).unwrap()
 }
 
 fn press(state: &mut AppState, keys: &mut KeyMap, code: KeyCode) {

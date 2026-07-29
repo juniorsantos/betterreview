@@ -10,15 +10,16 @@ use ratatui::{
 
 use crate::tui::{text::display_width, theme};
 
+pub(in crate::tui) const NAME_CHIP: &str = " betterreview ";
+
 /// Builds the header line: ` betterreview ` chip (ACCENT reversed + bold),
 /// `middle` in MUTED, and ` vX.Y.Z ` chip (MUTED reversed) pushed to the
 /// right edge of `width` columns.
 pub(in crate::tui) fn chip_line(middle: &str, width: u16) -> Line<'static> {
-    let name_chip = " betterreview ";
     let version_chip = format!(" v{} ", env!("CARGO_PKG_VERSION"));
 
     let name_span = Span::styled(
-        name_chip,
+        NAME_CHIP,
         Style::default()
             .fg(theme::ACCENT)
             .add_modifier(Modifier::REVERSED | Modifier::BOLD),
@@ -31,7 +32,7 @@ pub(in crate::tui) fn chip_line(middle: &str, width: u16) -> Line<'static> {
             .add_modifier(Modifier::REVERSED),
     );
 
-    let used = display_width(name_chip) + display_width(middle) + display_width(&version_chip);
+    let used = display_width(NAME_CHIP) + display_width(middle) + display_width(&version_chip);
     let pad = (width as usize).saturating_sub(used);
 
     Line::from(vec![
