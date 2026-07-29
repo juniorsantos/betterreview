@@ -1,4 +1,5 @@
 mod editor_state;
+mod hyperlink;
 mod keymap;
 mod layout;
 pub mod picker;

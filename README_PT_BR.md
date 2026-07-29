@@ -23,6 +23,7 @@ Aprove, solicite mudanças ou comente sem perder o diff e os rascunhos visíveis
 - Seleção de linha ou bloco (`v`) para comentar exatamente como no GitHub
 - Cópia limpa para o clipboard: linha ou seleção atual (`y`) e hunk atual (`Y`)
 - Compartilhamento da revisão: hunk como patch bruto (`p`) ou todos os comentários como Markdown (`C`)
+- Links clicáveis no terminal para a revisão, o commit HEAD atual e o arquivo ativo no GitHub ou GitLab
 - Arquivos em árvore com checkbox de revisado (`m`), pastas recolhíveis e arquivos gerados de-emfatizados
 - Saltos rápidos: primeira/última linha do diff ou arquivo (`gg`/`G`), próximo hunk (`]h`), próximo comentário (`]c`), próximo arquivo (`]f`), próximo não revisado (`]u`)
 - Busca no diff (`/`, `n`/`N`), suporte a mouse (scroll e clique)

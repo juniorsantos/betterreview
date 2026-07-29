@@ -2,7 +2,7 @@
 source: tests/tui_submit_modal.rs
 expression: "redact_version(screen(&app_with_drafts(2), 50, 16))"
 ---
- betterreview  owner/repo #42 · Review terminal · 
+ betterreview  owner/repo #42 · head · Review term
                                                   
 ┌─ [3┌ Submit review · COMMENT ─────────────┐────┐
 │ Loa│ 2 drafts will be published           │    │

@@ -5,9 +5,12 @@ use ratatui::{
 };
 
 use crate::app::{AppFocus, AppState};
+use crate::providers::ReviewLinks;
 
 use super::{
+    hyperlink,
     layout::{ScreenLayout, header_row, screen_layout, status_row},
+    text::display_width,
     theme,
     widgets::{blocked, delete, diff, editor, files, header, help, quit, status, submit, threads},
 };
@@ -16,10 +19,12 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     let area = frame.area();
     frame.render_widget(Block::default().style(theme::canvas()), area);
 
+    let head = state.provider.head.0.chars().take(7).collect::<String>();
     let middle = format!(
-        " {} #{} · {} · @{} ",
+        " {} #{} · {} · {} · @{} ",
         state.provider.key.repository,
         state.provider.key.number,
+        head,
         state.provider.title,
         state.provider.author
     );
@@ -27,6 +32,28 @@ pub fn render(frame: &mut Frame, state: &AppState) {
         Paragraph::new(header::chip_line(&middle, area.width)),
         header_row(area),
     );
+    if let Some(links) = ReviewLinks::new(&state.provider.key, &state.provider.web_url) {
+        let review_label = format!("#{}", state.provider.key.number);
+        let review_x = area.x.saturating_add(
+            u16::try_from(
+                display_width(header::NAME_CHIP)
+                    + display_width(&format!(" {} ", state.provider.key.repository)),
+            )
+            .unwrap_or(u16::MAX),
+        );
+        apply_header_link(frame, area, review_x, &review_label, links.review_url());
+
+        let head_x = review_x.saturating_add(
+            u16::try_from(display_width(&review_label) + display_width(" · ")).unwrap_or(u16::MAX),
+        );
+        apply_header_link(
+            frame,
+            area,
+            head_x,
+            &head,
+            &links.commit_url(&state.provider.head),
+        );
+    }
 
     let ScreenLayout {
         files: files_rect,
@@ -62,6 +89,17 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     if state.delete_dialog.is_some() {
         delete::render(frame, area, state);
     }
+}
+
+fn apply_header_link(frame: &mut Frame, area: Rect, x: u16, label: &str, target: &str) {
+    let right = area.right();
+    if x >= right {
+        return;
+    }
+    let width = u16::try_from(display_width(label))
+        .unwrap_or(u16::MAX)
+        .min(right - x);
+    hyperlink::apply(frame, Rect::new(x, area.y, width, 1), target);
 }
 
 fn inset(area: Rect, horizontal: u16, vertical: u16) -> Rect {
