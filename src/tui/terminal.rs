@@ -19,7 +19,7 @@ use crate::{
 use super::{
     EditorState, KeyMap,
     layout::screen_layout,
-    render, viewport,
+    render, suspend, viewport,
     widgets::{
         editor as editor_widget,
         files::{self, FilesRow},
@@ -39,6 +39,8 @@ pub enum TuiError {
     Event(#[source] io::Error),
     #[error("terminal draw failed: {0}")]
     Draw(#[source] io::Error),
+    #[error("terminal suspension failed: {0}")]
+    Suspend(#[source] io::Error),
 }
 
 pub async fn run(
@@ -72,6 +74,11 @@ pub async fn run(
             result = result_rx.recv() => result.map(|result| AppEvent::EffectFinished(Box::new(result))),
             terminal_event = events.next() => match terminal_event {
                 Some(Ok(Event::Key(key))) if is_interrupt(key) => return Ok(ExitReason::Interrupted),
+                Some(Ok(Event::Key(key))) if suspend::is_requested(key) => {
+                    suspend::run(terminal).map_err(TuiError::Suspend)?;
+                    events = EventStream::new();
+                    None
+                }
                 Some(Ok(Event::Key(key))) => handle_key(&mut app, &mut keymap, key),
                 Some(Ok(Event::Mouse(mouse))) => wheel_to_event(mouse.kind).or_else(|| {
                     terminal

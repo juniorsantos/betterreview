@@ -73,6 +73,7 @@ const COLUMNS: [Column; 4] = [
         rows: &[
             ("R", "submit"),
             ("r", "refresh"),
+            ("Ctrl+Z", "use fg"),
             ("Q", "back to list"),
             ("q", "quit"),
             ("?", "help"),
