@@ -15,6 +15,7 @@ pub enum LaunchRequest {
         provider: Option<ProviderArg>,
         host: Option<String>,
         repository: Option<String>,
+        remote: Option<String>,
     },
     Resume(Option<String>),
     Sessions,
@@ -38,6 +39,9 @@ pub struct Cli {
 
     #[arg(long = "repo")]
     pub repository: Option<String>,
+
+    #[arg(long)]
+    pub remote: Option<String>,
 
     #[command(subcommand)]
     pub command: Option<Command>,
@@ -77,6 +81,7 @@ impl Cli {
                 provider: self.provider,
                 host: self.host.clone(),
                 repository: self.repository.clone(),
+                remote: self.remote.clone(),
             },
         }
     }

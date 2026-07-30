@@ -13,6 +13,7 @@ pub struct ResolveRequest {
     pub provider_hint: Option<ProviderKind>,
     pub host_hint: Option<String>,
     pub repository_hint: Option<String>,
+    pub remote_hint: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -46,6 +47,14 @@ pub enum ContextError {
         "unable to determine the provider for {host}; pass --provider github or --provider gitlab"
     )]
     ProviderUndetected { host: String },
+    #[error(
+        "multiple Git remotes are available ({available}); pass --remote with one of these names"
+    )]
+    AmbiguousRemote { available: String },
+    #[error("Git remote '{remote}' was not found; available remotes: {available}")]
+    RemoteNotFound { remote: String, available: String },
+    #[error("Git remote '{remote}' does not have a valid URL; available remotes: {available}")]
+    InvalidRemote { remote: String, available: String },
 }
 
 pub struct ContextResolver {
@@ -97,7 +106,13 @@ impl ContextResolver {
             }));
         }
 
-        let Some(git) = git::discover(self.runner.as_ref(), &request.cwd).await else {
+        let Some(git) = git::discover(
+            self.runner.as_ref(),
+            &request.cwd,
+            request.remote_hint.as_deref(),
+        )
+        .await?
+        else {
             return Ok(session_picker(None, None));
         };
         let host = request.host_hint.unwrap_or(git.remote.host);

@@ -310,6 +310,7 @@ pub async fn run_with(
             provider,
             host,
             repository,
+            remote,
         } => {
             let resolved = ContextResolver::new(runner)
                 .resolve(ResolveRequest {
@@ -318,6 +319,7 @@ pub async fn run_with(
                     provider_hint: provider.map(provider_kind),
                     host_hint: host,
                     repository_hint: repository,
+                    remote_hint: remote,
                 })
                 .await?;
             backend.launch(ResolvedLaunch::Review(resolved)).await

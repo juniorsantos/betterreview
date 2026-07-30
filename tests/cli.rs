@@ -10,6 +10,8 @@ fn parses_url_target_and_provider_override() {
         "gitlab",
         "--host",
         "git.example.test",
+        "--remote",
+        "upstream",
     ])
     .unwrap();
 
@@ -20,6 +22,7 @@ fn parses_url_target_and_provider_override() {
             provider: Some(ProviderArg::GitLab),
             host: Some("git.example.test".into()),
             repository: None,
+            remote: Some("upstream".into()),
         }
     );
 }
