@@ -1,5 +1,5 @@
 use crate::{
-    context::{RemoteUrl, parse_remote_url},
+    context::{ContextError, RemoteUrl, parse_remote_url},
     process::{CommandOutput, CommandRunner, CommandSpec},
 };
 use std::{
@@ -15,28 +15,59 @@ pub(crate) struct GitContext {
     pub remote: RemoteUrl,
 }
 
-pub(crate) async fn discover(runner: &dyn CommandRunner, cwd: &Path) -> Option<GitContext> {
-    let root =
-        successful_output(runner, git_command(cwd, ["rev-parse", "--show-toplevel"])).await?;
-    let root = PathBuf::from(text(&root)?);
-    let remotes = successful_output(runner, git_command(&root, ["remote"])).await?;
-    let remotes = text(&remotes)?;
-    let remote_name = remotes
+pub(crate) async fn discover(
+    runner: &dyn CommandRunner,
+    cwd: &Path,
+    remote_hint: Option<&str>,
+) -> Result<Option<GitContext>, ContextError> {
+    let root = successful_output(runner, git_command(cwd, ["rev-parse", "--show-toplevel"])).await;
+    let Some(root) = root.and_then(|output| text(&output)) else {
+        return Ok(None);
+    };
+    let root = PathBuf::from(root);
+    let remotes = successful_output(runner, git_command(&root, ["remote"])).await;
+    let Some(remotes) = remotes.and_then(|output| text(&output)) else {
+        return Ok(None);
+    };
+    let available = remotes
         .lines()
-        .find(|name| *name == "origin")
-        .or_else(|| remotes.lines().next())?
-        .to_owned();
+        .filter(|name| !name.is_empty())
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    let available_names = available_names(&available);
+    let remote_name = match remote_hint {
+        Some(remote) if available.iter().any(|name| name == remote) => remote.to_owned(),
+        Some(remote) => {
+            return Err(ContextError::RemoteNotFound {
+                remote: remote.into(),
+                available: available_names,
+            });
+        }
+        None if available.iter().any(|name| name == "origin") => "origin".into(),
+        None if available.len() == 1 => available[0].clone(),
+        None if available.is_empty() => return Ok(None),
+        None => {
+            return Err(ContextError::AmbiguousRemote {
+                available: available_names,
+            });
+        }
+    };
     let remote = successful_output(
         runner,
         git_command(&root, ["remote", "get-url", remote_name.as_str()]),
     )
-    .await?;
-    let remote = parse_remote_url(&text(&remote)?).ok()?;
-    Some(GitContext {
+    .await
+    .and_then(|output| text(&output))
+    .and_then(|url| parse_remote_url(&url).ok())
+    .ok_or_else(|| ContextError::InvalidRemote {
+        remote: remote_name.clone(),
+        available: available_names,
+    })?;
+    Ok(Some(GitContext {
         root,
         remote_name,
         remote,
-    })
+    }))
 }
 
 pub(crate) async fn current_branch(runner: &dyn CommandRunner, root: &Path) -> Option<String> {
@@ -67,4 +98,12 @@ fn git_command<const N: usize>(cwd: &Path, args: [&str; N]) -> CommandSpec {
 fn text(output: &CommandOutput) -> Option<String> {
     let value = String::from_utf8(output.stdout.clone()).ok()?;
     Some(value.trim().into())
+}
+
+fn available_names(remotes: &[String]) -> String {
+    if remotes.is_empty() {
+        "(none)".into()
+    } else {
+        remotes.join(", ")
+    }
 }

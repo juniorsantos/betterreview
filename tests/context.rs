@@ -130,6 +130,7 @@ fn request(target: Option<&str>) -> ResolveRequest {
         provider_hint: None,
         host_hint: None,
         repository_hint: None,
+        remote_hint: None,
     }
 }
 
@@ -241,6 +242,172 @@ async fn current_branch_uses_the_repository_remote_and_branch_name() {
     assert_eq!(context.repository_root, Some(PathBuf::from("/repo")));
     assert_eq!(context.remote_name.as_deref(), Some("origin"));
     assert!(!context.show_session_picker);
+    runner.assert_consumed();
+}
+
+#[tokio::test]
+async fn explicit_remote_selects_the_matching_repository_and_provider() {
+    let runner = Arc::new(FakeRunner::new([
+        ExpectedCommand {
+            program: "git",
+            args: vec!["-C", "/work", "rev-parse", "--show-toplevel"],
+            output: output(0, "/repo\n"),
+        },
+        ExpectedCommand {
+            program: "git",
+            args: vec!["-C", "/repo", "remote"],
+            output: output(0, "origin\nupstream\n"),
+        },
+        ExpectedCommand {
+            program: "git",
+            args: vec!["-C", "/repo", "remote", "get-url", "upstream"],
+            output: output(0, "git@gitlab.com:group/upstream.git\n"),
+        },
+        ExpectedCommand {
+            program: "git",
+            args: vec!["-C", "/repo", "branch", "--show-current"],
+            output: output(0, "feature/context\n"),
+        },
+    ]));
+    let resolver = ContextResolver::new(runner.clone());
+    let mut request = request(None);
+    request.remote_hint = Some("upstream".into());
+
+    let context = resolver.resolve(request).await.unwrap();
+
+    assert_eq!(
+        context.discovery,
+        Some(DiscoveryInput::CurrentBranch {
+            provider: ProviderKind::GitLab,
+            host: "gitlab.com".into(),
+            repository: "group/upstream".into(),
+            branch: "feature/context".into(),
+        })
+    );
+    assert_eq!(context.remote_name.as_deref(), Some("upstream"));
+    runner.assert_consumed();
+}
+
+#[tokio::test]
+async fn a_single_non_origin_remote_is_selected_automatically() {
+    let runner = Arc::new(FakeRunner::new([
+        ExpectedCommand {
+            program: "git",
+            args: vec!["-C", "/work", "rev-parse", "--show-toplevel"],
+            output: output(0, "/repo\n"),
+        },
+        ExpectedCommand {
+            program: "git",
+            args: vec!["-C", "/repo", "remote"],
+            output: output(0, "upstream\n"),
+        },
+        ExpectedCommand {
+            program: "git",
+            args: vec!["-C", "/repo", "remote", "get-url", "upstream"],
+            output: output(0, "git@github.com:acme/api.git\n"),
+        },
+        ExpectedCommand {
+            program: "git",
+            args: vec!["-C", "/repo", "branch", "--show-current"],
+            output: output(0, "feature/context\n"),
+        },
+    ]));
+    let resolver = ContextResolver::new(runner.clone());
+
+    let context = resolver.resolve(request(None)).await.unwrap();
+
+    assert_eq!(context.remote_name.as_deref(), Some("upstream"));
+    runner.assert_consumed();
+}
+
+#[tokio::test]
+async fn multiple_non_origin_remotes_require_an_explicit_selection() {
+    let runner = Arc::new(FakeRunner::new([
+        ExpectedCommand {
+            program: "git",
+            args: vec!["-C", "/work", "rev-parse", "--show-toplevel"],
+            output: output(0, "/repo\n"),
+        },
+        ExpectedCommand {
+            program: "git",
+            args: vec!["-C", "/repo", "remote"],
+            output: output(0, "fork\nupstream\n"),
+        },
+    ]));
+    let resolver = ContextResolver::new(runner.clone());
+
+    let error = resolver.resolve(request(None)).await.unwrap_err();
+
+    assert!(matches!(
+        error,
+        ContextError::AmbiguousRemote { ref available } if available == "fork, upstream"
+    ));
+    assert!(error.to_string().contains("--remote"));
+    runner.assert_consumed();
+}
+
+#[tokio::test]
+async fn an_unknown_remote_reports_the_available_names() {
+    let runner = Arc::new(FakeRunner::new([
+        ExpectedCommand {
+            program: "git",
+            args: vec!["-C", "/work", "rev-parse", "--show-toplevel"],
+            output: output(0, "/repo\n"),
+        },
+        ExpectedCommand {
+            program: "git",
+            args: vec!["-C", "/repo", "remote"],
+            output: output(0, "origin\nupstream\n"),
+        },
+    ]));
+    let resolver = ContextResolver::new(runner.clone());
+    let mut request = request(None);
+    request.remote_hint = Some("missing".into());
+
+    let error = resolver.resolve(request).await.unwrap_err();
+
+    assert!(matches!(
+        error,
+        ContextError::RemoteNotFound {
+            ref remote,
+            ref available
+        } if remote == "missing" && available == "origin, upstream"
+    ));
+    runner.assert_consumed();
+}
+
+#[tokio::test]
+async fn an_invalid_selected_remote_url_reports_the_remote_name() {
+    let runner = Arc::new(FakeRunner::new([
+        ExpectedCommand {
+            program: "git",
+            args: vec!["-C", "/work", "rev-parse", "--show-toplevel"],
+            output: output(0, "/repo\n"),
+        },
+        ExpectedCommand {
+            program: "git",
+            args: vec!["-C", "/repo", "remote"],
+            output: output(0, "origin\nupstream\n"),
+        },
+        ExpectedCommand {
+            program: "git",
+            args: vec!["-C", "/repo", "remote", "get-url", "upstream"],
+            output: output(0, "not a remote URL\n"),
+        },
+    ]));
+    let resolver = ContextResolver::new(runner.clone());
+    let mut request = request(None);
+    request.remote_hint = Some("upstream".into());
+
+    let error = resolver.resolve(request).await.unwrap_err();
+
+    assert!(matches!(
+        error,
+        ContextError::InvalidRemote {
+            ref remote,
+            ref available
+        } if remote == "upstream" && available == "origin, upstream"
+    ));
     runner.assert_consumed();
 }
 
