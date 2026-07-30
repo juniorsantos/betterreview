@@ -1,7 +1,7 @@
 use betterreview::tui::theme;
 
 #[test]
-fn the_canvas_paints_our_background_by_default() {
+fn canvas_background_follows_the_transparency_setting() {
     theme::set_transparent(false);
 
     assert_eq!(
@@ -9,10 +9,6 @@ fn the_canvas_paints_our_background_by_default() {
         Some(theme::BG),
         "the default has to keep looking the way it always did"
     );
-}
-
-#[test]
-fn a_transparent_canvas_leaves_the_terminal_background_alone() {
     theme::set_transparent(true);
 
     let canvas = theme::canvas();
