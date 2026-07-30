@@ -18,6 +18,7 @@ pub struct Runtime {
     renderer: Arc<dyn DiffRenderer>,
     runner: Arc<dyn crate::process::CommandRunner>,
     session: Option<Arc<Mutex<SessionHandle>>>,
+    clipboard: Arc<Mutex<crate::clipboard::Clipboard>>,
 }
 
 impl Runtime {
@@ -34,6 +35,7 @@ impl Runtime {
             renderer,
             runner,
             session: session.map(|handle| Arc::new(Mutex::new(handle))),
+            clipboard: Arc::new(Mutex::new(crate::clipboard::Clipboard::default())),
         }
     }
 
@@ -162,9 +164,15 @@ impl Runtime {
                     .await
                     .map_err(|error| error.to_string()),
             },
-            AppEffect::CopyToClipboard { content } => EffectOutcome::ClipboardCopied(
-                crate::clipboard::copy(&content).map_err(|error| error.to_string()),
-            ),
+            AppEffect::CopyToClipboard { content, notice } => {
+                let result = self
+                    .clipboard
+                    .lock()
+                    .await
+                    .copy(self.runner.as_ref(), &content)
+                    .await;
+                EffectOutcome::ClipboardCopied { notice, result }
+            }
             AppEffect::OpenLink { url } => {
                 EffectOutcome::LinkOpened(crate::browser::open(self.runner.as_ref(), &url).await)
             }

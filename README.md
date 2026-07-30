@@ -21,7 +21,7 @@ Approve, request changes or comment without losing the diff and draft context be
 - Diff with GitHub visual parity: edge-to-edge green/red backgrounds, a single line-number column, file name on top and expandable hidden context (`z`)
 - Inline comments as cards: create (`c`), edit (`e`), delete (`x`), reply (`r`) and code suggestions (`s`)
 - Line or block selection (`v`) to comment exactly like on GitHub
-- Clean clipboard copying: current line or selection (`y`) and current hunk (`Y`)
+- Reliable clipboard copying across native desktops, Wayland, tmux and SSH: current line or selection (`y`) and current hunk (`Y`)
 - Portable review sharing: raw patch hunk (`p`) or every comment as Markdown (`C`)
 - Clickable terminal links for the review, current HEAD commit and active file on GitHub or GitLab
 - File tree with reviewed checkboxes (`m`), collapsible folders and de-emphasized generated files

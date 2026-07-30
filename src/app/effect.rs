@@ -17,22 +17,58 @@ pub struct EffectEnvelope {
 
 #[derive(Debug, Clone)]
 pub enum AppEffect {
-    SaveConfig { config: crate::state::AppConfig },
-    RenderActiveFile { file: ChangedFile, width: u16 },
-    SaveSession { snapshot: Box<SessionSnapshot> },
-    CreateDraft { input: NewDraftComment },
-    UpdateDraft { id: DraftId, body: DraftBody },
-    DeleteDraft { id: DraftId },
-    Reply { thread: ThreadId, body: DraftBody },
-    ResolveThread { thread: ThreadId, resolved: bool },
-    SetFileReviewed { path: RepoPath, reviewed: bool },
+    SaveConfig {
+        config: crate::state::AppConfig,
+    },
+    RenderActiveFile {
+        file: ChangedFile,
+        width: u16,
+    },
+    SaveSession {
+        snapshot: Box<SessionSnapshot>,
+    },
+    CreateDraft {
+        input: NewDraftComment,
+    },
+    UpdateDraft {
+        id: DraftId,
+        body: DraftBody,
+    },
+    DeleteDraft {
+        id: DraftId,
+    },
+    Reply {
+        thread: ThreadId,
+        body: DraftBody,
+    },
+    ResolveThread {
+        thread: ThreadId,
+        resolved: bool,
+    },
+    SetFileReviewed {
+        path: RepoPath,
+        reviewed: bool,
+    },
     RefreshSnapshot,
-    SubmitReview { request: SubmitRequest },
+    SubmitReview {
+        request: SubmitRequest,
+    },
     DiscardReview,
-    LoadFileContext { path: RepoPath, revision: CommitOid },
-    LoadBlame { path: RepoPath, revision: CommitOid },
-    CopyToClipboard { content: String },
-    OpenLink { url: String },
+    LoadFileContext {
+        path: RepoPath,
+        revision: CommitOid,
+    },
+    LoadBlame {
+        path: RepoPath,
+        revision: CommitOid,
+    },
+    CopyToClipboard {
+        content: String,
+        notice: &'static str,
+    },
+    OpenLink {
+        url: String,
+    },
 }
 
 #[derive(Debug)]
@@ -75,6 +111,9 @@ pub enum EffectOutcome {
         path: RepoPath,
         result: Result<String, String>,
     },
-    ClipboardCopied(Result<(), String>),
+    ClipboardCopied {
+        notice: &'static str,
+        result: Result<(), String>,
+    },
     LinkOpened(Result<(), String>),
 }
