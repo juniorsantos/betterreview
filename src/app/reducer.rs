@@ -560,12 +560,12 @@ fn jump_to_boundary(state: &mut AppState, end: bool) -> Vec<EffectEnvelope> {
 fn copy_to_clipboard(state: &mut AppState, target: super::copy::CopyTarget) -> Vec<EffectEnvelope> {
     match super::copy::prepare(state, target) {
         Ok(copy) => {
-            push_notice(state, copy.notice);
             vec![envelope(
                 state,
                 None,
                 AppEffect::CopyToClipboard {
                     content: copy.content,
+                    notice: copy.notice,
                 },
             )]
         }
@@ -1236,7 +1236,10 @@ fn finish_effect(state: &mut AppState, result: EffectResult) -> Vec<EffectEnvelo
                 state.error_banner = Some(message);
             }
         },
-        EffectOutcome::ClipboardCopied(result) => set_error(state, result),
+        EffectOutcome::ClipboardCopied { notice, result } => match result {
+            Ok(()) => push_notice(state, notice),
+            Err(message) => state.error_banner = Some(message),
+        },
         EffectOutcome::LinkOpened(result) => set_error(state, result),
     }
     Vec::new()

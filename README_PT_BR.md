@@ -21,7 +21,7 @@ Aprove, solicite mudanças ou comente sem perder o diff e os rascunhos visíveis
 - Diff com paridade visual com o GitHub: fundo verde/vermelho fim a fim, uma única coluna de número de linha, nome do arquivo no topo e trechos ocultos expansíveis (`z`)
 - Comentários inline em cartões: criar (`c`), editar (`e`), excluir (`x`), responder (`r`) e sugestões de código (`s`)
 - Seleção de linha ou bloco (`v`) para comentar exatamente como no GitHub
-- Cópia limpa para o clipboard: linha ou seleção atual (`y`) e hunk atual (`Y`)
+- Cópia confiável para o clipboard em desktops nativos, Wayland, tmux e SSH: linha ou seleção atual (`y`) e hunk atual (`Y`)
 - Compartilhamento da revisão: hunk como patch bruto (`p`) ou todos os comentários como Markdown (`C`)
 - Links clicáveis no terminal para a revisão, o commit HEAD atual e o arquivo ativo no GitHub ou GitLab
 - Arquivos em árvore com checkbox de revisado (`m`), pastas recolhíveis e arquivos gerados de-emfatizados

@@ -251,7 +251,7 @@ fn copied_content(effects: &[betterreview::app::EffectEnvelope]) -> String {
 
 fn copied_text(effects: &[betterreview::app::EffectEnvelope]) -> Option<&str> {
     effects.first().and_then(|effect| match &effect.effect {
-        AppEffect::CopyToClipboard { content } => Some(content.as_str()),
+        AppEffect::CopyToClipboard { content, .. } => Some(content.as_str()),
         _ => None,
     })
 }
@@ -359,12 +359,9 @@ fn copy_line_emits_clean_code_without_the_diff_marker() {
 
     assert_eq!(
         copied_content(&effects),
-        "Some(CopyToClipboard { content: \"    new();\" })"
+        "Some(CopyToClipboard { content: \"    new();\", notice: \"copied line\" })"
     );
-    assert_eq!(
-        state.notices.last().map(String::as_str),
-        Some("copied line")
-    );
+    assert!(state.notices.is_empty());
 }
 
 #[test]
@@ -378,13 +375,10 @@ fn copy_selection_emits_all_selected_lines_and_keeps_the_selection() {
 
     assert_eq!(
         copied_content(&effects),
-        "Some(CopyToClipboard { content: \"    new();\\n    next();\" })"
+        "Some(CopyToClipboard { content: \"    new();\\n    next();\", notice: \"copied selection\" })"
     );
     assert_eq!(state.selection_anchor, Some(3));
-    assert_eq!(
-        state.notices.last().map(String::as_str),
-        Some("copied selection")
-    );
+    assert!(state.notices.is_empty());
 }
 
 #[test]
@@ -397,12 +391,9 @@ fn copy_hunk_uses_the_side_under_the_cursor_and_omits_patch_syntax() {
 
     assert_eq!(
         copied_content(&effects),
-        "Some(CopyToClipboard { content: \"fn main() {\\n    old();\\n}\" })"
+        "Some(CopyToClipboard { content: \"fn main() {\\n    old();\\n}\", notice: \"copied hunk\" })"
     );
-    assert_eq!(
-        state.notices.last().map(String::as_str),
-        Some("copied hunk")
-    );
+    assert!(state.notices.is_empty());
 
     state.session.cursor_row = 3;
     refresh_display_rows(&mut state);
@@ -410,7 +401,7 @@ fn copy_hunk_uses_the_side_under_the_cursor_and_omits_patch_syntax() {
 
     assert_eq!(
         copied_content(&effects),
-        "Some(CopyToClipboard { content: \"fn main() {\\n    new();\\n    next();\\n}\" })"
+        "Some(CopyToClipboard { content: \"fn main() {\\n    new();\\n    next();\\n}\", notice: \"copied hunk\" })"
     );
 }
 
@@ -426,10 +417,7 @@ fn copy_patch_hunk_preserves_the_header_and_diff_markers() {
         copied_text(&effects),
         Some("@@ -1,3 +1,4 @@\n fn main() {\n-    old();\n+    new();\n+    next();\n }")
     );
-    assert_eq!(
-        state.notices.last().map(String::as_str),
-        Some("copied patch hunk")
-    );
+    assert!(state.notices.is_empty());
 }
 
 #[test]
@@ -478,10 +466,7 @@ fn copy_all_comments_formats_threads_replies_and_drafts_as_markdown() {
              ### `src/file_0.rs:3-4`\n\n**you · draft**\n\nNeed a test."
         )
     );
-    assert_eq!(
-        state.notices.last().map(String::as_str),
-        Some("copied all comments")
-    );
+    assert!(state.notices.is_empty());
 }
 
 #[test]
@@ -506,12 +491,19 @@ fn clipboard_completion_does_not_refresh_the_review() {
         AppEvent::EffectFinished(Box::new(EffectResult {
             id: 1,
             generation: None,
-            outcome: EffectOutcome::ClipboardCopied(Ok(())),
+            outcome: EffectOutcome::ClipboardCopied {
+                notice: "copied line",
+                result: Ok(()),
+            },
         })),
     );
 
     assert!(effects.is_empty());
     assert!(state.error_banner.is_none());
+    assert_eq!(
+        state.notices.last().map(String::as_str),
+        Some("copied line")
+    );
 }
 
 #[test]
@@ -523,7 +515,10 @@ fn clipboard_failure_is_shown_without_refreshing_the_review() {
         AppEvent::EffectFinished(Box::new(EffectResult {
             id: 1,
             generation: None,
-            outcome: EffectOutcome::ClipboardCopied(Err("clipboard unavailable".into())),
+            outcome: EffectOutcome::ClipboardCopied {
+                notice: "copied line",
+                result: Err("clipboard unavailable".into()),
+            },
         })),
     );
 

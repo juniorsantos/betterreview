@@ -8,6 +8,7 @@ description = "Terminal code review for GitHub and GitLab"
 
 [dependencies]
 ansi-to-tui = "8.0.1"
+arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control"] }
 async-trait = "0.1"
 clap = { version = "4.6.4", features = ["derive"] }
 clap_complete = "4.6.7"
