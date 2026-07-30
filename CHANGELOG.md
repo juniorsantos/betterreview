@@ -3,6 +3,14 @@
 All notable changes to this project are documented in this file, generated
 from conventional commits by [release-please](https://github.com/googleapis/release-please).
 
+## [1.3.1](https://github.com/juniorsantos/betterreview/compare/v1.3.0...v1.3.1)
+
+
+### Bug Fixes
+
+* make clipboard copying reliable ([#105](https://github.com/juniorsantos/betterreview/issues/105)) ([b5db171](https://github.com/juniorsantos/betterreview/commit/b5db171083e0f580b98170efdf2256d69c3dbd5a))
+* resolve repositories from selected remotes ([#103](https://github.com/juniorsantos/betterreview/issues/103)) ([f057f29](https://github.com/juniorsantos/betterreview/commit/f057f291208a1f193c9aea181fe3d3896aaa7b65))
+
 ## [1.3.0](https://github.com/juniorsantos/betterreview/compare/v1.2.0...v1.3.0)
 
 
