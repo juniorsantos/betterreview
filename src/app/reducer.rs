@@ -1423,6 +1423,8 @@ fn placeholder_selection(state: &AppState) -> DiffSelection {
         side: DiffSide::Right,
         line: 1,
         hunk: 0,
+        old_line: None,
+        new_line: None,
     };
     DiffSelection {
         start: position.clone(),

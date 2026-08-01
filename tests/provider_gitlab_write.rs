@@ -9,7 +9,7 @@ use betterreview::{
 };
 use serde_json::{Value, json};
 use std::{
-    collections::VecDeque,
+    collections::{BTreeMap, VecDeque},
     sync::{Arc, Mutex},
 };
 
@@ -36,7 +36,7 @@ impl CommandRunner for RecordingRunner {
 }
 
 #[tokio::test]
-async fn creates_multiline_draft_with_nested_position_json() {
+async fn creates_four_line_draft_without_string_line_numbers() {
     let runner = Arc::new(RecordingRunner::new(vec![
         merge_request("head-sha"),
         success(json!({
@@ -46,7 +46,7 @@ async fn creates_multiline_draft_with_nested_position_json() {
                 "old_path": "src/lib.rs",
                 "new_path": "src/lib.rs",
                 "old_line": null,
-                "new_line": 9
+                "new_line": 10
             }
         })),
     ]));
@@ -58,7 +58,7 @@ async fn creates_multiline_draft_with_nested_position_json() {
             &CommitOid("head-sha".into()),
             NewDraftComment {
                 body: DraftBody("body $(); café".into()),
-                selection: selection(DiffSide::Right, 7, 9),
+                selection: selection(DiffSide::Right, 7, 10),
                 suggestion: None,
                 operation_id: "operation-1".into(),
             },
@@ -69,21 +69,21 @@ async fn creates_multiline_draft_with_nested_position_json() {
     assert_eq!(draft.id.0, "31");
     let calls = runner.calls.lock().unwrap();
     let mutation = calls.last().unwrap();
-    let body = json_body(mutation);
-    assert_eq!(body["note"], "body $(); café");
-    assert_eq!(body["position"]["position_type"], "text");
-    assert_eq!(body["position"]["base_sha"], "base-sha");
-    assert_eq!(body["position"]["start_sha"], "start-sha");
-    assert_eq!(body["position"]["head_sha"], "head-sha");
-    assert_eq!(body["position"]["new_line"], 9);
-    assert_eq!(body["position"]["line_range"]["start"]["type"], "new");
-    assert_eq!(body["position"]["line_range"]["start"]["new_line"], 7);
-    assert!(
-        mutation
-            .args
-            .iter()
-            .all(|argument| argument.to_string_lossy() != "body $(); café")
-    );
+    let fields = form_fields(mutation);
+    assert_eq!(fields["note"], "body $(); café");
+    assert_eq!(fields["position[position_type]"], "text");
+    assert_eq!(fields["position[base_sha]"], "base-sha");
+    assert_eq!(fields["position[start_sha]"], "start-sha");
+    assert_eq!(fields["position[head_sha]"], "head-sha");
+    assert_eq!(fields["position[new_line]"], "10");
+    assert_eq!(fields["position[line_range][start][type]"], "new");
+    assert!(fields["position[line_range][start][line_code]"].ends_with("_7_7"));
+    assert!(fields["position[line_range][end][line_code]"].ends_with("_10_10"));
+    assert!(!fields.contains_key("position[line_range][start][old_line]"));
+    assert!(!fields.contains_key("position[line_range][start][new_line]"));
+    assert!(!fields.contains_key("position[line_range][end][old_line]"));
+    assert!(!fields.contains_key("position[line_range][end][new_line]"));
+    assert!(mutation.stdin.is_none());
 }
 
 #[tokio::test]
@@ -143,11 +143,46 @@ async fn approval_failure_after_publication_returns_partial_retry() {
         }
     ));
     let calls = runner.calls.lock().unwrap();
-    let publish = json_body(&calls[1]);
+    let publish = form_fields(&calls[1]);
     assert_eq!(publish["note"], "summary");
     assert_eq!(publish["reviewer_state"], "reviewed");
-    let approve = json_body(&calls[2]);
+    let approve = form_fields(&calls[2]);
     assert_eq!(approve["sha"], "head-sha");
+}
+
+#[tokio::test]
+async fn approves_after_bulk_publication_with_empty_response() {
+    let runner = Arc::new(RecordingRunner::new(vec![
+        merge_request("head-sha"),
+        CommandOutput {
+            status: 0,
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        },
+        success(json!({ "approved": true })),
+    ]));
+    let provider = GitLabProvider::new(runner.clone());
+
+    let result = provider
+        .submit_review(
+            &key(),
+            SubmitRequest {
+                expected_head: CommitOid("head-sha".into()),
+                summary: "summary".into(),
+                outcome: ReviewOutcome::Approve,
+                mode: SubmitMode::Full,
+            },
+        )
+        .await;
+
+    assert_eq!(result.unwrap(), SubmitResult::Complete);
+    let calls = runner.calls.lock().unwrap();
+    assert!(
+        args(&calls[1])
+            .iter()
+            .any(|arg| arg.contains("bulk_publish"))
+    );
+    assert!(args(&calls[2]).iter().any(|arg| arg.ends_with("/approve")));
 }
 
 #[tokio::test]
@@ -205,7 +240,10 @@ async fn request_changes_publishes_reviewer_state() {
         .unwrap();
 
     let calls = runner.calls.lock().unwrap();
-    assert_eq!(json_body(&calls[1])["reviewer_state"], "requested_changes");
+    assert_eq!(
+        form_fields(&calls[1])["reviewer_state"],
+        "requested_changes"
+    );
 }
 
 fn key() -> ChangeRequestKey {
@@ -223,6 +261,8 @@ fn selection(side: DiffSide, start: u32, end: u32) -> DiffSelection {
         side,
         line,
         hunk: 0,
+        old_line: Some(line),
+        new_line: Some(line),
     };
     DiffSelection {
         start: position(start),
@@ -252,8 +292,17 @@ fn success(value: Value) -> CommandOutput {
     }
 }
 
-fn json_body(spec: &CommandSpec) -> Value {
-    serde_json::from_slice(spec.stdin.as_ref().unwrap()).unwrap()
+fn form_fields(spec: &CommandSpec) -> BTreeMap<String, String> {
+    let arguments = args(spec);
+    arguments
+        .windows(2)
+        .filter(|window| window[0] == "--form")
+        .filter_map(|window| {
+            window[1]
+                .split_once('=')
+                .map(|(key, value)| (key.to_owned(), value.to_owned()))
+        })
+        .collect()
 }
 
 fn args(spec: &CommandSpec) -> Vec<String> {

@@ -8,7 +8,7 @@ use betterreview::{
     domain::{
         ChangeRequestKey, ChangedFile, CommitOid, DiffPosition, DiffSelection, DiffSide,
         DraftComment, DraftId, FileStatus, PatchAvailability, ProviderCapabilities, ProviderKind,
-        ProviderSnapshot, RepoPath,
+        ProviderSnapshot, RepoPath, ReviewComment, ReviewThread, ThreadId,
     },
     state::{ContentIdentity, FileProgress, ReviewSync, SESSION_SCHEMA_VERSION, SessionSnapshot},
     tui::{render, theme},
@@ -22,6 +22,8 @@ fn position(side: DiffSide, line: u32) -> DiffPosition {
         side,
         line,
         hunk: 0,
+        old_line: None,
+        new_line: None,
     }
 }
 
@@ -788,6 +790,48 @@ fn split_layout_draws_both_sides_with_their_own_line_numbers() {
 }
 
 #[test]
+fn split_layout_marks_commented_lines() {
+    let mut state = app_with_two_hunk_headers();
+    state.terminal_width = 150;
+    state.diff_layout = betterreview::domain::DiffLayout::Split;
+    state.provider.threads.push(ReviewThread {
+        id: ThreadId("thread-split".into()),
+        path: RepoPath("src/app.rs".into()),
+        resolved: false,
+        outdated: false,
+        comments: vec![ReviewComment {
+            id: "comment-split".into(),
+            author: "reviewer".into(),
+            body: "comentário".into(),
+            position: Some(position(DiffSide::Right, 9)),
+            selection: Some(DiffSelection {
+                start: position(DiffSide::Right, 1),
+                end: position(DiffSide::Right, 9),
+            }),
+            pending: false,
+        }],
+    });
+    refresh_display_rows(&mut state);
+
+    let mut terminal = Terminal::new(TestBackend::new(150, 20)).unwrap();
+    terminal.draw(|frame| render(frame, &state)).unwrap();
+    let buffer = terminal.backend().buffer();
+    let line = (0..20)
+        .map(|y| {
+            (0..150)
+                .map(|x| buffer.cell((x, y)).unwrap().symbol())
+                .collect::<String>()
+        })
+        .find(|line| line.contains("+added"))
+        .expect("the commented diff row rendered");
+
+    assert!(
+        line.contains('▌'),
+        "a commented row keeps its marker in split layout: {line}"
+    );
+}
+
+#[test]
 fn a_line_missing_on_one_side_is_hatched() {
     let mut state = app_with_two_hunk_headers();
     state.terminal_width = 150;
@@ -1494,6 +1538,7 @@ fn a_reply_card_uses_a_distinct_border_from_the_comment_it_answers() {
         author: "alice".into(),
         body: body.into(),
         position: Some(anchor.clone()),
+        selection: None,
         pending: false,
     };
     let mut state = app();

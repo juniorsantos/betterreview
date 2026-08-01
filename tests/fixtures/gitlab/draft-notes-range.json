@@ -8,8 +8,14 @@
       "old_line": null,
       "new_line": 4,
       "line_range": {
-        "start": { "old_line": null, "new_line": 2 },
-        "end": { "old_line": null, "new_line": 4 }
+        "start": {
+          "line_code": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_2_2",
+          "type": "new"
+        },
+        "end": {
+          "line_code": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_4_4",
+          "type": "new"
+        }
       }
     }
   }

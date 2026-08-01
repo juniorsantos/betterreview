@@ -118,6 +118,11 @@ async fn loads_paginated_github_snapshot_with_structured_commands() {
     assert_eq!(snapshot.files.len(), 3);
     assert_eq!(snapshot.threads.len(), 2);
     assert_eq!(snapshot.drafts.len(), 1);
+    let selection = snapshot.threads[0].comments[0]
+        .selection
+        .as_ref()
+        .expect("the published range is anchored");
+    assert_eq!((selection.start.line, selection.end.line), (1, 2));
     assert_eq!(snapshot.files[0].head_blob.as_deref(), Some("sha-one-head"));
     assert_eq!(snapshot.files[0].base_blob, None);
     assert_eq!(snapshot.files[2].base_blob.as_deref(), Some("sha-old-base"));

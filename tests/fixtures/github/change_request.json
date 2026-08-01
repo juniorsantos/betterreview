@@ -44,6 +44,8 @@
                     },
                     "line": 2,
                     "originalLine": null,
+                    "startLine": 1,
+                    "originalStartLine": null,
                     "viewerDidAuthor": false,
                     "pullRequestReview": {
                       "state": "COMMENTED"

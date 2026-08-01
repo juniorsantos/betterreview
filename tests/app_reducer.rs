@@ -435,6 +435,7 @@ fn copy_all_comments_formats_threads_replies_and_drafts_as_markdown() {
                 author: "alice".into(),
                 body: "Please rename this.".into(),
                 position: Some(comment_pos(&path, DiffSide::Right, 2)),
+                selection: None,
                 pending: false,
             },
             ReviewComment {
@@ -442,6 +443,7 @@ fn copy_all_comments_formats_threads_replies_and_drafts_as_markdown() {
                 author: "bob".into(),
                 body: "Done.".into(),
                 position: None,
+                selection: None,
                 pending: false,
             },
         ],
@@ -799,6 +801,8 @@ fn quit_flow_can_cancel_or_discard_the_editor() {
         side: DiffSide::Right,
         line: 1,
         hunk: 0,
+        old_line: None,
+        new_line: None,
     };
     state.session.editor = Some(betterreview::state::EditorSnapshot {
         lines: vec!["rascunho".into()],
@@ -845,6 +849,8 @@ fn keep_session_discards_mode_editors() {
         side: DiffSide::Right,
         line: 1,
         hunk: 0,
+        old_line: None,
+        new_line: None,
     };
     state.session.editor = Some(EditorSnapshot {
         lines: vec!["being edited".into()],
@@ -889,6 +895,8 @@ fn notices_expire_after_a_few_ticks() {
         side: DiffSide::Right,
         line: 1,
         hunk: 0,
+        old_line: None,
+        new_line: None,
     };
     state.session.editor = Some(EditorSnapshot {
         lines: vec!["parked text".into()],
@@ -970,6 +978,8 @@ fn added_row(path: &str, line: u32) -> betterreview::diff::DiffRow {
             side: DiffSide::Right,
             line,
             hunk: 0,
+            old_line: None,
+            new_line: None,
         }),
     }
 }
@@ -984,6 +994,8 @@ fn stale_editor_is_replaced_when_opening_a_new_comment() {
         side: DiffSide::Right,
         line: 1,
         hunk: 0,
+        old_line: None,
+        new_line: None,
     };
     state.session.editor = Some(EditorSnapshot {
         lines: vec!["texto antigo".into()],
@@ -1042,6 +1054,8 @@ fn comment_pos(path: &RepoPath, side: DiffSide, line: u32) -> DiffPosition {
         side,
         line,
         hunk: 0,
+        old_line: None,
+        new_line: None,
     }
 }
 
@@ -1091,6 +1105,7 @@ fn state_with_multiline_comment() -> AppState {
                 DiffSide::Right,
                 1,
             )),
+            selection: None,
             pending: false,
         }],
     });
@@ -1290,6 +1305,8 @@ fn edit_refuses_when_a_fresh_draft_is_parked() {
         side: DiffSide::Right,
         line: 1,
         hunk: 0,
+        old_line: None,
+        new_line: None,
     };
     let parked = EditorSnapshot {
         lines: vec!["parked text".into()],
@@ -1352,6 +1369,8 @@ fn reply_refuses_when_a_fresh_draft_is_parked() {
         side: DiffSide::Right,
         line: 1,
         hunk: 0,
+        old_line: None,
+        new_line: None,
     };
     let parked = EditorSnapshot {
         lines: vec!["parked text".into()],
@@ -1380,6 +1399,7 @@ fn reply_refuses_when_a_fresh_draft_is_parked() {
             author: "alice".into(),
             body: "please explain".into(),
             position: Some(comment_pos(&path, DiffSide::Right, 1)),
+            selection: None,
             pending: false,
         }],
     };
@@ -1461,6 +1481,7 @@ fn reply_on_thread_dispatches_reply() {
             author: "alice".into(),
             body: "please explain".into(),
             position: Some(comment_pos(&path, DiffSide::Right, 1)),
+            selection: None,
             pending: false,
         }],
     };
@@ -1491,6 +1512,7 @@ fn reply_on_thread_dispatches_reply() {
         author: "dev".into(),
         body: "thanks, fixed".into(),
         position: Some(comment_pos(&path, DiffSide::Right, 1)),
+        selection: None,
         pending: false,
     });
     update(
@@ -1518,12 +1540,16 @@ fn scheduling_a_draft_registers_a_pending_label() {
                 side: betterreview::domain::DiffSide::Right,
                 line: 1,
                 hunk: 0,
+                old_line: None,
+                new_line: None,
             },
             end: betterreview::domain::DiffPosition {
                 path: RepoPath("src/file_0.rs".into()),
                 side: betterreview::domain::DiffSide::Right,
                 line: 1,
                 hunk: 0,
+                old_line: None,
+                new_line: None,
             },
         },
         suggestion: None,
@@ -1731,6 +1757,7 @@ fn state_with_two_comment_blocks() -> AppState {
             author: "alice".into(),
             body: "first".into(),
             position: Some(comment_pos(&path, DiffSide::Right, 1)),
+            selection: None,
             pending: false,
         }],
     });
@@ -1744,6 +1771,7 @@ fn state_with_two_comment_blocks() -> AppState {
             author: "bob".into(),
             body: "second".into(),
             position: Some(comment_pos(&path, DiffSide::Right, 3)),
+            selection: None,
             pending: false,
         }],
     });
@@ -1898,6 +1926,8 @@ fn updating_a_draft_keeps_its_anchor() {
         side: DiffSide::Right,
         line: 1,
         hunk: 0,
+        old_line: None,
+        new_line: None,
     };
     state.provider.drafts.push(DraftComment {
         id: DraftId("d1".into()),
@@ -2137,6 +2167,8 @@ fn a_created_draft_appears_as_an_inline_card() {
         side: DiffSide::Right,
         line: 1,
         hunk: 0,
+        old_line: None,
+        new_line: None,
     };
     state.rendered_diff = Some(RenderedDiff {
         rows: vec![RenderedRow {
@@ -2894,6 +2926,8 @@ fn editor_snapshot() -> EditorSnapshot {
         side: DiffSide::Right,
         line: 1,
         hunk: 0,
+        old_line: None,
+        new_line: None,
     };
     EditorSnapshot {
         lines: vec!["being edited".into()],

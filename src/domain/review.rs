@@ -27,6 +27,8 @@ pub struct ReviewComment {
     pub author: String,
     pub body: String,
     pub position: Option<DiffPosition>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selection: Option<DiffSelection>,
     pub pending: bool,
 }
 

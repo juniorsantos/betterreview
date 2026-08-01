@@ -113,6 +113,11 @@ async fn loads_gitlab_snapshot_and_capabilities_with_encoded_namespace() {
     assert_eq!(snapshot.files.len(), 3);
     assert_eq!(snapshot.threads.len(), 1);
     assert_eq!(snapshot.drafts.len(), 1);
+    let selection = snapshot.threads[0].comments[0]
+        .selection
+        .as_ref()
+        .expect("the published range is anchored");
+    assert_eq!((selection.start.line, selection.end.line), (2, 4));
     assert_eq!(snapshot.files[0].head_blob.as_deref(), Some("blob-head-1"));
     assert!(matches!(
         snapshot
@@ -206,6 +211,34 @@ async fn disables_request_changes_before_gitlab_17_3() {
             .capabilities
             .for_outcome(ReviewOutcome::RequestChanges),
         Support::Unsupported { reason } if reason.contains("17.3")
+    ));
+}
+
+#[tokio::test]
+async fn disables_approve_when_the_current_user_already_approved() {
+    let mut responses = snapshot_responses();
+    responses.retain(|(endpoint, _)| !endpoint.ends_with("/approvals"));
+    responses.push((
+        "projects/group%2Fapi/merge_requests/42/approvals",
+        output(
+            serde_json::json!({
+                "approved": true,
+                "approvals_required": 1,
+                "user_has_approved": true,
+                "user_can_approve": false
+            })
+            .to_string()
+            .into_bytes(),
+        ),
+    ));
+    let provider = GitLabProvider::new(Arc::new(RoutingRunner::new(responses)));
+
+    let snapshot = provider.load(&key()).await.unwrap();
+
+    assert!(matches!(
+        snapshot.capabilities.approve,
+        Support::Unsupported { ref reason }
+            if reason == "The current user has already approved this merge request"
     ));
 }
 

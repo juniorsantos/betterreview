@@ -149,8 +149,22 @@ fn consume_context(
     ensure_capacity(hunk, 1, 1)?;
     let old_line = hunk.old_line;
     let new_line = hunk.new_line;
-    let left = position(path, DiffSide::Left, old_line, hunk.id);
-    let right = position(path, DiffSide::Right, new_line, hunk.id);
+    let left = position(
+        path,
+        DiffSide::Left,
+        old_line,
+        Some(old_line),
+        Some(new_line),
+        hunk.id,
+    );
+    let right = position(
+        path,
+        DiffSide::Right,
+        new_line,
+        Some(old_line),
+        Some(new_line),
+        hunk.id,
+    );
     advance(hunk, 1, 1)?;
     Ok(DiffRow {
         raw: raw.to_owned(),
@@ -169,7 +183,15 @@ fn consume_removed(
 ) -> Result<DiffRow, DiffError> {
     ensure_capacity(hunk, 1, 0)?;
     let old_line = hunk.old_line;
-    let left = position(path, DiffSide::Left, old_line, hunk.id);
+    let new_line = hunk.new_line;
+    let left = position(
+        path,
+        DiffSide::Left,
+        old_line,
+        Some(old_line),
+        Some(new_line),
+        hunk.id,
+    );
     advance(hunk, 1, 0)?;
     Ok(DiffRow {
         raw: raw.to_owned(),
@@ -184,7 +206,15 @@ fn consume_removed(
 fn consume_added(hunk: &mut ActiveHunk, path: &RepoPath, raw: &str) -> Result<DiffRow, DiffError> {
     ensure_capacity(hunk, 0, 1)?;
     let new_line = hunk.new_line;
-    let right = position(path, DiffSide::Right, new_line, hunk.id);
+    let old_line = hunk.old_line;
+    let right = position(
+        path,
+        DiffSide::Right,
+        new_line,
+        Some(old_line),
+        Some(new_line),
+        hunk.id,
+    );
     advance(hunk, 0, 1)?;
     Ok(DiffRow {
         raw: raw.to_owned(),
@@ -265,12 +295,21 @@ fn mismatch(hunk: &ActiveHunk, actual_old: u32, actual_new: u32) -> DiffError {
     }
 }
 
-fn position(path: &RepoPath, side: DiffSide, line: u32, hunk: u32) -> DiffPosition {
+fn position(
+    path: &RepoPath,
+    side: DiffSide,
+    line: u32,
+    old_line: Option<u32>,
+    new_line: Option<u32>,
+    hunk: u32,
+) -> DiffPosition {
     DiffPosition {
         path: path.clone(),
         side,
         line,
         hunk,
+        old_line,
+        new_line,
     }
 }
 

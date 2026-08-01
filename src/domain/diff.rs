@@ -24,6 +24,10 @@ pub struct DiffPosition {
     pub side: DiffSide,
     pub line: u32,
     pub hunk: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub old_line: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub new_line: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

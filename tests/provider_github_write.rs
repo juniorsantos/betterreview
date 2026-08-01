@@ -236,6 +236,8 @@ fn selection(side: DiffSide, start: u32, end: u32) -> DiffSelection {
         side,
         line,
         hunk: 0,
+        old_line: None,
+        new_line: None,
     };
     DiffSelection {
         start: position(start),

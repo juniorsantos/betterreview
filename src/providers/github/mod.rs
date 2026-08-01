@@ -608,6 +608,7 @@ fn map_threads(wire_threads: Vec<WireThread>) -> (Vec<ReviewThread>, Vec<DraftCo
                     thread_id: Some(ThreadId(thread.id.clone())),
                 });
             } else {
+                let selection = comment_selection(&path, &comment, position.clone());
                 comments.push(ReviewComment {
                     id: comment.id,
                     author: comment
@@ -615,6 +616,7 @@ fn map_threads(wire_threads: Vec<WireThread>) -> (Vec<ReviewThread>, Vec<DraftCo
                         .map_or_else(|| "unknown".into(), |author| author.login),
                     body: comment.body,
                     position,
+                    selection,
                     pending: false,
                 });
             }
@@ -646,6 +648,8 @@ fn comment_selection(
             side: end.side,
             line,
             hunk: end.hunk,
+            old_line: None,
+            new_line: None,
         },
         _ => end.clone(),
     };
@@ -671,6 +675,8 @@ fn comment_position(
         side,
         line,
         hunk: 0,
+        old_line: None,
+        new_line: None,
     })
 }
 

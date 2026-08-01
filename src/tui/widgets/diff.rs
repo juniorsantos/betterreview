@@ -560,9 +560,15 @@ fn render_display_row(
             ),
         ]),
         DisplayRow::HunkHeader { hunk } => hunk_header_line(state, *hunk, gutter),
-        DisplayRow::SplitDiff { left, right } => {
-            split_line(diff, *left, *right, columns, state.tab_width)
-        }
+        DisplayRow::SplitDiff { left, right } => split_line(
+            diff,
+            *left,
+            *right,
+            columns,
+            state.tab_width,
+            left.is_some_and(|row| commented.contains(&row)),
+            right.is_some_and(|row| commented.contains(&row)),
+        ),
         DisplayRow::Context {
             old_line,
             new_line,
@@ -732,6 +738,8 @@ fn split_line(
     right: Option<usize>,
     columns: Option<crate::tui::DiffColumns>,
     tab_width: usize,
+    left_marked: bool,
+    right_marked: bool,
 ) -> Line<'static> {
     let Some(columns) = columns else {
         return Line::default();
@@ -744,6 +752,7 @@ fn split_line(
             DiffSide::Left,
             columns.left.width as usize,
             tab_width,
+            left_marked,
         ));
     }
     if columns.left.width > 0 && columns.right.width > 0 {
@@ -756,6 +765,7 @@ fn split_line(
             DiffSide::Right,
             columns.right.width as usize,
             tab_width,
+            right_marked,
         ));
     }
     Line::from(spans)
@@ -767,6 +777,7 @@ fn side_spans(
     side: DiffSide,
     width: usize,
     tab_width: usize,
+    marked: bool,
 ) -> Vec<Span<'static>> {
     let Some(rendered) = row.and_then(|row| diff.rows.get(row)) else {
         return vec![Span::styled(
@@ -781,9 +792,11 @@ fn side_spans(
     let number = position
         .map(|position| position.line.to_string())
         .unwrap_or_default();
+    let marker = if marked { "▌" } else { " " };
+    let marker_color = if marked { theme::ACCENT } else { theme::MUTED };
     let mut spans = vec![Span::styled(
-        format!("{number:>5} "),
-        Style::default().fg(theme::MUTED),
+        format!("{marker}{number:>4} "),
+        Style::default().fg(marker_color),
     )];
     spans.extend(truncate_spans(
         &expand_span_tabs(&rendered.text.spans, tab_width),
