@@ -3,7 +3,7 @@
 All notable changes to this project are documented in this file, generated
 from conventional commits by [release-please](https://github.com/googleapis/release-please).
 
-## [1.3.2](https://github.com/juniorsantos/betterreview/compare/v1.3.1...v1.3.2) (2026-08-01)
+## [1.3.2](https://github.com/juniorsantos/betterreview/compare/v1.3.1...v1.3.2)
 
 
 ### Bug Fixes
