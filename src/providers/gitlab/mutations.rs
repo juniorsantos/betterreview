@@ -1,4 +1,4 @@
-use serde_json::{Value, json};
+use serde_json::Value;
 use std::time::Duration;
 
 use crate::{
@@ -35,14 +35,10 @@ where
             .unwrap_or(input.body.0);
         let position = write_position(&input.selection, &merge_request.diff_refs)?;
         let endpoint = format!("{}/draft_notes", merge_request_root(key));
+        let mut fields = vec![("note".into(), body)];
+        fields.extend(position.form_fields());
         let bytes = self
-            .write_json(
-                key,
-                "POST",
-                &endpoint,
-                json!({ "note": body, "position": position }),
-                "create draft",
-            )
+            .write_form(key, "POST", &endpoint, fields, "create draft")
             .await?;
         let draft: DraftNote = parse_json(&bytes, "create draft")?;
         Ok(map_draft(draft, Some(input.selection)))
@@ -56,11 +52,11 @@ where
     ) -> Result<DraftComment, ProviderError> {
         let endpoint = format!("{}/draft_notes/{}", merge_request_root(key), id.0);
         let bytes = self
-            .write_json(
+            .write_form(
                 key,
                 "PUT",
                 &endpoint,
-                json!({ "note": body.0 }),
+                vec![("note".into(), body.0)],
                 "update draft",
             )
             .await?;
@@ -74,7 +70,7 @@ where
         id: &DraftId,
     ) -> Result<(), ProviderError> {
         let endpoint = format!("{}/draft_notes/{}", merge_request_root(key), id.0);
-        self.write_json(key, "DELETE", &endpoint, json!({}), "delete draft")
+        self.write_form(key, "DELETE", &endpoint, Vec::new(), "delete draft")
             .await
             .map(|_| ())
     }
@@ -87,14 +83,14 @@ where
     ) -> Result<ReviewThread, ProviderError> {
         let endpoint = format!("{}/draft_notes", merge_request_root(key));
         let bytes = self
-            .write_json(
+            .write_form(
                 key,
                 "POST",
                 &endpoint,
-                json!({
-                    "note": body.0,
-                    "in_reply_to_discussion_id": thread.0,
-                }),
+                vec![
+                    ("note".into(), body.0),
+                    ("in_reply_to_discussion_id".into(), thread.0.clone()),
+                ],
                 "reply",
             )
             .await?;
@@ -113,6 +109,7 @@ where
                 author: "viewer".into(),
                 body: draft.note,
                 position: draft.position.as_ref().and_then(super::position::position),
+                selection: draft.position.as_ref().and_then(super::position::selection),
                 pending: true,
             }],
         })
@@ -125,11 +122,11 @@ where
         resolved: bool,
     ) -> Result<(), ProviderError> {
         let endpoint = format!("{}/discussions/{}", merge_request_root(key), thread.0);
-        self.write_json(
+        self.write_form(
             key,
             "PUT",
             &endpoint,
-            json!({ "resolved": resolved }),
+            vec![("resolved".into(), resolved.to_string())],
             if resolved {
                 "resolve discussion"
             } else {
@@ -157,11 +154,11 @@ where
             "load draft notes",
         )?;
         for draft in drafts {
-            self.write_json(
+            self.write_form(
                 key,
                 "DELETE",
                 &format!("{root}/draft_notes/{}", draft.id),
-                json!({}),
+                Vec::new(),
                 "discard draft",
             )
             .await?;
@@ -185,20 +182,24 @@ where
                 ReviewOutcome::Approve => Some("reviewed"),
                 ReviewOutcome::RequestChanges => Some("requested_changes"),
             };
-            let mut body = json!({ "note": request.summary });
+            let mut fields = vec![("note".into(), request.summary)];
             if let Some(state) = reviewer_state {
-                body["reviewer_state"] = json!(state);
+                fields.push(("reviewer_state".into(), state.into()));
             }
             let bytes = self
-                .write_json(
+                .write_form(
                     key,
                     "POST",
                     &format!("{root}/draft_notes/bulk_publish"),
-                    body,
+                    fields,
                     "publish drafts",
                 )
                 .await?;
-            let value: Value = parse_json(&bytes, "publish drafts")?;
+            let value = if bytes.iter().all(|byte| byte.is_ascii_whitespace()) {
+                Value::Null
+            } else {
+                parse_json(&bytes, "publish drafts")?
+            };
             published_drafts = value["published_drafts"]
                 .as_u64()
                 .and_then(|count| u32::try_from(count).ok())
@@ -209,11 +210,11 @@ where
             return Ok(SubmitResult::Complete);
         }
         let approval = self
-            .write_json(
+            .write_form(
                 key,
                 "POST",
                 &format!("{root}/approve"),
-                json!({ "sha": merge_request.diff_refs.head_sha }),
+                vec![("sha".into(), merge_request.diff_refs.head_sha)],
                 "approve merge request",
             )
             .await;
@@ -242,32 +243,28 @@ where
         )
     }
 
-    async fn write_json(
+    async fn write_form(
         &self,
         key: &ChangeRequestKey,
         method: &str,
         endpoint: &str,
-        body: Value,
+        fields: Vec<(String, String)>,
         operation: &str,
     ) -> Result<Vec<u8>, ProviderError> {
-        let stdin =
-            serde_json::to_vec(&body).map_err(|error| ProviderError::MalformedResponse {
-                operation: operation.into(),
-                message: error.to_string(),
-            })?;
-        let args = vec![
+        let mut args = vec![
             "api".to_owned(),
             "--hostname".to_owned(),
             key.host.clone(),
             "-X".to_owned(),
             method.to_owned(),
-            "--input".to_owned(),
-            "-".to_owned(),
-            endpoint.to_owned(),
         ];
+        for (key, value) in fields {
+            args.extend(["--form".to_owned(), format!("{key}={value}")]);
+        }
+        args.push(endpoint.to_owned());
         match self
             .client
-            .api(args, Some(stdin), operation, Duration::from_secs(120))
+            .api(args, None, operation, Duration::from_secs(120))
             .await
         {
             Err(ProviderError::Command(CommandError::Timeout { .. })) => {

@@ -26,8 +26,12 @@ fn maps_added_deleted_and_context_lines() {
     assert!(removed.left.is_some());
     assert!(removed.right.is_none());
     assert_eq!(removed.left.as_ref().unwrap().side, DiffSide::Left);
+    assert_eq!(removed.left.as_ref().unwrap().old_line, removed.old_line);
+    assert_eq!(removed.left.as_ref().unwrap().new_line, Some(2));
     assert!(added.left.is_none());
     assert_eq!(added.right.as_ref().unwrap().side, DiffSide::Right);
+    assert_eq!(added.right.as_ref().unwrap().old_line, Some(3));
+    assert_eq!(added.right.as_ref().unwrap().new_line, added.new_line);
     assert!(context.left.is_some() && context.right.is_some());
 }
 

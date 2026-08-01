@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::diff::RenderedDiff;
-use crate::domain::{DiffPosition, DraftComment, DraftId, RepoPath, ReviewThread, ThreadId};
+use crate::domain::{
+    DiffPosition, DiffSelection, DraftComment, DraftId, RepoPath, ReviewThread, ThreadId,
+};
 
 use super::AppState;
 
@@ -582,15 +584,7 @@ pub fn commented_rows(state: &AppState) -> std::collections::BTreeSet<usize> {
         let Some(selection) = draft.selection.as_ref() else {
             continue;
         };
-        let first = find_anchor_row(rendered, &selection.start);
-        let last = find_anchor_row(rendered, &selection.end);
-        match (first, last) {
-            (Some(first), Some(last)) => rows.extend(first.min(last)..=first.max(last)),
-            (Some(only), None) | (None, Some(only)) => {
-                rows.insert(only);
-            }
-            (None, None) => {}
-        }
+        extend_selection_rows(&mut rows, rendered, selection);
     }
     for thread in state
         .provider
@@ -598,13 +592,33 @@ pub fn commented_rows(state: &AppState) -> std::collections::BTreeSet<usize> {
         .iter()
         .filter(|thread| thread.path == active_path)
     {
-        for position in thread.comments.iter().filter_map(|c| c.position.as_ref()) {
-            if let Some(row) = find_anchor_row(rendered, position) {
+        for comment in &thread.comments {
+            if let Some(selection) = comment.selection.as_ref() {
+                extend_selection_rows(&mut rows, rendered, selection);
+            } else if let Some(position) = comment.position.as_ref()
+                && let Some(row) = find_anchor_row(rendered, position)
+            {
                 rows.insert(row);
             }
         }
     }
     rows
+}
+
+fn extend_selection_rows(
+    rows: &mut std::collections::BTreeSet<usize>,
+    rendered: &RenderedDiff,
+    selection: &DiffSelection,
+) {
+    let first = find_anchor_row(rendered, &selection.start);
+    let last = find_anchor_row(rendered, &selection.end);
+    match (first, last) {
+        (Some(first), Some(last)) => rows.extend(first.min(last)..=first.max(last)),
+        (Some(only), None) | (None, Some(only)) => {
+            rows.insert(only);
+        }
+        (None, None) => {}
+    }
 }
 
 fn find_anchor_row(rendered: &RenderedDiff, target: &DiffPosition) -> Option<usize> {

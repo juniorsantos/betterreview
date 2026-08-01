@@ -21,12 +21,16 @@ fn selection_keeps_canonical_positions() {
         side: DiffSide::Right,
         line: 8,
         hunk: 1,
+        old_line: None,
+        new_line: None,
     };
     let end = DiffPosition {
         path: RepoPath("src/lib.rs".into()),
         side: DiffSide::Right,
         line: 10,
         hunk: 1,
+        old_line: None,
+        new_line: None,
     };
     assert_eq!(
         DiffSelection {

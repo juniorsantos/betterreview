@@ -14,6 +14,8 @@ fn pos(path: &RepoPath, side: DiffSide, line: u32) -> DiffPosition {
         side,
         line,
         hunk: 0,
+        old_line: None,
+        new_line: None,
     }
 }
 
@@ -65,6 +67,7 @@ fn thread_comment(
         author: author.into(),
         body: body.into(),
         position,
+        selection: None,
         pending: false,
     }
 }

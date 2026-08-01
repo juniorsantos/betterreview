@@ -62,13 +62,22 @@ pub struct Position {
 
 #[derive(Clone, Deserialize)]
 pub struct LineRange {
+    #[serde(default)]
     pub start: Option<LineAnchor>,
+    #[serde(default)]
+    pub end: Option<LineAnchor>,
 }
 
 #[derive(Clone, Deserialize)]
 pub struct LineAnchor {
+    #[serde(default)]
     pub old_line: Option<u32>,
+    #[serde(default)]
     pub new_line: Option<u32>,
+    #[serde(default)]
+    pub line_code: Option<String>,
+    #[serde(rename = "type", default)]
+    pub side: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -96,6 +105,9 @@ pub struct Approvals {
     pub _approved: bool,
     #[serde(rename = "approvals_required", default)]
     pub _approvals_required: u32,
+    #[serde(default)]
+    pub user_has_approved: bool,
+    pub user_can_approve: Option<bool>,
 }
 
 #[derive(Deserialize)]

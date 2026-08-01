@@ -664,12 +664,17 @@ fn map_discussion(discussion: Discussion) -> ReviewThread {
         comments: discussion
             .notes
             .into_iter()
-            .map(|note| ReviewComment {
-                id: note.id.to_string(),
-                author: note.author.username,
-                body: note.body,
-                position: note.position.as_ref().and_then(position),
-                pending: false,
+            .map(|note| {
+                let position = note.position.as_ref().and_then(position);
+                let selection = note.position.as_ref().and_then(selection);
+                ReviewComment {
+                    id: note.id.to_string(),
+                    author: note.author.username,
+                    body: note.body,
+                    position,
+                    selection,
+                    pending: false,
+                }
             })
             .collect(),
     }
@@ -677,7 +682,7 @@ fn map_discussion(discussion: Discussion) -> ReviewThread {
 
 fn capabilities(
     version: &VersionInfo,
-    _approvals: &Approvals,
+    approvals: &Approvals,
 ) -> Result<ProviderCapabilities, ProviderError> {
     let parsed = Version::parse(&version.version)
         .map_err(|error| malformed("load GitLab version", &error.to_string()))?;
@@ -696,6 +701,17 @@ fn capabilities(
     } else {
         Support::Supported
     };
+    let approve = if approvals.user_has_approved {
+        Support::Unsupported {
+            reason: "The current user has already approved this merge request".into(),
+        }
+    } else if approvals.user_can_approve == Some(false) {
+        Support::Unsupported {
+            reason: "The current user cannot approve this merge request".into(),
+        }
+    } else {
+        Support::Supported
+    };
     Ok(ProviderCapabilities {
         create_draft: Support::Supported,
         edit_draft: Support::Supported,
@@ -708,7 +724,7 @@ fn capabilities(
                 .into(),
         },
         comment: Support::Supported,
-        approve: Support::Supported,
+        approve,
         request_changes,
     })
 }
